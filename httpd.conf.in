@@ -1,0 +1,17 @@
+
+ErrorLog %APACHE_DEBIAN%/error.log
+
+ServerName avgo
+
+Listen 10000
+
+LoadModule authz_core_module    %APACHE_DEBIAN_ROOT%/modules/mod_authz_core.so
+LoadModule dir_module           %APACHE_DEBIAN_ROOT%/modules/mod_dir.so
+LoadModule unixd_module         %APACHE_DEBIAN_ROOT%/modules/mod_unixd.so
+
+PidFile %APACHE_PID%
+
+DocumentRoot %APACHE_DEBIAN%
+
+DirectoryIndex index.html
+
