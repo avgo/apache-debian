@@ -1,12 +1,16 @@
 
 ErrorLog %APACHE_DEBIAN%/error.log
 
+TypesConfig %APACHE_DEBIAN%/mime.types
+
 ServerName avgo
 
 Listen %APACHE_DEBIAN_PORT%
 
 LoadModule authz_core_module    %APACHE_DEBIAN_ROOT%/modules/mod_authz_core.so
+# LoadModule cgi_module           %APACHE_DEBIAN_ROOT%/modules/mod_cgi.so
 LoadModule dir_module           %APACHE_DEBIAN_ROOT%/modules/mod_dir.so
+LoadModule mime_module          %APACHE_DEBIAN_ROOT%/modules/mod_mime.so
 LoadModule unixd_module         %APACHE_DEBIAN_ROOT%/modules/mod_unixd.so
 
 PidFile %APACHE_PID%
@@ -14,4 +18,11 @@ PidFile %APACHE_PID%
 DocumentRoot %APACHE_DEBIAN%
 
 DirectoryIndex index.html
+
+AddHandler cgi-script .cgi .pl
+
+<Directory />
+  Options +FollowSymLinks +ExecCGI
+  AllowOverride None
+</Directory>
 

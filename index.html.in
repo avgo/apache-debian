@@ -13,6 +13,10 @@
         <td>Apache PID:</td>
         <td>"%APACHE_PID%"</td>
       </tr>
+      <tr>
+        <td>Perl script:</td>
+        <td><a href="index.pl">index.pl</a></td>
+      </tr>
     </table>
   </body>
 </html>

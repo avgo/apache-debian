@@ -42,6 +42,8 @@ build_dep() {
 }
 
 install() {
+	cd "${install_root}" || return 1
+
 	echo installing ...
 	build_dep &&
 	mkdir -v "${src_dir}" &&
@@ -56,15 +58,29 @@ install() {
 			-e 's@%APACHE_DEBIAN_ROOT%@'"${prefix_rp}"'@g' \
 			-e 's@%APACHE_PID%@'"${apache2_pid}"'@g' \
 			-e 's@%INSTALL_DATE%@'"$(date +"%d %B %Y, %T")"'@g' \
-			"${cf}".in > "${cf}"
+			"${script_dir}/${cf}.in" > "${cf}"
 	done
-	"${prefix_rp}"/bin/apachectl -f "${install_root}"/httpd.conf
+	touch "mime.types"
+	cp "${script_dir}/index.pl.in" "index.pl" && chmod +x "index.pl"
+	start
 }
 
 kill_httpd() {
 	if test -f "${apache2_pid}"; then
 		echo killing apache..
 		kill -s TERM $(cat "${apache2_pid}")
+	fi
+}
+
+start() {
+	"${prefix_rp}"/bin/apachectl -f "${install_root}"/httpd.conf
+}
+
+status() {
+	if test -f "${apache2_pid}"; then
+		:
+	else
+		echo no PID-file
 	fi
 }
 
@@ -92,6 +108,19 @@ else
 		;;
 	--install)
 		action=install
+		;;
+	--kill)
+		kill_httpd
+		;;
+	--restart)
+		kill_httpd
+		start
+		;;
+	--start)
+		start
+		;;
+	--status)
+		status
 		;;
 	*)	echo error: unknown action. >&2
 		exit 1
