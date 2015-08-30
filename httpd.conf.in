@@ -3,7 +3,7 @@ ErrorLog %APACHE_DEBIAN%/error.log
 
 ServerName avgo
 
-Listen 10000
+Listen %APACHE_DEBIAN_PORT%
 
 LoadModule authz_core_module    %APACHE_DEBIAN_ROOT%/modules/mod_authz_core.so
 LoadModule dir_module           %APACHE_DEBIAN_ROOT%/modules/mod_dir.so

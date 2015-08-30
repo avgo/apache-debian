@@ -4,12 +4,34 @@
 
 
 script_rp="$(realpath "${0}")"          || exit 1
+
+# Каталог где хранится скрипт.
+#
 script_dir="$(dirname "${script_rp}")"  || exit 1
-# install_root="$(realpath "${script_dir}/..")"
-install_root="${script_dir}"
+
+# Каталог для работы данного скрипта куда
+# будут сохранены все файлы.
+# 1. Нужно где-то хранить исходники.
+# 2. Нужно куда-то установить Apache server.
+# Пусть по умолчанию берётся из конфига.
+#
+# install_root="${script_dir}"
+
+# Каталог куда будут загружен исходный код apache
+#
 src_dir="${install_root}/src"
+
+# Каталог куда будет установлен apache2
+#
 prefix_rp="${install_root}/root"
+
+# PID-файл для сервера apache2
+#
 apache2_pid="${install_root}/apache2.pid"
+
+# Порт для Apache сервера.
+#
+apache2_port=10000
 
 
 
@@ -30,8 +52,9 @@ install() {
 	cd "${install_root}"
 	for cf in httpd.conf index.html; do
 		sed	-e 's@%APACHE_DEBIAN%@'"${install_root}"'@g' \
-			-e 's@%APACHE_PID%@'"${apache2_pid}"'@g' \
+			-e 's@%APACHE_DEBIAN_PORT%@'"${apache2_port}"'@g' \
 			-e 's@%APACHE_DEBIAN_ROOT%@'"${prefix_rp}"'@g' \
+			-e 's@%APACHE_PID%@'"${apache2_pid}"'@g' \
 			-e 's@%INSTALL_DATE%@'"$(date +"%d %B %Y, %T")"'@g' \
 			"${cf}".in > "${cf}"
 	done
