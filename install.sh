@@ -17,6 +17,15 @@ script_dir="$(dirname "${script_rp}")"  || exit 1
 #
 # install_root="${script_dir}"
 
+if test x"${install_root}" = x
+then
+	install_root=.
+elif ! test -d "${install_root}"
+then
+	echo "error: \${install_root}='${install_root}' not exists."
+	exit 1
+fi
+
 # Каталог куда будут загружен исходный код apache
 #
 src_dir="${install_root}/src"
@@ -72,6 +81,16 @@ kill_httpd() {
 	fi
 }
 
+print_vars () 
+{ 
+    local delim=$1;
+    shift;
+    for cur_var in "$@";
+    do
+        echo "printf \"%-15s${delim}\\\"%s\\\"\n\" \"${cur_var}\" \"\${${cur_var}}\";";
+    done
+}
+
 start() {
 	"${prefix_rp}"/bin/apachectl -f "${install_root}"/httpd.conf
 }
@@ -91,8 +110,18 @@ su_build_dep() {
 
 
 
+eval "$(print_vars '' \
+	install_root  \
+	script_rp     \
+	script_dir    \
+	src_dir       \
+	prefix_rp     \
+	apache2_pid   \
+	apache2_port  \
+)"
+
 if test $# -eq 0; then
-	action=install
+	install
 else
 	case "${1}" in
 	--build-dep)
@@ -107,7 +136,7 @@ else
 			"${install_root}/error.log"
 		;;
 	--install)
-		action=install
+		install
 		;;
 	--kill)
 		kill_httpd
@@ -122,10 +151,11 @@ else
 	--status)
 		status
 		;;
+	--vars)
+		exit
+		;;
 	*)	echo error: unknown action. >&2
 		exit 1
 		;;
 	esac
 fi
-
-$action
