@@ -19,7 +19,8 @@ script_dir="$(dirname "${script_rp}")"  || exit 1
 
 if test x"${install_root}" = x
 then
-	install_root=.
+	install_root="${script_dir}/root"
+	mkdir -v "${install_root}"
 elif ! test -d "${install_root}"
 then
 	echo "error: \${install_root}='${install_root}' not exists."
@@ -81,8 +82,8 @@ kill_httpd() {
 	fi
 }
 
-print_vars () 
-{ 
+print_vars ()
+{
     local delim=$1;
     shift;
     for cur_var in "$@";
@@ -97,7 +98,7 @@ start() {
 
 status() {
 	if test -f "${apache2_pid}"; then
-		:
+		cat "${apache2_pid}"
 	else
 		echo no PID-file
 	fi
