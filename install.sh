@@ -20,7 +20,7 @@ script_dir="$(dirname "${script_rp}")"  || exit 1
 if test x"${install_root}" = x
 then
 	install_root="${script_dir}/root"
-	mkdir -v "${install_root}"
+	test -d "${install_root}" || mkdir -v "${install_root}"
 elif ! test -d "${install_root}"
 then
 	echo "error: \${install_root}='${install_root}' not exists."
@@ -58,9 +58,29 @@ install() {
 	build_dep &&
 	mkdir -v "${src_dir}" &&
 	cd "${src_dir}" &&
-	apt-get source apache2 &&
-	cd "apache2-"* &&
-	./configure --prefix="${prefix_rp}" && make && make install
+	apt-get source apache2 || exit 1
+
+	log_dir="${install_root}/log"
+
+	test -d "${log_dir}" || mkdir "${log_dir}"
+
+	cd "apache2-"* || exit 1
+
+	# SNAPSHOT before "configure"
+	find > "${log_dir}/snapshot.0.txt"
+
+	./configure --prefix="${prefix_rp}" || exit 1
+
+	# SNAPSHOT after "configure"
+	find > "${log_dir}/snapshot.1.configure.txt"
+
+	make || exit 1
+
+	# SNAPSHOT after "make"
+	find > "${log_dir}/snapshot.2.make.txt"
+
+	make install || exit 1
+
 	cd "${install_root}"
 	for cf in httpd.conf index.html; do
 		sed	-e 's@%APACHE_DEBIAN%@'"${install_root}"'@g' \
@@ -98,7 +118,8 @@ start() {
 
 status() {
 	if test -f "${apache2_pid}"; then
-		cat "${apache2_pid}"
+		pid=$(cat "${apache2_pid}") &&
+		ls -l /proc/$pid
 	else
 		echo no PID-file
 	fi
@@ -108,18 +129,20 @@ su_build_dep() {
 	apt-get build-dep apache2
 }
 
+vars() {
+	eval "$(print_vars '' \
+		install_root  \
+		script_rp     \
+		script_dir    \
+		src_dir       \
+		prefix_rp     \
+		apache2_pid   \
+		apache2_port  \
+	)"
+}
 
 
 
-eval "$(print_vars '' \
-	install_root  \
-	script_rp     \
-	script_dir    \
-	src_dir       \
-	prefix_rp     \
-	apache2_pid   \
-	apache2_port  \
-)"
 
 if test $# -eq 0; then
 	install
@@ -153,7 +176,7 @@ else
 		status
 		;;
 	--vars)
-		exit
+		vars
 		;;
 	*)	echo error: unknown action. >&2
 		exit 1
