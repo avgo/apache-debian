@@ -27,23 +27,6 @@ then
 	exit 1
 fi
 
-# Каталог куда будут загружен исходный код apache
-#
-distrib_dir="${install_root}/distrib"
-
-# Каталог куда будут скопирован исходный код apache для дальнейших
-# экспериментов
-#
-src_dir="${install_root}/src"
-
-# Каталог куда будет установлен apache2
-#
-prefix_rp="${install_root}/root"
-
-# Логи для процесса сборки/тестирования
-#
-log_dir="${install_root}/log"
-
 # PID-файл для сервера apache2
 #
 apache2_pid="${install_root}/apache2.pid"
@@ -51,6 +34,23 @@ apache2_pid="${install_root}/apache2.pid"
 # Порт для Apache сервера.
 #
 apache2_port=10000
+
+# Каталог куда будут загружен исходный код apache
+#
+distrib_dir="${install_root}/distrib"
+
+# Каталог куда будет установлен apache2
+#
+prefix_rp="${install_root}/root"
+
+# Каталог куда будут скопирован исходный код apache для дальнейших
+# экспериментов
+#
+src_dir="${install_root}/src"
+
+# Каталог данных для тестирования
+#
+tests_dir="${install_root}/tests"
 
 
 
@@ -60,9 +60,7 @@ build_dep() {
 	su -c "'${script_rp}' --build-dep"
 }
 
-install() {
-	cd "${install_root}" || return 1
-
+prepare_distrib() {
 	printf "checking for distrib in '%s' .. " "${distrib_dir}"
 
 	if test -d "${distrib_dir}"
@@ -75,33 +73,70 @@ install() {
 		cd "${distrib_dir}"
 		apt-get source apache2
 	fi
+}
 
-	printf "checking for src_dir in '%s' .. " "${src_dir}"
+prepare_src() {
+	local is_overwrite
+
+	if test x"${1}" = x--overwrite; then
+		is_overwrite=y
+		shift
+	fi
+
+	if test x"${1}" = x; then
+		echo "prepare_src() error:"
+		exit 1
+	fi
+
+	local src_dir="${1}"
+	local is_create
+
+	echo "prepare_src() starting ..."
 
 	if test -d "${src_dir}"
 	then
-		echo exists
+		if test x$is_overwrite = xy; then
+			rm -rf "${src_dir}"
+			printf "overwriting "
+			is_create=y
+		else
+			printf "leaving 'src_dir' in '%s'\n" "${src_dir}"
+		fi
 	else
-		echo no
-		echo creating directory and copying apache sources...
+		printf "creating "
+		is_create=y
+	fi
+
+	if test x${is_create} = xy; then
+		printf "directory 'src_dir' in '%s' and copying apache sources ..\n" "${src_dir}"
 		mkdir -v "${src_dir}"
 		cp -rf "${distrib_dir}/apache2-"* "${src_dir}" &&
 		echo copying complete.
 	fi
 
-	src_dir_ap="$(ls -d "${src_dir}/apache2-"*)"
+	src_dir_apache="$(ls -d "${src_dir}/apache2-"*)"
 
-	test -d "${log_dir}" || mkdir "${log_dir}"
+	cd "${src_dir_apache}" || exit 1
+}
 
-	cd "${src_dir_ap}" || exit 1
+test01() {
+	local test_dir="${1}"
+	local log_dir="${test_dir}/log"
+	local src_dir="${test_dir}/src"
+
+	prepare_src --overwrite "${src_dir}"
+
+	mkdir -v "${log_dir}"
 
 	find > "${log_dir}/0.snapshot.txt"
 
 	./configure --prefix="${prefix_rp}" 2>&1 | tee "${log_dir}/1.configure.log.txt" || exit 1
 	find > "${log_dir}/1.configure.snapshot.txt"
 
-	make 2>&1 | tee "${log_dir}/2.make.log.txt" || exit 1
+	make 2>&1 | tee "${log_dir}/2.make.1.log.txt" || exit 1
 	find > "${log_dir}/2.make.snapshot.txt"
+
+	make 2>&1 | tee "${log_dir}/2.make.2.log.txt" || exit 1
 
 	make install 2>&1 | tee "${log_dir}/3.make-install.log.txt" || exit 1
 
@@ -129,14 +164,36 @@ kill_httpd() {
 	fi
 }
 
-print_vars ()
-{
+print_vars () {
     local delim=$1;
     shift;
     for cur_var in "$@";
     do
         echo "printf \"%-15s${delim}\\\"%s\\\"\n\" \"${cur_var}\" \"\${${cur_var}}\";";
     done
+}
+
+run_test() {
+	if test $# -ne 1; then
+		echo "run_test() error:"
+		exit 1
+	fi
+
+	test_procedure="${1}"
+
+	prepare_distrib
+
+	kill_httpd
+
+	test -d "${tests_dir}" || mkdir -v "${tests_dir}"
+
+	test_dir="${tests_dir}/${test_procedure}"
+
+	rm -rf "${test_dir}"
+
+	mkdir -v "${test_dir}"
+
+	"${test_procedure}" "${test_dir}"
 }
 
 start() {
@@ -174,7 +231,7 @@ vars() {
 
 
 if test $# -eq 0; then
-	install
+	run_test test01
 else
 	case "${1}" in
 	--build-dep)
@@ -190,9 +247,6 @@ else
 			"${install_root}/index.html" \
 			"${install_root}/index.pl"   \
 			"${install_root}/mime.types"
-		;;
-	--install)
-		install
 		;;
 	--kill)
 		kill_httpd
