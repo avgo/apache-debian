@@ -113,6 +113,7 @@ test01() {
 	local log_dir="${test_dir}/log"
 	local prefix_rp="${test_dir}/root"
 	local src_dir="${test_dir}/src"
+	local test_result
 
 	prepare_src --overwrite "${src_dir}"
 
@@ -144,26 +145,37 @@ test01() {
 
 	cp "${script_dir}/index.pl.in" "index.pl" && chmod +x "index.pl"
 
-	"${prefix_rp}"/bin/apachectl -f "${install_root}"/httpd.conf
+	local apache_ctl="${prefix_rp}/bin/apachectl"
 
-	if test -f "${apache2_pid}"; then
-		echo pidfile: ${apache2_pid}
-		pid=$(cat "${apache2_pid}")
-		echo /proc/$pid
-		ls -l /proc/$pid
-		echo command to kill: kill -s TERM $pid
+	if test -f "${apache_ctl}"; then
+		"${apache_ctl}" -f "${install_root}"/httpd.conf
+
+		if test -f "${apache2_pid}"; then
+			echo pidfile: ${apache2_pid}
+			pid=$(cat "${apache2_pid}")
+			echo /proc/$pid
+			ls -l /proc/$pid
+		else
+			echo "no PID-file !!!"
+			test_result=fail
+		fi
 	else
-		echo "no PID-file !!!"
+		echo "error: '${apache_ctl}' not exists."
+		test_result=fail
 	fi
-}
 
-print_vars () {
-    local delim=$1;
-    shift;
-    for cur_var in "$@";
-    do
-        echo "printf \"%-15s${delim}\\\"%s\\\"\n\" \"${cur_var}\" \"\${${cur_var}}\";";
-    done
+	if test x$test_result = xfail; then
+		echo
+		echo TEST RESULT:  FAIL
+		echo
+	else
+		echo
+		echo TEST RESULT:  OK
+		echo
+		echo Apache 2 process is running now
+		echo don"'"t forget to kill it when no longer needed.
+		echo command to kill: kill -s TERM $pid
+	fi
 }
 
 run_test() {
