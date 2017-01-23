@@ -15,15 +15,15 @@ script_dir="$(dirname "${script_rp}")"  || exit 1
 # 2. Нужно куда-то установить Apache server.
 # Пусть по умолчанию берётся из конфига.
 #
-# install_root="${script_dir}"
+# var_dir="${script_dir}"
 
-if test x"${install_root}" = x
+if test x"${var_dir}" = x
 then
-	install_root="${script_dir}/root"
-	test -d "${install_root}" || mkdir -v "${install_root}"
-elif ! test -d "${install_root}"
+	var_dir="${script_dir}/var"
+	test -d "${var_dir}" || mkdir -v "${var_dir}"
+elif ! test -d "${var_dir}"
 then
-	echo "error: \${install_root}='${install_root}' not exists."
+	echo "error: \${var_dir}='${var_dir}' not exists."
 	exit 1
 fi
 
@@ -33,11 +33,15 @@ apache2_port=10000
 
 # Каталог куда будут загружен исходный код apache
 #
-distrib_dir="${install_root}/distrib"
+distrib_dir="${var_dir}/distrib"
+
+# Сгенерированная информация
+#
+tests_data_dir="${var_dir}/tests"
 
 # Каталог данных для тестирования
 #
-tests_dir="${install_root}/tests"
+tests_dir="${script_dir}/tests"
 
 
 
@@ -108,11 +112,12 @@ prepare_src() {
 
 test01() {
 	local test_dir="${1}"
+	local test_data_dir="${2}"
 
-	local apache2_pid="${test_dir}/apache2.pid"
-	local log_dir="${test_dir}/log"
-	local prefix_rp="${test_dir}/root"
-	local src_dir="${test_dir}/src"
+	local apache2_pid="${test_data_dir}/apache2.pid"
+	local log_dir="${test_data_dir}/log"
+	local prefix_rp="${test_data_dir}/root"
+	local src_dir="${test_data_dir}/src"
 	local test_result
 
 	prepare_src --overwrite "${src_dir}"
@@ -131,24 +136,24 @@ test01() {
 
 	make install 2>&1 | tee "${log_dir}/3.make-install.log.txt" || exit 1
 
-	cd "${install_root}"
 	for cf in httpd.conf index.html; do
-		sed	-e 's@%APACHE_DEBIAN%@'"${install_root}"'@g' \
+		sed	-e 's@%APACHE_DEBIAN%@'"${test_data_dir}"'@g' \
 			-e 's@%APACHE_DEBIAN_PORT%@'"${apache2_port}"'@g' \
 			-e 's@%APACHE_DEBIAN_ROOT%@'"${prefix_rp}"'@g' \
 			-e 's@%APACHE_PID%@'"${apache2_pid}"'@g' \
 			-e 's@%INSTALL_DATE%@'"$(date +"%d %B %Y, %T")"'@g' \
-			"${script_dir}/${cf}.in" > "${cf}"
+			"${test_dir}/${cf}.in" > "${test_data_dir}/${cf}"
 	done
 
-	touch "mime.types"
+	touch "${test_data_dir}/mime.types"
 
-	cp "${script_dir}/index.pl.in" "index.pl" && chmod +x "index.pl"
+	cp "${test_dir}/index.pl.in" "${test_data_dir}/index.pl" &&
+	chmod +x "${test_data_dir}/index.pl"
 
 	local apache_ctl="${prefix_rp}/bin/apachectl"
 
 	if test -f "${apache_ctl}"; then
-		"${apache_ctl}" -f "${install_root}"/httpd.conf
+		"${apache_ctl}" -f "${test_data_dir}/httpd.conf"
 
 		if test -f "${apache2_pid}"; then
 			echo pidfile: ${apache2_pid}
@@ -188,15 +193,17 @@ run_test() {
 
 	prepare_distrib
 
-	test -d "${tests_dir}" || mkdir -v "${tests_dir}"
-
 	test_dir="${tests_dir}/${test_procedure}"
 
-	rm -rf "${test_dir}"
+	test -d "${tests_data_dir}" || mkdir -v "${tests_data_dir}"
 
-	mkdir -v "${test_dir}"
+	test_data_dir="${tests_data_dir}/${test_procedure}"
 
-	"${test_procedure}" "${test_dir}"
+	rm -rf "${test_data_dir}"
+
+	mkdir -v "${test_data_dir}"
+
+	"${test_procedure}" "${test_dir}" "${test_data_dir}"
 }
 
 su_build_dep() {
