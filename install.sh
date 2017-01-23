@@ -27,10 +27,6 @@ then
 	exit 1
 fi
 
-# PID-файл для сервера apache2
-#
-apache2_pid="${install_root}/apache2.pid"
-
 # Порт для Apache сервера.
 #
 apache2_port=10000
@@ -38,15 +34,6 @@ apache2_port=10000
 # Каталог куда будут загружен исходный код apache
 #
 distrib_dir="${install_root}/distrib"
-
-# Каталог куда будет установлен apache2
-#
-prefix_rp="${install_root}/root"
-
-# Каталог куда будут скопирован исходный код apache для дальнейших
-# экспериментов
-#
-src_dir="${install_root}/src"
 
 # Каталог данных для тестирования
 #
@@ -121,7 +108,10 @@ prepare_src() {
 
 test01() {
 	local test_dir="${1}"
+
+	local apache2_pid="${test_dir}/apache2.pid"
 	local log_dir="${test_dir}/log"
+	local prefix_rp="${test_dir}/root"
 	local src_dir="${test_dir}/src"
 
 	prepare_src --overwrite "${src_dir}"
@@ -154,13 +144,16 @@ test01() {
 
 	cp "${script_dir}/index.pl.in" "index.pl" && chmod +x "index.pl"
 
-	start
-}
+	"${prefix_rp}"/bin/apachectl -f "${install_root}"/httpd.conf
 
-kill_httpd() {
 	if test -f "${apache2_pid}"; then
-		echo killing apache..
-		kill -s TERM $(cat "${apache2_pid}")
+		echo pidfile: ${apache2_pid}
+		pid=$(cat "${apache2_pid}")
+		echo /proc/$pid
+		ls -l /proc/$pid
+		echo command to kill: kill -s TERM $pid
+	else
+		echo "no PID-file !!!"
 	fi
 }
 
@@ -183,8 +176,6 @@ run_test() {
 
 	prepare_distrib
 
-	kill_httpd
-
 	test -d "${tests_dir}" || mkdir -v "${tests_dir}"
 
 	test_dir="${tests_dir}/${test_procedure}"
@@ -196,35 +187,8 @@ run_test() {
 	"${test_procedure}" "${test_dir}"
 }
 
-start() {
-	"${prefix_rp}"/bin/apachectl -f "${install_root}"/httpd.conf
-}
-
-status() {
-	if test -f "${apache2_pid}"; then
-		pid=$(cat "${apache2_pid}") &&
-		echo /proc/$pid
-		ls -l /proc/$pid
-	else
-		echo no PID-file
-	fi
-}
-
 su_build_dep() {
 	apt-get build-dep apache2
-}
-
-vars() {
-	eval "$(print_vars '' \
-		distrib_dir  \
-		install_root  \
-		script_rp     \
-		script_dir    \
-		src_dir       \
-		prefix_rp     \
-		apache2_pid   \
-		apache2_port  \
-	)"
 }
 
 
@@ -236,33 +200,6 @@ else
 	case "${1}" in
 	--build-dep)
 		action=su_build_dep
-		;;
-	--clean)
-		kill_httpd
-		rm -rf	"${log_dir}"   \
-			"${src_dir}"   \
-			"${prefix_rp}" \
-			"${install_root}/error.log"  \
-			"${install_root}/httpd.conf" \
-			"${install_root}/index.html" \
-			"${install_root}/index.pl"   \
-			"${install_root}/mime.types"
-		;;
-	--kill)
-		kill_httpd
-		;;
-	--restart)
-		kill_httpd
-		start
-		;;
-	--start)
-		start
-		;;
-	--status)
-		status
-		;;
-	--vars)
-		vars
 		;;
 	*)	echo error: unknown action. >&2
 		exit 1
