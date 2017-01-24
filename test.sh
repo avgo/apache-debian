@@ -152,35 +152,64 @@ test01() {
 
 	local apache_ctl="${prefix_rp}/bin/apachectl"
 
-	if test -f "${apache_ctl}"; then
-		"${apache_ctl}" -f "${test_data_dir}/httpd.conf"
-
-		if test -f "${apache2_pid}"; then
-			echo pidfile: ${apache2_pid}
-			pid=$(cat "${apache2_pid}")
-			echo /proc/$pid
-			ls -l /proc/$pid
-		else
-			echo "no PID-file !!!"
-			test_result=fail
-		fi
-	else
+	if ! test -f "${apache_ctl}"; then
 		echo "error: '${apache_ctl}' not exists."
-		test_result=fail
+		test01_fail
+		return 1
 	fi
 
-	if test x$test_result = xfail; then
-		echo
-		echo TEST RESULT:  FAIL
-		echo
-	else
-		echo
-		echo TEST RESULT:  OK
-		echo
-		echo Apache 2 process is running now
-		echo don"'"t forget to kill it when no longer needed.
-		echo command to kill: kill -s TERM $pid
+	"${apache_ctl}" -f "${test_data_dir}/httpd.conf"
+
+	if ! test -f "${apache2_pid}"; then
+		echo "no PID-file !!!"
+		test01_fail
+		return 1
 	fi
+
+	local resp_html="${test_data_dir}/response.html"
+
+	if test -f "${resp_html}"; then
+		echo "Response document is exists!!!"
+		test01_fail
+		return 1
+	fi
+
+	if ! curl -o "${resp_html}" localhost:10000; then
+		test01_fail
+		return 1
+	fi
+
+	if ! grep -q "Test 01 document" "${resp_html}" &> /dev/null
+	then
+		echo "Bad response document!!!"
+		test01_fail
+		return 1
+	fi
+
+	echo pidfile: ${apache2_pid}
+	pid=$(cat "${apache2_pid}")
+	echo /proc/$pid
+	ls -l /proc/$pid
+
+	kill -s TERM $pid
+
+	sleep 1
+
+	if test -f "${apache2_pid}"; then
+		echo "Process still running !!!"
+		test01_fail
+		return 1
+	fi
+
+	echo
+	echo TEST RESULT:  OK
+	echo
+}
+
+test01_fail() {
+	echo
+	echo TEST RESULT:  FAIL
+	echo
 }
 
 run_test() {
