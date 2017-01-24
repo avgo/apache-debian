@@ -212,6 +212,18 @@ test01_fail() {
 	echo
 }
 
+test02() {
+	local test_dir="${1}"
+	local test_data_dir="${2}"
+
+	local src_dir="${test_data_dir}/src"
+
+	prepare_src --overwrite "${src_dir}"
+
+	./configure &&
+	make
+}
+
 run_test() {
 	if test $# -ne 1; then
 		echo "run_test() error:"
