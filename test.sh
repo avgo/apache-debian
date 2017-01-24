@@ -243,11 +243,28 @@ su_build_dep() {
 
 
 if test $# -eq 0; then
-	run_test test01
+	if test -f test_plan; then
+		cat <<EOF
+You can type "$(basename "$(realpath "${0}")") -r" for running
+test plan described in 'test_plan' (listed below):
+EOF
+		cat test_plan
+	else
+		echo error: test plan needed.
+	fi
 else
 	case "${1}" in
 	--build-dep)
 		action=su_build_dep
+		;;
+	-r)
+		if test -f test_plan; then
+			for ct in $(cat test_plan); do
+				run_test $ct
+			done
+		else
+			echo error: test plan needed.
+		fi
 		;;
 	*)	echo error: unknown action. >&2
 		exit 1
