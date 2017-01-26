@@ -115,6 +115,7 @@ test01() {
 	local test_data_dir="${2}"
 
 	local apache2_pid="${test_data_dir}/apache2.pid"
+	local do_coverage=yes
 	local log_dir="${test_data_dir}/log"
 	local prefix_rp="${test_data_dir}/root"
 	local src_dir="${test_data_dir}/src"
@@ -122,11 +123,21 @@ test01() {
 
 	prepare_src --overwrite "${src_dir}"
 
+	local src_dir_apache="$(pwd)"
+
 	mkdir -v "${log_dir}"
 
 	find > "${log_dir}/0.snapshot.txt"
 
-	./configure --prefix="${prefix_rp}" 2>&1 | tee "${log_dir}/1.configure.log.txt" || exit 1
+	if test x"${do_coverage}" = xyes; then
+		./configure \
+			CFLAGS="-fprofile-arcs -ftest-coverage" \
+			--prefix="${prefix_rp}" 2>&1 | tee "${log_dir}/1.configure.log.txt" || exit 1
+	else
+		./configure \
+			--prefix="${prefix_rp}" 2>&1 | tee "${log_dir}/1.configure.log.txt" || exit 1
+	fi
+
 	find > "${log_dir}/1.configure.snapshot.txt"
 
 	make 2>&1 | tee "${log_dir}/2.make.1.log.txt" || exit 1
@@ -166,6 +177,8 @@ test01() {
 		return 1
 	fi
 
+	find > "${log_dir}/4.run.snapshot.txt"
+
 	local resp_html="${test_data_dir}/response.html"
 
 	if test -f "${resp_html}"; then
@@ -199,6 +212,23 @@ test01() {
 		echo "Process still running !!!"
 		test01_fail
 		return 1
+	fi
+
+	if test x"${do_coverage}" = xyes; then
+		local cov_results_dir="${test_data_dir}/cov_results"
+
+		mkdir -v "${cov_results_dir}"
+
+		lcov -c -d "${src_dir_apache}" -o "${cov_results_dir}/apptest.info" &&
+
+		find > "${log_dir}/5.lcov.snapshot.txt" &&
+
+		genhtml -o "${cov_results_dir}" "${cov_results_dir}/apptest.info" &&
+		cat <<EOF
+Code coverage is done. You can see coverage results with
+this command below:
+firefox ${cov_results_dir}/index.html
+EOF
 	fi
 
 	echo
