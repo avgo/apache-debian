@@ -203,6 +203,8 @@ test01() {
 	pid=$(cat "${apache2_pid}")
 	echo /proc/$pid
 	ls -l /proc/$pid
+	printf "command: "
+	cat /proc/$pid/cmdline | xargs -0
 
 	kill -s TERM $pid
 
