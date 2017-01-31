@@ -114,8 +114,9 @@ test01() {
 	local test_dir="${1}"
 	local test_data_dir="${2}"
 
+	local opt_do_coverage=no
+
 	local apache2_pid="${test_data_dir}/apache2.pid"
-	local do_coverage=yes
 	local log_dir="${test_data_dir}/log"
 	local prefix_rp="${test_data_dir}/root"
 	local src_dir="${test_data_dir}/src"
@@ -129,14 +130,18 @@ test01() {
 
 	find > "${log_dir}/0.snapshot.txt"
 
-	if test x"${do_coverage}" = xyes; then
-		./configure \
-			CFLAGS="-fprofile-arcs -ftest-coverage" \
-			--prefix="${prefix_rp}" 2>&1 | tee "${log_dir}/1.configure.log.txt" || exit 1
-	else
-		./configure \
-			--prefix="${prefix_rp}" 2>&1 | tee "${log_dir}/1.configure.log.txt" || exit 1
+	local configure_cmd='./configure'
+
+	if test x"${opt_do_coverage}" = xyes; then
+		configure_cmd="${configure_cmd} CFLAGS=\"-fprofile-arcs -ftest-coverage\""
 	fi
+
+	configure_cmd="${configure_cmd} --prefix=\"\${prefix_rp}\""
+	configure_cmd="${configure_cmd} 2>&1 |"
+	configure_cmd="${configure_cmd} tee \"\${log_dir}/1.configure.log.txt\""
+	configure_cmd="${configure_cmd} || exit 1"
+
+	eval "${configure_cmd}"
 
 	find > "${log_dir}/1.configure.snapshot.txt"
 
@@ -216,7 +221,7 @@ test01() {
 		return 1
 	fi
 
-	if test x"${do_coverage}" = xyes; then
+	if test x"${opt_do_coverage}" = xyes; then
 		local cov_results_dir="${test_data_dir}/cov_results"
 
 		mkdir -v "${cov_results_dir}"
