@@ -114,6 +114,7 @@ test01() {
 	local test_dir="${1}"
 	local test_data_dir="${2}"
 
+	local opt_debug_enable=yes
 	local opt_do_coverage=no
 
 	local apache2_pid="${test_data_dir}/apache2.pid"
@@ -134,6 +135,10 @@ test01() {
 
 	if test x"${opt_do_coverage}" = xyes; then
 		configure_cmd="${configure_cmd} CFLAGS=\"-fprofile-arcs -ftest-coverage\""
+	fi
+
+	if test x"${opt_debug_enable}" = xyes; then
+		configure_cmd="${configure_cmd} CFLAGS=\"-ggdb\""
 	fi
 
 	configure_cmd="${configure_cmd} --prefix=\"\${prefix_rp}\""
@@ -167,6 +172,7 @@ test01() {
 	chmod +x "${test_data_dir}/index.pl"
 
 	local apache_ctl="${prefix_rp}/bin/apachectl"
+	local httpd="${prefix_rp}/bin/httpd"
 
 	if ! test -f "${apache_ctl}"; then
 		echo "error: '${apache_ctl}' not exists."
@@ -174,7 +180,23 @@ test01() {
 		return 1
 	fi
 
-	"${apache_ctl}" -f "${test_data_dir}/httpd.conf"
+	echo config: "${test_data_dir}/httpd.conf"
+
+	if test x"${opt_debug_enable}" = xyes; then
+		local gdb_commands="${test_data_dir}/gdb-commands.txt"
+		cat > "${gdb_commands}" <<EOF
+b ${apache_debian}/var/tests/test01/src/apache2-2.4.10/modules/arch/unix/mod_unixd.c:401
+y
+r -f ${test_data_dir}/httpd.conf
+EOF
+		xterm  -geometry "150x40-0-0" -e gdb -x "${gdb_commands}" "${httpd}" &
+		sleep 4
+		echo press
+		read
+		echo ok
+	else
+		"${apache_ctl}" -f "${test_data_dir}/httpd.conf"
+	fi
 
 	if ! test -f "${apache2_pid}"; then
 		echo "no PID-file !!!"
