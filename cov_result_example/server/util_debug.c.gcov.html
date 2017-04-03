@@ -1,0 +1,301 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+
+<html lang="en">
+
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <title>LCOV - apptest.info - server/util_debug.c</title>
+  <link rel="stylesheet" type="text/css" href="../gcov.css">
+</head>
+
+<body>
+
+  <table width="100%" border=0 cellspacing=0 cellpadding=0>
+    <tr><td class="title">LCOV - code coverage report</td></tr>
+    <tr><td class="ruler"><img src="../glass.png" width=3 height=3 alt=""></td></tr>
+
+    <tr>
+      <td width="100%">
+        <table cellpadding=1 border=0 width="100%">
+          <tr>
+            <td width="10%" class="headerItem">Current view:</td>
+            <td width="35%" class="headerValue"><a href="../index.html">top level</a> - <a href="index.html">server</a> - util_debug.c<span style="font-size: 80%;"> (source / <a href="util_debug.c.func-sort-c.html">functions</a>)</span></td>
+            <td width="5%"></td>
+            <td width="15%"></td>
+            <td width="10%" class="headerCovTableHead">Hit</td>
+            <td width="10%" class="headerCovTableHead">Total</td>
+            <td width="15%" class="headerCovTableHead">Coverage</td>
+          </tr>
+          <tr>
+            <td class="headerItem">Test:</td>
+            <td class="headerValue">apptest.info</td>
+            <td></td>
+            <td class="headerItem">Lines:</td>
+            <td class="headerCovTableEntry">0</td>
+            <td class="headerCovTableEntry">48</td>
+            <td class="headerCovTableEntryLo">0.0 %</td>
+          </tr>
+          <tr>
+            <td class="headerItem">Date:</td>
+            <td class="headerValue">2017-01-31 22:58:06</td>
+            <td></td>
+            <td class="headerItem">Functions:</td>
+            <td class="headerCovTableEntry">0</td>
+            <td class="headerCovTableEntry">14</td>
+            <td class="headerCovTableEntryLo">0.0 %</td>
+          </tr>
+          <tr><td><img src="../glass.png" width=3 height=3 alt=""></td></tr>
+        </table>
+      </td>
+    </tr>
+
+    <tr><td class="ruler"><img src="../glass.png" width=3 height=3 alt=""></td></tr>
+  </table>
+
+  <table cellpadding=0 cellspacing=0 border=0>
+    <tr>
+      <td><br></td>
+    </tr>
+    <tr>
+      <td>
+<pre class="sourceHeading">          Line data    Source code</pre>
+<pre class="source">
+<a name="1"><span class="lineNum">       1 </span>            : /* Licensed to the Apache Software Foundation (ASF) under one or more</a>
+<span class="lineNum">       2 </span>            :  * contributor license agreements.  See the NOTICE file distributed with
+<span class="lineNum">       3 </span>            :  * this work for additional information regarding copyright ownership.
+<span class="lineNum">       4 </span>            :  * The ASF licenses this file to You under the Apache License, Version 2.0
+<span class="lineNum">       5 </span>            :  * (the &quot;License&quot;); you may not use this file except in compliance with
+<span class="lineNum">       6 </span>            :  * the License.  You may obtain a copy of the License at
+<span class="lineNum">       7 </span>            :  *
+<span class="lineNum">       8 </span>            :  *     http://www.apache.org/licenses/LICENSE-2.0
+<span class="lineNum">       9 </span>            :  *
+<span class="lineNum">      10 </span>            :  * Unless required by applicable law or agreed to in writing, software
+<span class="lineNum">      11 </span>            :  * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+<span class="lineNum">      12 </span>            :  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+<span class="lineNum">      13 </span>            :  * See the License for the specific language governing permissions and
+<span class="lineNum">      14 </span>            :  * limitations under the License.
+<span class="lineNum">      15 </span>            :  */
+<span class="lineNum">      16 </span>            : 
+<span class="lineNum">      17 </span>            : #define APR_WANT_STRFUNC
+<span class="lineNum">      18 </span>            : #include &quot;apr_want.h&quot;
+<span class="lineNum">      19 </span>            : 
+<span class="lineNum">      20 </span>            : #include &quot;httpd.h&quot;
+<span class="lineNum">      21 </span>            : #include &quot;http_config.h&quot;
+<span class="lineNum">      22 </span>            : #include &quot;http_core.h&quot;
+<span class="lineNum">      23 </span>            : 
+<span class="lineNum">      24 </span>            : /* Possibly get rid of the macros we defined in httpd.h */
+<span class="lineNum">      25 </span>            : #if defined(strchr)
+<span class="lineNum">      26 </span>            : #undef strchr
+<span class="lineNum">      27 </span>            : #endif
+<span class="lineNum">      28 </span>            : 
+<span class="lineNum">      29 </span>            : #if defined (strrchr)
+<span class="lineNum">      30 </span>            : #undef strrchr
+<span class="lineNum">      31 </span>            : #endif
+<span class="lineNum">      32 </span>            : 
+<span class="lineNum">      33 </span>            : #if defined (strstr)
+<span class="lineNum">      34 </span>            : #undef strstr
+<span class="lineNum">      35 </span>            : #endif
+<span class="lineNum">      36 </span>            : 
+<span class="lineNum">      37 </span>            : 
+<span class="lineNum">      38 </span>            : #if defined(ap_strchr)
+<span class="lineNum">      39 </span>            : #undef ap_strchr
+<span class="lineNum">      40 </span>            : AP_DECLARE(char *) ap_strchr(char *s, int c);
+<a name="41"><span class="lineNum">      41 </span>            : #endif</a>
+<span class="lineNum">      42 </span>            : 
+<span class="lineNum">      43 </span><span class="lineNoCov">          0 : AP_DECLARE(char *) ap_strchr(char *s, int c)</span>
+<span class="lineNum">      44 </span>            : {
+<span class="lineNum">      45 </span><span class="lineNoCov">          0 :     return strchr(s,c);</span>
+<span class="lineNum">      46 </span>            : }
+<span class="lineNum">      47 </span>            : 
+<span class="lineNum">      48 </span>            : #if defined(ap_strchr_c)
+<span class="lineNum">      49 </span>            : #undef ap_strchr_c
+<span class="lineNum">      50 </span>            : AP_DECLARE(const char *) ap_strchr_c(const char *s, int c);
+<a name="51"><span class="lineNum">      51 </span>            : #endif</a>
+<span class="lineNum">      52 </span>            : 
+<span class="lineNum">      53 </span><span class="lineNoCov">          0 : AP_DECLARE(const char *) ap_strchr_c(const char *s, int c)</span>
+<span class="lineNum">      54 </span>            : {
+<span class="lineNum">      55 </span><span class="lineNoCov">          0 :     return strchr(s,c);</span>
+<span class="lineNum">      56 </span>            : }
+<span class="lineNum">      57 </span>            : 
+<span class="lineNum">      58 </span>            : #if defined(ap_strrchr)
+<span class="lineNum">      59 </span>            : #undef ap_strrchr
+<span class="lineNum">      60 </span>            : AP_DECLARE(char *) ap_strrchr(char *s, int c);
+<a name="61"><span class="lineNum">      61 </span>            : #endif</a>
+<span class="lineNum">      62 </span>            : 
+<span class="lineNum">      63 </span><span class="lineNoCov">          0 : AP_DECLARE(char *) ap_strrchr(char *s, int c)</span>
+<span class="lineNum">      64 </span>            : {
+<span class="lineNum">      65 </span><span class="lineNoCov">          0 :     return strrchr(s,c);</span>
+<span class="lineNum">      66 </span>            : }
+<span class="lineNum">      67 </span>            : 
+<span class="lineNum">      68 </span>            : #if defined(ap_strrchr_c)
+<span class="lineNum">      69 </span>            : #undef ap_strrchr_c
+<span class="lineNum">      70 </span>            : AP_DECLARE(const char *) ap_strrchr_c(const char *s, int c);
+<a name="71"><span class="lineNum">      71 </span>            : #endif</a>
+<span class="lineNum">      72 </span>            : 
+<span class="lineNum">      73 </span><span class="lineNoCov">          0 : AP_DECLARE(const char *) ap_strrchr_c(const char *s, int c)</span>
+<span class="lineNum">      74 </span>            : {
+<span class="lineNum">      75 </span><span class="lineNoCov">          0 :     return strrchr(s,c);</span>
+<span class="lineNum">      76 </span>            : }
+<span class="lineNum">      77 </span>            : 
+<span class="lineNum">      78 </span>            : #if defined(ap_strstr)
+<span class="lineNum">      79 </span>            : #undef ap_strstr
+<span class="lineNum">      80 </span>            : AP_DECLARE(char *) ap_strstr(char *s, const char *c);
+<a name="81"><span class="lineNum">      81 </span>            : #endif</a>
+<span class="lineNum">      82 </span>            : 
+<span class="lineNum">      83 </span><span class="lineNoCov">          0 : AP_DECLARE(char *) ap_strstr(char *s, const char *c)</span>
+<span class="lineNum">      84 </span>            : {
+<span class="lineNum">      85 </span><span class="lineNoCov">          0 :     return strstr(s,c);</span>
+<span class="lineNum">      86 </span>            : }
+<span class="lineNum">      87 </span>            : 
+<span class="lineNum">      88 </span>            : #if defined(ap_strstr_c)
+<span class="lineNum">      89 </span>            : #undef ap_strstr_c
+<span class="lineNum">      90 </span>            : AP_DECLARE(const char *) ap_strstr_c(const char *s, const char *c);
+<a name="91"><span class="lineNum">      91 </span>            : #endif</a>
+<span class="lineNum">      92 </span>            : 
+<span class="lineNum">      93 </span><span class="lineNoCov">          0 : AP_DECLARE(const char *) ap_strstr_c(const char *s, const char *c)</span>
+<span class="lineNum">      94 </span>            : {
+<span class="lineNum">      95 </span><span class="lineNoCov">          0 :     return strstr(s,c);</span>
+<span class="lineNum">      96 </span>            : }
+<span class="lineNum">      97 </span>            : 
+<span class="lineNum">      98 </span>            : #if defined(ap_get_module_config)
+<span class="lineNum">      99 </span>            : #undef ap_get_module_config
+<span class="lineNum">     100 </span>            : AP_DECLARE(void *) ap_get_module_config(const ap_conf_vector_t *cv,
+<span class="lineNum">     101 </span>            :                                         const module *m);
+<a name="102"><span class="lineNum">     102 </span>            : #endif</a>
+<span class="lineNum">     103 </span>            : 
+<span class="lineNum">     104 </span><span class="lineNoCov">          0 : AP_DECLARE(void *) ap_get_module_config(const ap_conf_vector_t *cv,</span>
+<span class="lineNum">     105 </span>            :                                         const module *m)
+<span class="lineNum">     106 </span>            : {
+<span class="lineNum">     107 </span><span class="lineNoCov">          0 :     return ((void **)cv)[m-&gt;module_index];</span>
+<span class="lineNum">     108 </span>            : }
+<span class="lineNum">     109 </span>            : 
+<span class="lineNum">     110 </span>            : #if defined(ap_get_core_module_config)
+<span class="lineNum">     111 </span>            : #undef ap_get_core_module_config
+<span class="lineNum">     112 </span>            : AP_DECLARE(void *) ap_get_core_module_config(const ap_conf_vector_t *cv);
+<a name="113"><span class="lineNum">     113 </span>            : #endif</a>
+<span class="lineNum">     114 </span>            : 
+<span class="lineNum">     115 </span><span class="lineNoCov">          0 : AP_DECLARE(void *) ap_get_core_module_config(const ap_conf_vector_t *cv)</span>
+<span class="lineNum">     116 </span>            : {
+<span class="lineNum">     117 </span><span class="lineNoCov">          0 :     return ((void **)cv)[AP_CORE_MODULE_INDEX];</span>
+<span class="lineNum">     118 </span>            : }
+<span class="lineNum">     119 </span>            : 
+<span class="lineNum">     120 </span>            : 
+<span class="lineNum">     121 </span>            : #if defined(ap_get_server_module_loglevel)
+<span class="lineNum">     122 </span>            : #undef ap_get_server_module_loglevel
+<span class="lineNum">     123 </span>            : AP_DECLARE(int) ap_get_server_module_loglevel(const server_rec *s, int module_index);
+<a name="124"><span class="lineNum">     124 </span>            : #endif</a>
+<span class="lineNum">     125 </span>            : 
+<span class="lineNum">     126 </span><span class="lineNoCov">          0 : AP_DECLARE(int) ap_get_server_module_loglevel(const server_rec *s, int module_index)</span>
+<span class="lineNum">     127 </span>            : {
+<span class="lineNum">     128 </span><span class="lineNoCov">          0 :     if (module_index &lt; 0 || s-&gt;log.module_levels == NULL ||</span>
+<span class="lineNum">     129 </span><span class="lineNoCov">          0 :         s-&gt;log.module_levels[module_index] &lt; 0)</span>
+<span class="lineNum">     130 </span>            :     {
+<span class="lineNum">     131 </span><span class="lineNoCov">          0 :         return s-&gt;log.level;</span>
+<span class="lineNum">     132 </span>            :     }
+<span class="lineNum">     133 </span>            : 
+<span class="lineNum">     134 </span><span class="lineNoCov">          0 :     return s-&gt;log.module_levels[module_index];</span>
+<span class="lineNum">     135 </span>            : }
+<span class="lineNum">     136 </span>            : 
+<span class="lineNum">     137 </span>            : #if defined(ap_get_conn_module_loglevel)
+<span class="lineNum">     138 </span>            : #undef ap_get_conn_module_loglevel
+<span class="lineNum">     139 </span>            : AP_DECLARE(int) ap_get_conn_module_loglevel(const conn_rec *c, int module_index);
+<a name="140"><span class="lineNum">     140 </span>            : #endif</a>
+<span class="lineNum">     141 </span>            : 
+<span class="lineNum">     142 </span><span class="lineNoCov">          0 : AP_DECLARE(int) ap_get_conn_module_loglevel(const conn_rec *c, int module_index)</span>
+<span class="lineNum">     143 </span>            : {
+<span class="lineNum">     144 </span><span class="lineNoCov">          0 :     const struct ap_logconf *l = (c)-&gt;log ? (c)-&gt;log : &amp;(c)-&gt;base_server-&gt;log;</span>
+<span class="lineNum">     145 </span><span class="lineNoCov">          0 :     if (module_index &lt; 0 || l-&gt;module_levels == NULL ||</span>
+<span class="lineNum">     146 </span><span class="lineNoCov">          0 :         l-&gt;module_levels[module_index] &lt; 0)</span>
+<span class="lineNum">     147 </span>            :     {
+<span class="lineNum">     148 </span><span class="lineNoCov">          0 :         return l-&gt;level;</span>
+<span class="lineNum">     149 </span>            :     }
+<span class="lineNum">     150 </span>            : 
+<span class="lineNum">     151 </span><span class="lineNoCov">          0 :     return l-&gt;module_levels[module_index];</span>
+<span class="lineNum">     152 </span>            : }
+<span class="lineNum">     153 </span>            : 
+<span class="lineNum">     154 </span>            : #if defined(ap_get_conn_server_module_loglevel)
+<span class="lineNum">     155 </span>            : #undef ap_get_conn_server_module_loglevel
+<span class="lineNum">     156 </span>            : AP_DECLARE(int) ap_get_conn_server_module_loglevel(const conn_rec *c,
+<span class="lineNum">     157 </span>            :                                                    const server_rec *s,
+<span class="lineNum">     158 </span>            :                                                    int module_index);
+<a name="159"><span class="lineNum">     159 </span>            : #endif</a>
+<span class="lineNum">     160 </span>            : 
+<span class="lineNum">     161 </span><span class="lineNoCov">          0 : AP_DECLARE(int) ap_get_conn_server_module_loglevel(const conn_rec *c,</span>
+<span class="lineNum">     162 </span>            :                                                    const server_rec *s,
+<span class="lineNum">     163 </span>            :                                                    int module_index)
+<span class="lineNum">     164 </span>            : {
+<span class="lineNum">     165 </span><span class="lineNoCov">          0 :     const struct ap_logconf *l = (c-&gt;log &amp;&amp; c-&gt;log != &amp;c-&gt;base_server-&gt;log) ?</span>
+<span class="lineNum">     166 </span><span class="lineNoCov">          0 :                                  c-&gt;log : &amp;s-&gt;log;</span>
+<span class="lineNum">     167 </span><span class="lineNoCov">          0 :     if (module_index &lt; 0 || l-&gt;module_levels == NULL ||</span>
+<span class="lineNum">     168 </span><span class="lineNoCov">          0 :         l-&gt;module_levels[module_index] &lt; 0)</span>
+<span class="lineNum">     169 </span>            :     {
+<span class="lineNum">     170 </span><span class="lineNoCov">          0 :         return l-&gt;level;</span>
+<span class="lineNum">     171 </span>            :     }
+<span class="lineNum">     172 </span>            : 
+<span class="lineNum">     173 </span><span class="lineNoCov">          0 :     return l-&gt;module_levels[module_index];</span>
+<span class="lineNum">     174 </span>            : }
+<span class="lineNum">     175 </span>            : 
+<span class="lineNum">     176 </span>            : #if defined(ap_get_request_module_loglevel)
+<span class="lineNum">     177 </span>            : #undef ap_get_request_module_loglevel
+<span class="lineNum">     178 </span>            : AP_DECLARE(int) ap_get_request_module_loglevel(const request_rec *c, int module_index);
+<a name="179"><span class="lineNum">     179 </span>            : #endif</a>
+<span class="lineNum">     180 </span>            : 
+<span class="lineNum">     181 </span><span class="lineNoCov">          0 : AP_DECLARE(int) ap_get_request_module_loglevel(const request_rec *r, int module_index)</span>
+<span class="lineNum">     182 </span>            : {
+<span class="lineNum">     183 </span><span class="lineNoCov">          0 :     const struct ap_logconf *l = r-&gt;log             ? r-&gt;log             :</span>
+<span class="lineNum">     184 </span><span class="lineNoCov">          0 :                                  r-&gt;connection-&gt;log ? r-&gt;connection-&gt;log :</span>
+<span class="lineNum">     185 </span><span class="lineNoCov">          0 :                                  &amp;r-&gt;server-&gt;log;</span>
+<span class="lineNum">     186 </span><span class="lineNoCov">          0 :     if (module_index &lt; 0 || l-&gt;module_levels == NULL ||</span>
+<span class="lineNum">     187 </span><span class="lineNoCov">          0 :         l-&gt;module_levels[module_index] &lt; 0)</span>
+<span class="lineNum">     188 </span>            :     {
+<span class="lineNum">     189 </span><span class="lineNoCov">          0 :         return l-&gt;level;</span>
+<span class="lineNum">     190 </span>            :     }
+<span class="lineNum">     191 </span>            : 
+<span class="lineNum">     192 </span><span class="lineNoCov">          0 :     return l-&gt;module_levels[module_index];</span>
+<span class="lineNum">     193 </span>            : }
+<span class="lineNum">     194 </span>            : 
+<span class="lineNum">     195 </span>            : /**
+<span class="lineNum">     196 </span>            :  * Generic accessors for other modules to set at their own module-specific
+<span class="lineNum">     197 </span>            :  * data
+<span class="lineNum">     198 </span>            :  * @param conf_vector The vector in which the modules configuration is stored.
+<span class="lineNum">     199 </span>            :  *        usually r-&gt;per_dir_config or s-&gt;module_config
+<span class="lineNum">     200 </span>            :  * @param m The module to set the data for.
+<span class="lineNum">     201 </span>            :  * @param val The module-specific data to set
+<span class="lineNum">     202 </span>            :  * @fn void ap_set_module_config(ap_conf_vector_t *cv, const module *m, void *val)
+<span class="lineNum">     203 </span>            :  */
+<span class="lineNum">     204 </span>            : #if defined(ap_set_module_config)
+<span class="lineNum">     205 </span>            : #undef ap_set_module_config
+<span class="lineNum">     206 </span>            : AP_DECLARE(void) ap_set_module_config(ap_conf_vector_t *cv, const module *m,
+<span class="lineNum">     207 </span>            :                                       void *val);
+<a name="208"><span class="lineNum">     208 </span>            : #endif</a>
+<span class="lineNum">     209 </span>            : 
+<span class="lineNum">     210 </span><span class="lineNoCov">          0 : AP_DECLARE(void) ap_set_module_config(ap_conf_vector_t *cv, const module *m,</span>
+<span class="lineNum">     211 </span>            :                                       void *val)
+<span class="lineNum">     212 </span>            : {
+<span class="lineNum">     213 </span><span class="lineNoCov">          0 :     ((void **)cv)[m-&gt;module_index] = val;</span>
+<span class="lineNum">     214 </span><span class="lineNoCov">          0 : }</span>
+<span class="lineNum">     215 </span>            : 
+<span class="lineNum">     216 </span>            : 
+<span class="lineNum">     217 </span>            : #if defined(ap_set_core_module_config)
+<span class="lineNum">     218 </span>            : #undef ap_set_core_module_config
+<span class="lineNum">     219 </span>            : AP_DECLARE(void) ap_set_core_module_config(ap_conf_vector_t *cv, void *val);
+<a name="220"><span class="lineNum">     220 </span>            : #endif</a>
+<span class="lineNum">     221 </span>            : 
+<span class="lineNum">     222 </span><span class="lineNoCov">          0 : AP_DECLARE(void) ap_set_core_module_config(ap_conf_vector_t *cv, void *val)</span>
+<span class="lineNum">     223 </span>            : {
+<span class="lineNum">     224 </span><span class="lineNoCov">          0 :     ((void **)cv)[AP_CORE_MODULE_INDEX] = val;</span>
+<span class="lineNum">     225 </span><span class="lineNoCov">          0 : }</span>
+</pre>
+      </td>
+    </tr>
+  </table>
+  <br>
+
+  <table width="100%" border=0 cellspacing=0 cellpadding=0>
+    <tr><td class="ruler"><img src="../glass.png" width=3 height=3 alt=""></td></tr>
+    <tr><td class="versionInfo">Generated by: <a href="http://ltp.sourceforge.net/coverage/lcov.php" target="_parent">LCOV version 1.11</a></td></tr>
+  </table>
+  <br>
+
+</body>
+</html>

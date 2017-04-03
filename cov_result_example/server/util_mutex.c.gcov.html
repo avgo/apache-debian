@@ -1,0 +1,636 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+
+<html lang="en">
+
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <title>LCOV - apptest.info - server/util_mutex.c</title>
+  <link rel="stylesheet" type="text/css" href="../gcov.css">
+</head>
+
+<body>
+
+  <table width="100%" border=0 cellspacing=0 cellpadding=0>
+    <tr><td class="title">LCOV - code coverage report</td></tr>
+    <tr><td class="ruler"><img src="../glass.png" width=3 height=3 alt=""></td></tr>
+
+    <tr>
+      <td width="100%">
+        <table cellpadding=1 border=0 width="100%">
+          <tr>
+            <td width="10%" class="headerItem">Current view:</td>
+            <td width="35%" class="headerValue"><a href="../index.html">top level</a> - <a href="index.html">server</a> - util_mutex.c<span style="font-size: 80%;"> (source / <a href="util_mutex.c.func-sort-c.html">functions</a>)</span></td>
+            <td width="5%"></td>
+            <td width="15%"></td>
+            <td width="10%" class="headerCovTableHead">Hit</td>
+            <td width="10%" class="headerCovTableHead">Total</td>
+            <td width="15%" class="headerCovTableHead">Coverage</td>
+          </tr>
+          <tr>
+            <td class="headerItem">Test:</td>
+            <td class="headerValue">apptest.info</td>
+            <td></td>
+            <td class="headerItem">Lines:</td>
+            <td class="headerCovTableEntry">9</td>
+            <td class="headerCovTableEntry">216</td>
+            <td class="headerCovTableEntryLo">4.2 %</td>
+          </tr>
+          <tr>
+            <td class="headerItem">Date:</td>
+            <td class="headerValue">2017-01-31 22:58:06</td>
+            <td></td>
+            <td class="headerItem">Functions:</td>
+            <td class="headerCovTableEntry">1</td>
+            <td class="headerCovTableEntry">14</td>
+            <td class="headerCovTableEntryLo">7.1 %</td>
+          </tr>
+          <tr><td><img src="../glass.png" width=3 height=3 alt=""></td></tr>
+        </table>
+      </td>
+    </tr>
+
+    <tr><td class="ruler"><img src="../glass.png" width=3 height=3 alt=""></td></tr>
+  </table>
+
+  <table cellpadding=0 cellspacing=0 border=0>
+    <tr>
+      <td><br></td>
+    </tr>
+    <tr>
+      <td>
+<pre class="sourceHeading">          Line data    Source code</pre>
+<pre class="source">
+<a name="1"><span class="lineNum">       1 </span>            : /* Licensed to the Apache Software Foundation (ASF) under one or more</a>
+<span class="lineNum">       2 </span>            :  * contributor license agreements.  See the NOTICE file distributed with
+<span class="lineNum">       3 </span>            :  * this work for additional information regarding copyright ownership.
+<span class="lineNum">       4 </span>            :  * The ASF licenses this file to You under the Apache License, Version 2.0
+<span class="lineNum">       5 </span>            :  * (the &quot;License&quot;); you may not use this file except in compliance with
+<span class="lineNum">       6 </span>            :  * the License.  You may obtain a copy of the License at
+<span class="lineNum">       7 </span>            :  *
+<span class="lineNum">       8 </span>            :  *     http://www.apache.org/licenses/LICENSE-2.0
+<span class="lineNum">       9 </span>            :  *
+<span class="lineNum">      10 </span>            :  * Unless required by applicable law or agreed to in writing, software
+<span class="lineNum">      11 </span>            :  * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+<span class="lineNum">      12 </span>            :  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+<span class="lineNum">      13 </span>            :  * See the License for the specific language governing permissions and
+<span class="lineNum">      14 </span>            :  * limitations under the License.
+<span class="lineNum">      15 </span>            :  */
+<span class="lineNum">      16 </span>            : 
+<span class="lineNum">      17 </span>            : /*
+<span class="lineNum">      18 </span>            :  * util_mutex.c: Useful functions for determining allowable
+<span class="lineNum">      19 </span>            :  *               mutexes and mutex settings
+<span class="lineNum">      20 </span>            :  */
+<span class="lineNum">      21 </span>            : 
+<span class="lineNum">      22 </span>            : 
+<span class="lineNum">      23 </span>            : #include &quot;apr.h&quot;
+<span class="lineNum">      24 </span>            : #include &quot;apr_hash.h&quot;
+<span class="lineNum">      25 </span>            : #include &quot;apr_strings.h&quot;
+<span class="lineNum">      26 </span>            : #include &quot;apr_lib.h&quot;
+<span class="lineNum">      27 </span>            : 
+<span class="lineNum">      28 </span>            : #define APR_WANT_STRFUNC
+<span class="lineNum">      29 </span>            : #include &quot;apr_want.h&quot;
+<span class="lineNum">      30 </span>            : 
+<span class="lineNum">      31 </span>            : #include &quot;ap_config.h&quot;
+<span class="lineNum">      32 </span>            : #include &quot;httpd.h&quot;
+<span class="lineNum">      33 </span>            : #include &quot;http_main.h&quot;
+<span class="lineNum">      34 </span>            : #include &quot;http_config.h&quot;
+<span class="lineNum">      35 </span>            : #include &quot;http_core.h&quot;
+<span class="lineNum">      36 </span>            : #include &quot;http_log.h&quot;
+<span class="lineNum">      37 </span>            : #include &quot;util_mutex.h&quot;
+<span class="lineNum">      38 </span>            : #if AP_NEED_SET_MUTEX_PERMS
+<span class="lineNum">      39 </span>            : #include &quot;unixd.h&quot;
+<span class="lineNum">      40 </span>            : #endif
+<span class="lineNum">      41 </span>            : #ifdef HAVE_UNISTD_H
+<span class="lineNum">      42 </span>            : #include &lt;unistd.h&gt; /* getpid() */
+<span class="lineNum">      43 </span>            : #endif
+<span class="lineNum">      44 </span>            : 
+<span class="lineNum">      45 </span>            : /* we know core's module_index is 0 */
+<span class="lineNum">      46 </span>            : #undef APLOG_MODULE_INDEX
+<a name="47"><span class="lineNum">      47 </span>            : #define APLOG_MODULE_INDEX AP_CORE_MODULE_INDEX</a>
+<span class="lineNum">      48 </span>            : 
+<span class="lineNum">      49 </span><span class="lineNoCov">          0 : AP_DECLARE(apr_status_t) ap_parse_mutex(const char *arg, apr_pool_t *pool,</span>
+<span class="lineNum">      50 </span>            :                                         apr_lockmech_e *mutexmech,
+<span class="lineNum">      51 </span>            :                                         const char **mutexfile)
+<span class="lineNum">      52 </span>            : {
+<span class="lineNum">      53 </span>            :     /* Split arg into meth and file */
+<span class="lineNum">      54 </span><span class="lineNoCov">          0 :     char *meth = apr_pstrdup(pool, arg);</span>
+<span class="lineNum">      55 </span><span class="lineNoCov">          0 :     char *file = strchr(meth, ':');</span>
+<span class="lineNum">      56 </span><span class="lineNoCov">          0 :     if (file) {</span>
+<span class="lineNum">      57 </span><span class="lineNoCov">          0 :         *(file++) = '\0';</span>
+<span class="lineNum">      58 </span><span class="lineNoCov">          0 :         if (!*file) {</span>
+<span class="lineNum">      59 </span><span class="lineNoCov">          0 :             file = NULL;</span>
+<span class="lineNum">      60 </span>            :         }
+<span class="lineNum">      61 </span>            :     }
+<span class="lineNum">      62 </span>            : 
+<span class="lineNum">      63 </span>            :     /* APR determines temporary filename unless overridden below,
+<span class="lineNum">      64 </span>            :      * we presume file indicates an mutexfile is a file path
+<span class="lineNum">      65 </span>            :      * unless the method sets mutexfile=file and NULLs file
+<span class="lineNum">      66 </span>            :      */
+<span class="lineNum">      67 </span><span class="lineNoCov">          0 :     *mutexfile = NULL;</span>
+<span class="lineNum">      68 </span>            : 
+<span class="lineNum">      69 </span><span class="lineNoCov">          0 :     if (!strcasecmp(meth, &quot;none&quot;) || !strcasecmp(meth, &quot;no&quot;)) {</span>
+<span class="lineNum">      70 </span><span class="lineNoCov">          0 :         return APR_ENOLOCK;</span>
+<span class="lineNum">      71 </span>            :     }
+<span class="lineNum">      72 </span>            : 
+<span class="lineNum">      73 </span>            :     /* NOTE: previously, 'yes' implied 'sem' */
+<span class="lineNum">      74 </span><span class="lineNoCov">          0 :     if (!strcasecmp(meth, &quot;default&quot;) || !strcasecmp(meth, &quot;yes&quot;)) {</span>
+<span class="lineNum">      75 </span><span class="lineNoCov">          0 :         *mutexmech = APR_LOCK_DEFAULT;</span>
+<span class="lineNum">      76 </span>            :     }
+<span class="lineNum">      77 </span>            : #if APR_HAS_FCNTL_SERIALIZE
+<span class="lineNum">      78 </span><span class="lineNoCov">          0 :     else if (!strcasecmp(meth, &quot;fcntl&quot;) || !strcasecmp(meth, &quot;file&quot;)) {</span>
+<span class="lineNum">      79 </span><span class="lineNoCov">          0 :         *mutexmech = APR_LOCK_FCNTL;</span>
+<span class="lineNum">      80 </span>            :     }
+<span class="lineNum">      81 </span>            : #endif
+<span class="lineNum">      82 </span>            : #if APR_HAS_FLOCK_SERIALIZE
+<span class="lineNum">      83 </span><span class="lineNoCov">          0 :     else if (!strcasecmp(meth, &quot;flock&quot;) || !strcasecmp(meth, &quot;file&quot;)) {</span>
+<span class="lineNum">      84 </span><span class="lineNoCov">          0 :         *mutexmech = APR_LOCK_FLOCK;</span>
+<span class="lineNum">      85 </span>            :     }
+<span class="lineNum">      86 </span>            : #endif
+<span class="lineNum">      87 </span>            : #if APR_HAS_POSIXSEM_SERIALIZE
+<span class="lineNum">      88 </span><span class="lineNoCov">          0 :     else if (!strcasecmp(meth, &quot;posixsem&quot;) || !strcasecmp(meth, &quot;sem&quot;)) {</span>
+<span class="lineNum">      89 </span><span class="lineNoCov">          0 :         *mutexmech = APR_LOCK_POSIXSEM;</span>
+<span class="lineNum">      90 </span>            :         /* Posix/SysV semaphores aren't file based, use the literal name
+<span class="lineNum">      91 </span>            :          * if provided and fall back on APR's default if not.  Today, APR
+<span class="lineNum">      92 </span>            :          * will ignore it, but once supported it has an absurdly short limit.
+<span class="lineNum">      93 </span>            :          */
+<span class="lineNum">      94 </span><span class="lineNoCov">          0 :         if (file) {</span>
+<span class="lineNum">      95 </span><span class="lineNoCov">          0 :             *mutexfile = apr_pstrdup(pool, file);</span>
+<span class="lineNum">      96 </span>            : 
+<span class="lineNum">      97 </span><span class="lineNoCov">          0 :             file = NULL;</span>
+<span class="lineNum">      98 </span>            :         }
+<span class="lineNum">      99 </span>            :     }
+<span class="lineNum">     100 </span>            : #endif
+<span class="lineNum">     101 </span>            : #if APR_HAS_SYSVSEM_SERIALIZE
+<span class="lineNum">     102 </span><span class="lineNoCov">          0 :     else if (!strcasecmp(meth, &quot;sysvsem&quot;) || !strcasecmp(meth, &quot;sem&quot;)) {</span>
+<span class="lineNum">     103 </span><span class="lineNoCov">          0 :         *mutexmech = APR_LOCK_SYSVSEM;</span>
+<span class="lineNum">     104 </span>            :     }
+<span class="lineNum">     105 </span>            : #endif
+<span class="lineNum">     106 </span>            : #if APR_HAS_PROC_PTHREAD_SERIALIZE
+<span class="lineNum">     107 </span><span class="lineNoCov">          0 :     else if (!strcasecmp(meth, &quot;pthread&quot;)) {</span>
+<span class="lineNum">     108 </span><span class="lineNoCov">          0 :         *mutexmech = APR_LOCK_PROC_PTHREAD;</span>
+<span class="lineNum">     109 </span>            :     }
+<span class="lineNum">     110 </span>            : #endif
+<span class="lineNum">     111 </span>            :     else {
+<span class="lineNum">     112 </span><span class="lineNoCov">          0 :         return APR_ENOTIMPL;</span>
+<span class="lineNum">     113 </span>            :     }
+<span class="lineNum">     114 </span>            : 
+<span class="lineNum">     115 </span>            :     /* Unless the method above assumed responsibility for setting up
+<span class="lineNum">     116 </span>            :      * mutexfile and NULLing out file, presume it is a file we
+<span class="lineNum">     117 </span>            :      * are looking to use
+<span class="lineNum">     118 </span>            :      */
+<span class="lineNum">     119 </span><span class="lineNoCov">          0 :     if (file) {</span>
+<span class="lineNum">     120 </span><span class="lineNoCov">          0 :         *mutexfile = ap_server_root_relative(pool, file);</span>
+<span class="lineNum">     121 </span><span class="lineNoCov">          0 :         if (!*mutexfile) {</span>
+<span class="lineNum">     122 </span><span class="lineNoCov">          0 :             return APR_BADARG;</span>
+<span class="lineNum">     123 </span>            :         }
+<span class="lineNum">     124 </span>            :     }
+<span class="lineNum">     125 </span>            : 
+<span class="lineNum">     126 </span><span class="lineNoCov">          0 :     return APR_SUCCESS;</span>
+<span class="lineNum">     127 </span>            : }
+<span class="lineNum">     128 </span>            : 
+<span class="lineNum">     129 </span>            : typedef struct {
+<span class="lineNum">     130 </span>            :     apr_int32_t options;
+<span class="lineNum">     131 </span>            :     int set;
+<span class="lineNum">     132 </span>            :     int none;
+<span class="lineNum">     133 </span>            :     int omit_pid;
+<span class="lineNum">     134 </span>            :     apr_lockmech_e mech;
+<span class="lineNum">     135 </span>            :     const char *dir;
+<span class="lineNum">     136 </span>            : } mutex_cfg_t;
+<span class="lineNum">     137 </span>            : 
+<span class="lineNum">     138 </span>            : /* hash is created the first time a module calls ap_mutex_register(),
+<span class="lineNum">     139 </span>            :  * rather than attempting to be the REALLY_REALLY_FIRST pre-config
+<span class="lineNum">     140 </span>            :  * hook; it is cleaned up when the associated pool goes away; assume
+<span class="lineNum">     141 </span>            :  * pconf is the pool passed to ap_mutex_register()
+<span class="lineNum">     142 </span>            :  */
+<a name="143"><span class="lineNum">     143 </span>            : static apr_hash_t *mxcfg_by_type;</a>
+<span class="lineNum">     144 </span>            : 
+<span class="lineNum">     145 </span><span class="lineCov">          4 : AP_DECLARE_NONSTD(void) ap_mutex_init(apr_pool_t *p)</span>
+<span class="lineNum">     146 </span>            : {
+<span class="lineNum">     147 </span>            :     mutex_cfg_t *def;
+<span class="lineNum">     148 </span>            : 
+<span class="lineNum">     149 </span><span class="lineCov">          4 :     if (mxcfg_by_type) {</span>
+<span class="lineNum">     150 </span><span class="lineCov">          4 :         return;</span>
+<span class="lineNum">     151 </span>            :     }
+<span class="lineNum">     152 </span>            : 
+<span class="lineNum">     153 </span><span class="lineCov">          4 :     mxcfg_by_type = apr_hash_make(p);</span>
+<span class="lineNum">     154 </span><span class="lineCov">          4 :     apr_pool_cleanup_register(p, &amp;mxcfg_by_type, ap_pool_cleanup_set_null,</span>
+<span class="lineNum">     155 </span>            :         apr_pool_cleanup_null);
+<span class="lineNum">     156 </span>            : 
+<span class="lineNum">     157 </span>            :     /* initialize default mutex configuration */
+<span class="lineNum">     158 </span><span class="lineCov">          4 :     def = apr_pcalloc(p, sizeof *def);</span>
+<span class="lineNum">     159 </span><span class="lineCov">          4 :     def-&gt;mech = APR_LOCK_DEFAULT;</span>
+<span class="lineNum">     160 </span><span class="lineCov">          4 :     def-&gt;dir = ap_runtime_dir_relative(p, &quot;&quot;);</span>
+<span class="lineNum">     161 </span><span class="lineCov">          4 :     apr_hash_set(mxcfg_by_type, &quot;default&quot;, APR_HASH_KEY_STRING, def);</span>
+<a name="162"><span class="lineNum">     162 </span>            : }</a>
+<span class="lineNum">     163 </span>            : 
+<span class="lineNum">     164 </span><span class="lineNoCov">          0 : AP_DECLARE_NONSTD(const char *)ap_set_mutex(cmd_parms *cmd, void *dummy,</span>
+<span class="lineNum">     165 </span>            :                                             const char *arg)
+<span class="lineNum">     166 </span>            : {
+<span class="lineNum">     167 </span><span class="lineNoCov">          0 :     apr_pool_t *p = cmd-&gt;pool;</span>
+<span class="lineNum">     168 </span>            :     const char **elt;
+<span class="lineNum">     169 </span>            :     const char *mechdir;
+<span class="lineNum">     170 </span><span class="lineNoCov">          0 :     int no_mutex = 0, omit_pid = 0;</span>
+<span class="lineNum">     171 </span>            :     apr_array_header_t *type_list;
+<span class="lineNum">     172 </span>            :     apr_lockmech_e mech;
+<span class="lineNum">     173 </span>            :     apr_status_t rv;
+<span class="lineNum">     174 </span>            :     const char *mutexdir;
+<span class="lineNum">     175 </span>            :     mutex_cfg_t *mxcfg;
+<span class="lineNum">     176 </span><span class="lineNoCov">          0 :     const char *err = ap_check_cmd_context(cmd, GLOBAL_ONLY);</span>
+<span class="lineNum">     177 </span>            : 
+<span class="lineNum">     178 </span><span class="lineNoCov">          0 :     if (err != NULL) {</span>
+<span class="lineNum">     179 </span><span class="lineNoCov">          0 :         return err;</span>
+<span class="lineNum">     180 </span>            :     }
+<span class="lineNum">     181 </span>            : 
+<span class="lineNum">     182 </span><span class="lineNoCov">          0 :     mechdir = ap_getword_conf(cmd-&gt;pool, &amp;arg);</span>
+<span class="lineNum">     183 </span><span class="lineNoCov">          0 :     if (*mechdir == '\0') {</span>
+<span class="lineNum">     184 </span><span class="lineNoCov">          0 :         return &quot;Mutex requires at least a mechanism argument (&quot;</span>
+<span class="lineNum">     185 </span>            :                AP_ALL_AVAILABLE_MUTEXES_STRING &quot;)&quot;;
+<span class="lineNum">     186 </span>            :     }
+<span class="lineNum">     187 </span>            : 
+<span class="lineNum">     188 </span><span class="lineNoCov">          0 :     rv = ap_parse_mutex(mechdir, p, &amp;mech, &amp;mutexdir);</span>
+<span class="lineNum">     189 </span><span class="lineNoCov">          0 :     if (rv == APR_ENOTIMPL) {</span>
+<span class="lineNum">     190 </span><span class="lineNoCov">          0 :         return apr_pstrcat(p, &quot;Invalid Mutex argument &quot;, mechdir,</span>
+<span class="lineNum">     191 </span>            :                            &quot; (&quot; AP_ALL_AVAILABLE_MUTEXES_STRING &quot;)&quot;, NULL);
+<span class="lineNum">     192 </span>            :     }
+<span class="lineNum">     193 </span><span class="lineNoCov">          0 :     else if (rv == APR_BADARG</span>
+<span class="lineNum">     194 </span><span class="lineNoCov">          0 :              || (mutexdir &amp;&amp; !ap_is_directory(p, mutexdir))) {</span>
+<span class="lineNum">     195 </span><span class="lineNoCov">          0 :         return apr_pstrcat(p, &quot;Invalid Mutex directory in argument &quot;,</span>
+<span class="lineNum">     196 </span>            :                            mechdir, NULL);
+<span class="lineNum">     197 </span>            :     }
+<span class="lineNum">     198 </span><span class="lineNoCov">          0 :     else if (rv == APR_ENOLOCK) { /* &quot;none&quot; */</span>
+<span class="lineNum">     199 </span><span class="lineNoCov">          0 :         no_mutex = 1;</span>
+<span class="lineNum">     200 </span>            :     }
+<span class="lineNum">     201 </span>            : 
+<span class="lineNum">     202 </span>            :     /* &quot;OmitPID&quot; can appear at the end of the list, so build a list of
+<span class="lineNum">     203 </span>            :      * mutex type names while looking for &quot;OmitPID&quot; (anywhere) or the end
+<span class="lineNum">     204 </span>            :      */
+<span class="lineNum">     205 </span><span class="lineNoCov">          0 :     type_list = apr_array_make(cmd-&gt;pool, 4, sizeof(const char *));</span>
+<span class="lineNum">     206 </span><span class="lineNoCov">          0 :     while (*arg) {</span>
+<span class="lineNum">     207 </span><span class="lineNoCov">          0 :         const char *s = ap_getword_conf(cmd-&gt;pool, &amp;arg);</span>
+<span class="lineNum">     208 </span>            : 
+<span class="lineNum">     209 </span><span class="lineNoCov">          0 :         if (!strcasecmp(s, &quot;omitpid&quot;)) {</span>
+<span class="lineNum">     210 </span><span class="lineNoCov">          0 :             omit_pid = 1;</span>
+<span class="lineNum">     211 </span>            :         }
+<span class="lineNum">     212 </span>            :         else {
+<span class="lineNum">     213 </span><span class="lineNoCov">          0 :             const char **new_type = (const char **)apr_array_push(type_list);</span>
+<span class="lineNum">     214 </span><span class="lineNoCov">          0 :             *new_type = s;</span>
+<span class="lineNum">     215 </span>            :         }
+<span class="lineNum">     216 </span>            :     }
+<span class="lineNum">     217 </span>            : 
+<span class="lineNum">     218 </span><span class="lineNoCov">          0 :     if (apr_is_empty_array(type_list)) { /* no mutex type?  assume &quot;default&quot; */</span>
+<span class="lineNum">     219 </span><span class="lineNoCov">          0 :         const char **new_type = (const char **)apr_array_push(type_list);</span>
+<span class="lineNum">     220 </span><span class="lineNoCov">          0 :         *new_type = &quot;default&quot;;</span>
+<span class="lineNum">     221 </span>            :     }
+<span class="lineNum">     222 </span>            : 
+<span class="lineNum">     223 </span><span class="lineNoCov">          0 :     while ((elt = (const char **)apr_array_pop(type_list)) != NULL) {</span>
+<span class="lineNum">     224 </span><span class="lineNoCov">          0 :         const char *type = *elt;</span>
+<span class="lineNum">     225 </span><span class="lineNoCov">          0 :         mxcfg = apr_hash_get(mxcfg_by_type, type, APR_HASH_KEY_STRING);</span>
+<span class="lineNum">     226 </span><span class="lineNoCov">          0 :         if (!mxcfg) {</span>
+<span class="lineNum">     227 </span><span class="lineNoCov">          0 :             return apr_psprintf(p, &quot;Mutex type %s is not valid&quot;, type);</span>
+<span class="lineNum">     228 </span>            :         }
+<span class="lineNum">     229 </span>            : 
+<span class="lineNum">     230 </span><span class="lineNoCov">          0 :         mxcfg-&gt;none = 0; /* in case that was the default */</span>
+<span class="lineNum">     231 </span><span class="lineNoCov">          0 :         mxcfg-&gt;omit_pid = omit_pid;</span>
+<span class="lineNum">     232 </span>            : 
+<span class="lineNum">     233 </span><span class="lineNoCov">          0 :         mxcfg-&gt;set = 1;</span>
+<span class="lineNum">     234 </span><span class="lineNoCov">          0 :         if (no_mutex) {</span>
+<span class="lineNum">     235 </span><span class="lineNoCov">          0 :             if (!(mxcfg-&gt;options &amp; AP_MUTEX_ALLOW_NONE)) {</span>
+<span class="lineNum">     236 </span><span class="lineNoCov">          0 :                 return apr_psprintf(p,</span>
+<span class="lineNum">     237 </span>            :                                     &quot;None is not allowed for mutex type %s&quot;,
+<span class="lineNum">     238 </span>            :                                     type);
+<span class="lineNum">     239 </span>            :             }
+<span class="lineNum">     240 </span><span class="lineNoCov">          0 :             mxcfg-&gt;none = 1;</span>
+<span class="lineNum">     241 </span>            :         }
+<span class="lineNum">     242 </span>            :         else {
+<span class="lineNum">     243 </span><span class="lineNoCov">          0 :             mxcfg-&gt;mech = mech;</span>
+<span class="lineNum">     244 </span><span class="lineNoCov">          0 :             if (mutexdir) { /* retain mutex default if not configured */</span>
+<span class="lineNum">     245 </span><span class="lineNoCov">          0 :                 mxcfg-&gt;dir = mutexdir;</span>
+<span class="lineNum">     246 </span>            :             }
+<span class="lineNum">     247 </span>            :         }
+<span class="lineNum">     248 </span>            :     }
+<span class="lineNum">     249 </span>            : 
+<span class="lineNum">     250 </span><span class="lineNoCov">          0 :     return NULL;</span>
+<a name="251"><span class="lineNum">     251 </span>            : }</a>
+<span class="lineNum">     252 </span>            : 
+<span class="lineNum">     253 </span><span class="lineNoCov">          0 : AP_DECLARE(apr_status_t) ap_mutex_register(apr_pool_t *pconf,</span>
+<span class="lineNum">     254 </span>            :                                            const char *type,
+<span class="lineNum">     255 </span>            :                                            const char *default_dir,
+<span class="lineNum">     256 </span>            :                                            apr_lockmech_e default_mech,
+<span class="lineNum">     257 </span>            :                                            apr_int32_t options)
+<span class="lineNum">     258 </span>            : {
+<span class="lineNum">     259 </span><span class="lineNoCov">          0 :     mutex_cfg_t *mxcfg = apr_pcalloc(pconf, sizeof *mxcfg);</span>
+<span class="lineNum">     260 </span>            : 
+<span class="lineNum">     261 </span><span class="lineNoCov">          0 :     if ((options &amp; ~(AP_MUTEX_ALLOW_NONE | AP_MUTEX_DEFAULT_NONE))) {</span>
+<span class="lineNum">     262 </span><span class="lineNoCov">          0 :         return APR_EINVAL;</span>
+<span class="lineNum">     263 </span>            :     }
+<span class="lineNum">     264 </span>            : 
+<span class="lineNum">     265 </span><span class="lineNoCov">          0 :     ap_mutex_init(pconf); /* in case this mod's pre-config ran before core's */</span>
+<span class="lineNum">     266 </span>            : 
+<span class="lineNum">     267 </span><span class="lineNoCov">          0 :     mxcfg-&gt;options = options;</span>
+<span class="lineNum">     268 </span><span class="lineNoCov">          0 :     if (options &amp; AP_MUTEX_DEFAULT_NONE) {</span>
+<span class="lineNum">     269 </span><span class="lineNoCov">          0 :         mxcfg-&gt;none = 1;</span>
+<span class="lineNum">     270 </span>            :     }
+<span class="lineNum">     271 </span><span class="lineNoCov">          0 :     mxcfg-&gt;dir = default_dir; /* usually NULL */</span>
+<span class="lineNum">     272 </span><span class="lineNoCov">          0 :     mxcfg-&gt;mech = default_mech; /* usually APR_LOCK_DEFAULT */</span>
+<span class="lineNum">     273 </span><span class="lineNoCov">          0 :     apr_hash_set(mxcfg_by_type, type, APR_HASH_KEY_STRING, mxcfg);</span>
+<span class="lineNum">     274 </span>            : 
+<span class="lineNum">     275 </span><span class="lineNoCov">          0 :     return APR_SUCCESS;</span>
+<a name="276"><span class="lineNum">     276 </span>            : }</a>
+<span class="lineNum">     277 </span>            : 
+<span class="lineNum">     278 </span><span class="lineNoCov">          0 : static int mutex_needs_file(apr_lockmech_e mech)</span>
+<span class="lineNum">     279 </span>            : {
+<span class="lineNum">     280 </span><span class="lineNoCov">          0 :     if (mech != APR_LOCK_FLOCK</span>
+<span class="lineNum">     281 </span><span class="lineNoCov">          0 :         &amp;&amp; mech != APR_LOCK_FCNTL</span>
+<span class="lineNum">     282 </span>            : #if APR_USE_FLOCK_SERIALIZE || APR_USE_FCNTL_SERIALIZE
+<span class="lineNum">     283 </span>            :         &amp;&amp; mech != APR_LOCK_DEFAULT
+<span class="lineNum">     284 </span>            : #endif
+<span class="lineNum">     285 </span>            :         ) {
+<span class="lineNum">     286 </span><span class="lineNoCov">          0 :         return 0;</span>
+<span class="lineNum">     287 </span>            :     }
+<span class="lineNum">     288 </span><span class="lineNoCov">          0 :     return 1;</span>
+<a name="289"><span class="lineNum">     289 </span>            : }</a>
+<span class="lineNum">     290 </span>            : 
+<span class="lineNum">     291 </span><span class="lineNoCov">          0 : static const char *get_mutex_filename(apr_pool_t *p, mutex_cfg_t *mxcfg,</span>
+<span class="lineNum">     292 </span>            :                                       const char *type,
+<span class="lineNum">     293 </span>            :                                       const char *instance_id)
+<span class="lineNum">     294 </span>            : {
+<span class="lineNum">     295 </span><span class="lineNoCov">          0 :     const char *pid_suffix = &quot;&quot;;</span>
+<span class="lineNum">     296 </span>            : 
+<span class="lineNum">     297 </span><span class="lineNoCov">          0 :     if (!mutex_needs_file(mxcfg-&gt;mech)) {</span>
+<span class="lineNum">     298 </span><span class="lineNoCov">          0 :         return NULL;</span>
+<span class="lineNum">     299 </span>            :     }
+<span class="lineNum">     300 </span>            : 
+<span class="lineNum">     301 </span>            : #if HAVE_UNISTD_H
+<span class="lineNum">     302 </span><span class="lineNoCov">          0 :     if (!mxcfg-&gt;omit_pid) {</span>
+<span class="lineNum">     303 </span><span class="lineNoCov">          0 :         pid_suffix = apr_psprintf(p, &quot;.%&quot; APR_PID_T_FMT, getpid());</span>
+<span class="lineNum">     304 </span>            :     }
+<span class="lineNum">     305 </span>            : #endif
+<span class="lineNum">     306 </span>            : 
+<span class="lineNum">     307 </span><span class="lineNoCov">          0 :     return ap_server_root_relative(p,</span>
+<span class="lineNum">     308 </span><span class="lineNoCov">          0 :                                    apr_pstrcat(p,</span>
+<span class="lineNum">     309 </span>            :                                                mxcfg-&gt;dir,
+<span class="lineNum">     310 </span>            :                                                &quot;/&quot;,
+<span class="lineNum">     311 </span>            :                                                type,
+<span class="lineNum">     312 </span>            :                                                instance_id ? &quot;-&quot; : &quot;&quot;,
+<span class="lineNum">     313 </span>            :                                                instance_id ? instance_id : &quot;&quot;,
+<span class="lineNum">     314 </span>            :                                                pid_suffix,
+<span class="lineNum">     315 </span>            :                                                NULL));
+<a name="316"><span class="lineNum">     316 </span>            : }</a>
+<span class="lineNum">     317 </span>            : 
+<span class="lineNum">     318 </span><span class="lineNoCov">          0 : static mutex_cfg_t *mxcfg_lookup(apr_pool_t *p, const char *type)</span>
+<span class="lineNum">     319 </span>            : {
+<span class="lineNum">     320 </span>            :     mutex_cfg_t *defcfg, *mxcfg, *newcfg;
+<span class="lineNum">     321 </span>            : 
+<span class="lineNum">     322 </span><span class="lineNoCov">          0 :     defcfg = apr_hash_get(mxcfg_by_type, &quot;default&quot;, APR_HASH_KEY_STRING);</span>
+<span class="lineNum">     323 </span>            : 
+<span class="lineNum">     324 </span>            :     /* MUST exist in table, or wasn't registered */
+<span class="lineNum">     325 </span><span class="lineNoCov">          0 :     mxcfg = apr_hash_get(mxcfg_by_type, type, APR_HASH_KEY_STRING);</span>
+<span class="lineNum">     326 </span><span class="lineNoCov">          0 :     if (!mxcfg) {</span>
+<span class="lineNum">     327 </span><span class="lineNoCov">          0 :         return NULL;</span>
+<span class="lineNum">     328 </span>            :     }
+<span class="lineNum">     329 </span>            : 
+<span class="lineNum">     330 </span>            :     /* order of precedence:
+<span class="lineNum">     331 </span>            :      * 1. Mutex directive for this mutex
+<span class="lineNum">     332 </span>            :      * 2. Mutex directive for &quot;default&quot;
+<span class="lineNum">     333 </span>            :      * 3. Defaults for this mutex from ap_mutex_register()
+<span class="lineNum">     334 </span>            :      * 4. Global defaults
+<span class="lineNum">     335 </span>            :      */
+<span class="lineNum">     336 </span>            : 
+<span class="lineNum">     337 </span><span class="lineNoCov">          0 :     if (mxcfg-&gt;set) {</span>
+<span class="lineNum">     338 </span><span class="lineNoCov">          0 :         newcfg = mxcfg;</span>
+<span class="lineNum">     339 </span>            :     }
+<span class="lineNum">     340 </span><span class="lineNoCov">          0 :     else if (defcfg-&gt;set) {</span>
+<span class="lineNum">     341 </span><span class="lineNoCov">          0 :         newcfg = defcfg;</span>
+<span class="lineNum">     342 </span>            :     }
+<span class="lineNum">     343 </span><span class="lineNoCov">          0 :     else if (mxcfg-&gt;none || mxcfg-&gt;mech != APR_LOCK_DEFAULT) {</span>
+<span class="lineNum">     344 </span><span class="lineNoCov">          0 :         newcfg = mxcfg;</span>
+<span class="lineNum">     345 </span>            :     }
+<span class="lineNum">     346 </span>            :     else {
+<span class="lineNum">     347 </span><span class="lineNoCov">          0 :         newcfg = defcfg;</span>
+<span class="lineNum">     348 </span>            :     }
+<span class="lineNum">     349 </span>            : 
+<span class="lineNum">     350 </span><span class="lineNoCov">          0 :     if (!newcfg-&gt;none &amp;&amp; mutex_needs_file(newcfg-&gt;mech) &amp;&amp; !newcfg-&gt;dir) {</span>
+<span class="lineNum">     351 </span>            :         /* a file-based mutex mechanism was configured, but
+<span class="lineNum">     352 </span>            :          * without a mutex file directory; go back through
+<span class="lineNum">     353 </span>            :          * the chain to find the directory, store in new
+<span class="lineNum">     354 </span>            :          * mutex cfg structure
+<span class="lineNum">     355 </span>            :          */
+<span class="lineNum">     356 </span><span class="lineNoCov">          0 :         newcfg = apr_pmemdup(p, newcfg, sizeof *newcfg);</span>
+<span class="lineNum">     357 </span>            : 
+<span class="lineNum">     358 </span>            :         /* !true if dir not already set: mxcfg-&gt;set &amp;&amp; defcfg-&gt;dir */
+<span class="lineNum">     359 </span><span class="lineNoCov">          0 :         if (defcfg-&gt;set &amp;&amp; defcfg-&gt;dir) {</span>
+<span class="lineNum">     360 </span><span class="lineNoCov">          0 :             newcfg-&gt;dir = defcfg-&gt;dir;</span>
+<span class="lineNum">     361 </span>            :         }
+<span class="lineNum">     362 </span><span class="lineNoCov">          0 :         else if (mxcfg-&gt;dir) {</span>
+<span class="lineNum">     363 </span><span class="lineNoCov">          0 :             newcfg-&gt;dir = mxcfg-&gt;dir;</span>
+<span class="lineNum">     364 </span>            :         }
+<span class="lineNum">     365 </span>            :         else {
+<span class="lineNum">     366 </span><span class="lineNoCov">          0 :             newcfg-&gt;dir = defcfg-&gt;dir;</span>
+<span class="lineNum">     367 </span>            :         }
+<span class="lineNum">     368 </span>            :     }
+<span class="lineNum">     369 </span>            : 
+<span class="lineNum">     370 </span><span class="lineNoCov">          0 :     return newcfg;</span>
+<a name="371"><span class="lineNum">     371 </span>            : }</a>
+<span class="lineNum">     372 </span>            : 
+<span class="lineNum">     373 </span><span class="lineNoCov">          0 : static void log_bad_create_options(server_rec *s, const char *type)</span>
+<span class="lineNum">     374 </span>            : {
+<span class="lineNum">     375 </span><span class="lineNoCov">          0 :     ap_log_error(APLOG_MARK, APLOG_EMERG, 0, s, APLOGNO(00021)</span>
+<span class="lineNum">     376 </span>            :                  &quot;Invalid options were specified when creating the %s mutex&quot;,
+<span class="lineNum">     377 </span>            :                  type);
+<a name="378"><span class="lineNum">     378 </span><span class="lineNoCov">          0 : }</span></a>
+<span class="lineNum">     379 </span>            : 
+<span class="lineNum">     380 </span><span class="lineNoCov">          0 : static void log_unknown_type(server_rec *s, const char *type)</span>
+<span class="lineNum">     381 </span>            : {
+<span class="lineNum">     382 </span><span class="lineNoCov">          0 :     ap_log_error(APLOG_MARK, APLOG_EMERG, 0, s, APLOGNO(00022)</span>
+<span class="lineNum">     383 </span>            :                  &quot;Can't create mutex of unknown type %s&quot;, type);
+<a name="384"><span class="lineNum">     384 </span><span class="lineNoCov">          0 : }</span></a>
+<span class="lineNum">     385 </span>            : 
+<span class="lineNum">     386 </span><span class="lineNoCov">          0 : static void log_create_failure(apr_status_t rv, server_rec *s, const char *type,</span>
+<span class="lineNum">     387 </span>            :                                const char *fname)
+<span class="lineNum">     388 </span>            : {
+<span class="lineNum">     389 </span><span class="lineNoCov">          0 :     ap_log_error(APLOG_MARK, APLOG_EMERG, rv, s, APLOGNO(00023)</span>
+<span class="lineNum">     390 </span>            :                  &quot;Couldn't create the %s mutex %s%s%s&quot;, type,
+<span class="lineNum">     391 </span>            :                  fname ? &quot;(file &quot; : &quot;&quot;,
+<span class="lineNum">     392 </span>            :                  fname ? fname : &quot;&quot;,
+<span class="lineNum">     393 </span>            :                  fname ? &quot;)&quot; : &quot;&quot;);
+<span class="lineNum">     394 </span><span class="lineNoCov">          0 : }</span>
+<a name="395"><span class="lineNum">     395 </span>            : </a>
+<span class="lineNum">     396 </span>            : #ifdef AP_NEED_SET_MUTEX_PERMS
+<span class="lineNum">     397 </span><span class="lineNoCov">          0 : static void log_perms_failure(apr_status_t rv, server_rec *s, const char *type)</span>
+<span class="lineNum">     398 </span>            : {
+<span class="lineNum">     399 </span><span class="lineNoCov">          0 :     ap_log_error(APLOG_MARK, APLOG_EMERG, rv, s, APLOGNO(00024)</span>
+<span class="lineNum">     400 </span>            :                  &quot;Couldn't set permissions on the %s mutex; &quot;
+<span class="lineNum">     401 </span>            :                  &quot;check User and Group directives&quot;,
+<span class="lineNum">     402 </span>            :                  type);
+<span class="lineNum">     403 </span><span class="lineNoCov">          0 : }</span>
+<a name="404"><span class="lineNum">     404 </span>            : #endif</a>
+<span class="lineNum">     405 </span>            : 
+<span class="lineNum">     406 </span><span class="lineNoCov">          0 : AP_DECLARE(apr_status_t) ap_global_mutex_create(apr_global_mutex_t **mutex,</span>
+<span class="lineNum">     407 </span>            :                                                 const char **name,
+<span class="lineNum">     408 </span>            :                                                 const char *type,
+<span class="lineNum">     409 </span>            :                                                 const char *instance_id,
+<span class="lineNum">     410 </span>            :                                                 server_rec *s, apr_pool_t *p,
+<span class="lineNum">     411 </span>            :                                                 apr_int32_t options)
+<span class="lineNum">     412 </span>            : {
+<span class="lineNum">     413 </span>            :     apr_status_t rv;
+<span class="lineNum">     414 </span>            :     const char *fname;
+<span class="lineNum">     415 </span><span class="lineNoCov">          0 :     mutex_cfg_t *mxcfg = mxcfg_lookup(p, type);</span>
+<span class="lineNum">     416 </span>            : 
+<span class="lineNum">     417 </span><span class="lineNoCov">          0 :     if (options) {</span>
+<span class="lineNum">     418 </span><span class="lineNoCov">          0 :         log_bad_create_options(s, type);</span>
+<span class="lineNum">     419 </span><span class="lineNoCov">          0 :         return APR_EINVAL;</span>
+<span class="lineNum">     420 </span>            :     }
+<span class="lineNum">     421 </span>            : 
+<span class="lineNum">     422 </span><span class="lineNoCov">          0 :     if (!mxcfg) {</span>
+<span class="lineNum">     423 </span><span class="lineNoCov">          0 :         log_unknown_type(s, type);</span>
+<span class="lineNum">     424 </span><span class="lineNoCov">          0 :         return APR_EINVAL;</span>
+<span class="lineNum">     425 </span>            :     }
+<span class="lineNum">     426 </span>            : 
+<span class="lineNum">     427 </span><span class="lineNoCov">          0 :     if (mxcfg-&gt;none) {</span>
+<span class="lineNum">     428 </span><span class="lineNoCov">          0 :         *mutex = NULL;</span>
+<span class="lineNum">     429 </span><span class="lineNoCov">          0 :         return APR_SUCCESS;</span>
+<span class="lineNum">     430 </span>            :     }
+<span class="lineNum">     431 </span>            : 
+<span class="lineNum">     432 </span><span class="lineNoCov">          0 :     fname = get_mutex_filename(p, mxcfg, type, instance_id);</span>
+<span class="lineNum">     433 </span>            : 
+<span class="lineNum">     434 </span><span class="lineNoCov">          0 :     rv = apr_global_mutex_create(mutex, fname, mxcfg-&gt;mech, p);</span>
+<span class="lineNum">     435 </span><span class="lineNoCov">          0 :     if (rv != APR_SUCCESS) {</span>
+<span class="lineNum">     436 </span><span class="lineNoCov">          0 :         log_create_failure(rv, s, type, fname);</span>
+<span class="lineNum">     437 </span><span class="lineNoCov">          0 :         return rv;</span>
+<span class="lineNum">     438 </span>            :     }
+<span class="lineNum">     439 </span>            : 
+<span class="lineNum">     440 </span><span class="lineNoCov">          0 :     if (name)</span>
+<span class="lineNum">     441 </span><span class="lineNoCov">          0 :         *name = fname;</span>
+<span class="lineNum">     442 </span>            : 
+<span class="lineNum">     443 </span>            : #ifdef AP_NEED_SET_MUTEX_PERMS
+<span class="lineNum">     444 </span><span class="lineNoCov">          0 :     rv = ap_unixd_set_global_mutex_perms(*mutex);</span>
+<span class="lineNum">     445 </span><span class="lineNoCov">          0 :     if (rv != APR_SUCCESS) {</span>
+<span class="lineNum">     446 </span><span class="lineNoCov">          0 :         log_perms_failure(rv, s, type);</span>
+<span class="lineNum">     447 </span>            :     }
+<span class="lineNum">     448 </span>            : #endif
+<span class="lineNum">     449 </span>            : 
+<span class="lineNum">     450 </span><span class="lineNoCov">          0 :     return rv;</span>
+<a name="451"><span class="lineNum">     451 </span>            : }</a>
+<span class="lineNum">     452 </span>            : 
+<span class="lineNum">     453 </span><span class="lineNoCov">          0 : AP_DECLARE(apr_status_t) ap_proc_mutex_create(apr_proc_mutex_t **mutex,</span>
+<span class="lineNum">     454 </span>            :                                               const char **name,
+<span class="lineNum">     455 </span>            :                                               const char *type,
+<span class="lineNum">     456 </span>            :                                               const char *instance_id,
+<span class="lineNum">     457 </span>            :                                               server_rec *s, apr_pool_t *p,
+<span class="lineNum">     458 </span>            :                                               apr_int32_t options)
+<span class="lineNum">     459 </span>            : {
+<span class="lineNum">     460 </span>            :     apr_status_t rv;
+<span class="lineNum">     461 </span>            :     const char *fname;
+<span class="lineNum">     462 </span><span class="lineNoCov">          0 :     mutex_cfg_t *mxcfg = mxcfg_lookup(p, type);</span>
+<span class="lineNum">     463 </span>            : 
+<span class="lineNum">     464 </span><span class="lineNoCov">          0 :     if (options) {</span>
+<span class="lineNum">     465 </span><span class="lineNoCov">          0 :         log_bad_create_options(s, type);</span>
+<span class="lineNum">     466 </span><span class="lineNoCov">          0 :         return APR_EINVAL;</span>
+<span class="lineNum">     467 </span>            :     }
+<span class="lineNum">     468 </span>            : 
+<span class="lineNum">     469 </span><span class="lineNoCov">          0 :     if (!mxcfg) {</span>
+<span class="lineNum">     470 </span><span class="lineNoCov">          0 :         log_unknown_type(s, type);</span>
+<span class="lineNum">     471 </span><span class="lineNoCov">          0 :         return APR_EINVAL;</span>
+<span class="lineNum">     472 </span>            :     }
+<span class="lineNum">     473 </span>            : 
+<span class="lineNum">     474 </span><span class="lineNoCov">          0 :     if (mxcfg-&gt;none) {</span>
+<span class="lineNum">     475 </span><span class="lineNoCov">          0 :         *mutex = NULL;</span>
+<span class="lineNum">     476 </span><span class="lineNoCov">          0 :         return APR_SUCCESS;</span>
+<span class="lineNum">     477 </span>            :     }
+<span class="lineNum">     478 </span>            : 
+<span class="lineNum">     479 </span><span class="lineNoCov">          0 :     fname = get_mutex_filename(p, mxcfg, type, instance_id);</span>
+<span class="lineNum">     480 </span>            : 
+<span class="lineNum">     481 </span><span class="lineNoCov">          0 :     rv = apr_proc_mutex_create(mutex, fname, mxcfg-&gt;mech, p);</span>
+<span class="lineNum">     482 </span><span class="lineNoCov">          0 :     if (rv != APR_SUCCESS) {</span>
+<span class="lineNum">     483 </span><span class="lineNoCov">          0 :         log_create_failure(rv, s, type, fname);</span>
+<span class="lineNum">     484 </span><span class="lineNoCov">          0 :         return rv;</span>
+<span class="lineNum">     485 </span>            :     }
+<span class="lineNum">     486 </span>            : 
+<span class="lineNum">     487 </span><span class="lineNoCov">          0 :     if (name)</span>
+<span class="lineNum">     488 </span><span class="lineNoCov">          0 :         *name = fname;</span>
+<span class="lineNum">     489 </span>            : 
+<span class="lineNum">     490 </span>            : #ifdef AP_NEED_SET_MUTEX_PERMS
+<span class="lineNum">     491 </span><span class="lineNoCov">          0 :     rv = ap_unixd_set_proc_mutex_perms(*mutex);</span>
+<span class="lineNum">     492 </span><span class="lineNoCov">          0 :     if (rv != APR_SUCCESS) {</span>
+<span class="lineNum">     493 </span><span class="lineNoCov">          0 :         log_perms_failure(rv, s, type);</span>
+<span class="lineNum">     494 </span>            :     }
+<span class="lineNum">     495 </span>            : #endif
+<span class="lineNum">     496 </span>            : 
+<span class="lineNum">     497 </span><span class="lineNoCov">          0 :     return rv;</span>
+<a name="498"><span class="lineNum">     498 </span>            : }</a>
+<span class="lineNum">     499 </span>            : 
+<span class="lineNum">     500 </span><span class="lineNoCov">          0 : AP_CORE_DECLARE(void) ap_dump_mutexes(apr_pool_t *p, server_rec *s, apr_file_t *out)</span>
+<span class="lineNum">     501 </span>            : {
+<span class="lineNum">     502 </span>            :     apr_hash_index_t *idx;
+<span class="lineNum">     503 </span><span class="lineNoCov">          0 :     mutex_cfg_t *defcfg = apr_hash_get(mxcfg_by_type, &quot;default&quot;, APR_HASH_KEY_STRING);</span>
+<span class="lineNum">     504 </span><span class="lineNoCov">          0 :     for (idx = apr_hash_first(p, mxcfg_by_type); idx; idx = apr_hash_next(idx))</span>
+<span class="lineNum">     505 </span>            :     {
+<span class="lineNum">     506 </span>            :         mutex_cfg_t *mxcfg;
+<span class="lineNum">     507 </span>            :         const char *name, *mech;
+<span class="lineNum">     508 </span>            :         const void *name_;
+<span class="lineNum">     509 </span><span class="lineNoCov">          0 :         const char *dir = &quot;&quot;;</span>
+<span class="lineNum">     510 </span><span class="lineNoCov">          0 :         apr_hash_this(idx, &amp;name_, NULL, NULL);</span>
+<span class="lineNum">     511 </span><span class="lineNoCov">          0 :         name = name_;</span>
+<span class="lineNum">     512 </span><span class="lineNoCov">          0 :         mxcfg = mxcfg_lookup(p, name);</span>
+<span class="lineNum">     513 </span><span class="lineNoCov">          0 :         if (mxcfg == defcfg &amp;&amp; strcmp(name, &quot;default&quot;) != 0) {</span>
+<span class="lineNum">     514 </span><span class="lineNoCov">          0 :             apr_file_printf(out, &quot;Mutex %s: using_defaults\n&quot;, name);</span>
+<span class="lineNum">     515 </span><span class="lineNoCov">          0 :             continue;</span>
+<span class="lineNum">     516 </span>            :         }
+<span class="lineNum">     517 </span><span class="lineNoCov">          0 :         if (mxcfg-&gt;none) {</span>
+<span class="lineNum">     518 </span><span class="lineNoCov">          0 :             apr_file_printf(out, &quot;Mutex %s: none\n&quot;, name);</span>
+<span class="lineNum">     519 </span><span class="lineNoCov">          0 :             continue;</span>
+<span class="lineNum">     520 </span>            :         }
+<span class="lineNum">     521 </span><span class="lineNoCov">          0 :         switch (mxcfg-&gt;mech) {</span>
+<span class="lineNum">     522 </span>            :         case APR_LOCK_DEFAULT:
+<span class="lineNum">     523 </span><span class="lineNoCov">          0 :             mech = &quot;default&quot;;</span>
+<span class="lineNum">     524 </span><span class="lineNoCov">          0 :             break;</span>
+<span class="lineNum">     525 </span>            : #if APR_HAS_FCNTL_SERIALIZE
+<span class="lineNum">     526 </span>            :         case APR_LOCK_FCNTL:
+<span class="lineNum">     527 </span><span class="lineNoCov">          0 :             mech = &quot;fcntl&quot;;</span>
+<span class="lineNum">     528 </span><span class="lineNoCov">          0 :             break;</span>
+<span class="lineNum">     529 </span>            : #endif
+<span class="lineNum">     530 </span>            : #if APR_HAS_FLOCK_SERIALIZE
+<span class="lineNum">     531 </span>            :         case APR_LOCK_FLOCK:
+<span class="lineNum">     532 </span><span class="lineNoCov">          0 :             mech = &quot;flock&quot;;</span>
+<span class="lineNum">     533 </span><span class="lineNoCov">          0 :             break;</span>
+<span class="lineNum">     534 </span>            : #endif
+<span class="lineNum">     535 </span>            : #if APR_HAS_POSIXSEM_SERIALIZE
+<span class="lineNum">     536 </span>            :         case APR_LOCK_POSIXSEM:
+<span class="lineNum">     537 </span><span class="lineNoCov">          0 :             mech = &quot;posixsem&quot;;</span>
+<span class="lineNum">     538 </span><span class="lineNoCov">          0 :             break;</span>
+<span class="lineNum">     539 </span>            : #endif
+<span class="lineNum">     540 </span>            : #if APR_HAS_SYSVSEM_SERIALIZE
+<span class="lineNum">     541 </span>            :         case APR_LOCK_SYSVSEM:
+<span class="lineNum">     542 </span><span class="lineNoCov">          0 :             mech = &quot;sysvsem&quot;;</span>
+<span class="lineNum">     543 </span><span class="lineNoCov">          0 :             break;</span>
+<span class="lineNum">     544 </span>            : #endif
+<span class="lineNum">     545 </span>            : #if APR_HAS_PROC_PTHREAD_SERIALIZE
+<span class="lineNum">     546 </span>            :         case APR_LOCK_PROC_PTHREAD:
+<span class="lineNum">     547 </span><span class="lineNoCov">          0 :             mech = &quot;pthread&quot;;</span>
+<span class="lineNum">     548 </span><span class="lineNoCov">          0 :             break;</span>
+<span class="lineNum">     549 </span>            : #endif
+<span class="lineNum">     550 </span>            :         default:
+<span class="lineNum">     551 </span><span class="lineNoCov">          0 :             ap_assert(0);</span>
+<span class="lineNum">     552 </span>            :         }
+<span class="lineNum">     553 </span>            : 
+<span class="lineNum">     554 </span><span class="lineNoCov">          0 :         if (mxcfg-&gt;dir)</span>
+<span class="lineNum">     555 </span><span class="lineNoCov">          0 :             dir = ap_server_root_relative(p, mxcfg-&gt;dir);</span>
+<span class="lineNum">     556 </span>            : 
+<span class="lineNum">     557 </span><span class="lineNoCov">          0 :         apr_file_printf(out, &quot;Mutex %s: dir=\&quot;%s\&quot; mechanism=%s %s\n&quot;, name, dir, mech,</span>
+<span class="lineNum">     558 </span><span class="lineNoCov">          0 :                         mxcfg-&gt;omit_pid ? &quot;[OmitPid]&quot; : &quot;&quot;);</span>
+<span class="lineNum">     559 </span>            :     }
+<span class="lineNum">     560 </span><span class="lineNoCov">          0 : }</span>
+</pre>
+      </td>
+    </tr>
+  </table>
+  <br>
+
+  <table width="100%" border=0 cellspacing=0 cellpadding=0>
+    <tr><td class="ruler"><img src="../glass.png" width=3 height=3 alt=""></td></tr>
+    <tr><td class="versionInfo">Generated by: <a href="http://ltp.sourceforge.net/coverage/lcov.php" target="_parent">LCOV version 1.11</a></td></tr>
+  </table>
+  <br>
+
+</body>
+</html>

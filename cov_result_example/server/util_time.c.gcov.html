@@ -1,0 +1,382 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+
+<html lang="en">
+
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <title>LCOV - apptest.info - server/util_time.c</title>
+  <link rel="stylesheet" type="text/css" href="../gcov.css">
+</head>
+
+<body>
+
+  <table width="100%" border=0 cellspacing=0 cellpadding=0>
+    <tr><td class="title">LCOV - code coverage report</td></tr>
+    <tr><td class="ruler"><img src="../glass.png" width=3 height=3 alt=""></td></tr>
+
+    <tr>
+      <td width="100%">
+        <table cellpadding=1 border=0 width="100%">
+          <tr>
+            <td width="10%" class="headerItem">Current view:</td>
+            <td width="35%" class="headerValue"><a href="../index.html">top level</a> - <a href="index.html">server</a> - util_time.c<span style="font-size: 80%;"> (source / <a href="util_time.c.func-sort-c.html">functions</a>)</span></td>
+            <td width="5%"></td>
+            <td width="15%"></td>
+            <td width="10%" class="headerCovTableHead">Hit</td>
+            <td width="10%" class="headerCovTableHead">Total</td>
+            <td width="15%" class="headerCovTableHead">Coverage</td>
+          </tr>
+          <tr>
+            <td class="headerItem">Test:</td>
+            <td class="headerValue">apptest.info</td>
+            <td></td>
+            <td class="headerItem">Lines:</td>
+            <td class="headerCovTableEntry">103</td>
+            <td class="headerCovTableEntry">123</td>
+            <td class="headerCovTableEntryMed">83.7 %</td>
+          </tr>
+          <tr>
+            <td class="headerItem">Date:</td>
+            <td class="headerValue">2017-01-31 22:58:06</td>
+            <td></td>
+            <td class="headerItem">Functions:</td>
+            <td class="headerCovTableEntry">5</td>
+            <td class="headerCovTableEntry">6</td>
+            <td class="headerCovTableEntryMed">83.3 %</td>
+          </tr>
+          <tr><td><img src="../glass.png" width=3 height=3 alt=""></td></tr>
+        </table>
+      </td>
+    </tr>
+
+    <tr><td class="ruler"><img src="../glass.png" width=3 height=3 alt=""></td></tr>
+  </table>
+
+  <table cellpadding=0 cellspacing=0 border=0>
+    <tr>
+      <td><br></td>
+    </tr>
+    <tr>
+      <td>
+<pre class="sourceHeading">          Line data    Source code</pre>
+<pre class="source">
+<a name="1"><span class="lineNum">       1 </span>            : /* Licensed to the Apache Software Foundation (ASF) under one or more</a>
+<span class="lineNum">       2 </span>            :  * contributor license agreements.  See the NOTICE file distributed with
+<span class="lineNum">       3 </span>            :  * this work for additional information regarding copyright ownership.
+<span class="lineNum">       4 </span>            :  * The ASF licenses this file to You under the Apache License, Version 2.0
+<span class="lineNum">       5 </span>            :  * (the &quot;License&quot;); you may not use this file except in compliance with
+<span class="lineNum">       6 </span>            :  * the License.  You may obtain a copy of the License at
+<span class="lineNum">       7 </span>            :  *
+<span class="lineNum">       8 </span>            :  *     http://www.apache.org/licenses/LICENSE-2.0
+<span class="lineNum">       9 </span>            :  *
+<span class="lineNum">      10 </span>            :  * Unless required by applicable law or agreed to in writing, software
+<span class="lineNum">      11 </span>            :  * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+<span class="lineNum">      12 </span>            :  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+<span class="lineNum">      13 </span>            :  * See the License for the specific language governing permissions and
+<span class="lineNum">      14 </span>            :  * limitations under the License.
+<span class="lineNum">      15 </span>            :  */
+<span class="lineNum">      16 </span>            : 
+<span class="lineNum">      17 </span>            : #include &quot;util_time.h&quot;
+<span class="lineNum">      18 </span>            : 
+<span class="lineNum">      19 </span>            : 
+<span class="lineNum">      20 </span>            : /* Number of characters needed to format the microsecond part of a timestamp.
+<span class="lineNum">      21 </span>            :  * Microseconds have 6 digits plus one separator character makes 7.
+<span class="lineNum">      22 </span>            :  *   */
+<span class="lineNum">      23 </span>            : #define AP_CTIME_USEC_LENGTH      7
+<span class="lineNum">      24 </span>            : 
+<span class="lineNum">      25 </span>            : /* Length of ISO 8601 date/time */
+<span class="lineNum">      26 </span>            : #define AP_CTIME_COMPACT_LEN      20
+<span class="lineNum">      27 </span>            : 
+<span class="lineNum">      28 </span>            : 
+<span class="lineNum">      29 </span>            : /* Cache for exploded values of recent timestamps
+<span class="lineNum">      30 </span>            :  */
+<span class="lineNum">      31 </span>            : 
+<span class="lineNum">      32 </span>            : struct exploded_time_cache_element {
+<span class="lineNum">      33 </span>            :     apr_int64_t t;
+<span class="lineNum">      34 </span>            :     apr_time_exp_t xt;
+<span class="lineNum">      35 </span>            :     apr_int64_t t_validate; /* please see comments in cached_explode() */
+<span class="lineNum">      36 </span>            : };
+<span class="lineNum">      37 </span>            : 
+<span class="lineNum">      38 </span>            : /* the &quot;+ 1&quot; is for the current second: */
+<span class="lineNum">      39 </span>            : #define TIME_CACHE_SIZE (AP_TIME_RECENT_THRESHOLD + 1)
+<span class="lineNum">      40 </span>            : 
+<span class="lineNum">      41 </span>            : /* Note that AP_TIME_RECENT_THRESHOLD is defined to
+<span class="lineNum">      42 </span>            :  * be a power of two minus one in util_time.h, so that
+<span class="lineNum">      43 </span>            :  * we can replace a modulo operation with a bitwise AND
+<span class="lineNum">      44 </span>            :  * when hashing items into a cache of size
+<span class="lineNum">      45 </span>            :  * AP_TIME_RECENT_THRESHOLD+1
+<span class="lineNum">      46 </span>            :  */
+<span class="lineNum">      47 </span>            : #define TIME_CACHE_MASK (AP_TIME_RECENT_THRESHOLD)
+<span class="lineNum">      48 </span>            : 
+<span class="lineNum">      49 </span>            : static struct exploded_time_cache_element exploded_cache_localtime[TIME_CACHE_SIZE];
+<span class="lineNum">      50 </span>            : static struct exploded_time_cache_element exploded_cache_gmt[TIME_CACHE_SIZE];
+<a name="51"><span class="lineNum">      51 </span>            : </a>
+<span class="lineNum">      52 </span>            : 
+<span class="lineNum">      53 </span><span class="lineCov">          4 : static apr_status_t cached_explode(apr_time_exp_t *xt, apr_time_t t,</span>
+<span class="lineNum">      54 </span>            :                                    struct exploded_time_cache_element *cache,
+<span class="lineNum">      55 </span>            :                                    int use_gmt)
+<span class="lineNum">      56 </span>            : {
+<span class="lineNum">      57 </span><span class="lineCov">          4 :     apr_int64_t seconds = apr_time_sec(t);</span>
+<span class="lineNum">      58 </span><span class="lineCov">          4 :     struct exploded_time_cache_element *cache_element =</span>
+<span class="lineNum">      59 </span><span class="lineCov">          4 :         &amp;(cache[seconds &amp; TIME_CACHE_MASK]);</span>
+<span class="lineNum">      60 </span>            :     struct exploded_time_cache_element cache_element_snapshot;
+<span class="lineNum">      61 </span>            : 
+<span class="lineNum">      62 </span>            :     /* The cache is implemented as a ring buffer.  Each second,
+<span class="lineNum">      63 </span>            :      * it uses a different element in the buffer.  The timestamp
+<span class="lineNum">      64 </span>            :      * in the element indicates whether the element contains the
+<span class="lineNum">      65 </span>            :      * exploded time for the current second (vs the time
+<span class="lineNum">      66 </span>            :      * 'now - AP_TIME_RECENT_THRESHOLD' seconds ago).  If the
+<span class="lineNum">      67 </span>            :      * cached value is for the current time, we use it.  Otherwise,
+<span class="lineNum">      68 </span>            :      * we compute the apr_time_exp_t and store it in this
+<span class="lineNum">      69 </span>            :      * cache element. Note that the timestamp in the cache
+<span class="lineNum">      70 </span>            :      * element is updated only after the exploded time.  Thus
+<span class="lineNum">      71 </span>            :      * if two threads hit this cache element simultaneously
+<span class="lineNum">      72 </span>            :      * at the start of a new second, they'll both explode the
+<span class="lineNum">      73 </span>            :      * time and store it.  I.e., the writers will collide, but
+<span class="lineNum">      74 </span>            :      * they'll be writing the same value.
+<span class="lineNum">      75 </span>            :      */
+<span class="lineNum">      76 </span><span class="lineCov">          4 :     if (cache_element-&gt;t &gt;= seconds) {</span>
+<span class="lineNum">      77 </span>            :         /* There is an intentional race condition in this design:
+<span class="lineNum">      78 </span>            :          * in a multithreaded app, one thread might be reading
+<span class="lineNum">      79 </span>            :          * from this cache_element to resolve a timestamp from
+<span class="lineNum">      80 </span>            :          * TIME_CACHE_SIZE seconds ago at the same time that
+<span class="lineNum">      81 </span>            :          * another thread is copying the exploded form of the
+<span class="lineNum">      82 </span>            :          * current time into the same cache_element.  (I.e., the
+<span class="lineNum">      83 </span>            :          * first thread might hit this element of the ring buffer
+<span class="lineNum">      84 </span>            :          * just as the element is being recycled.)  This can
+<span class="lineNum">      85 </span>            :          * also happen at the start of a new second, if a
+<span class="lineNum">      86 </span>            :          * reader accesses the cache_element after a writer
+<span class="lineNum">      87 </span>            :          * has updated cache_element.t but before the writer
+<span class="lineNum">      88 </span>            :          * has finished updating the whole cache_element.
+<span class="lineNum">      89 </span>            :          *
+<span class="lineNum">      90 </span>            :          * Rather than trying to prevent this race condition
+<span class="lineNum">      91 </span>            :          * with locks, we allow it to happen and then detect
+<span class="lineNum">      92 </span>            :          * and correct it.  The detection works like this:
+<span class="lineNum">      93 </span>            :          *   Step 1: Take a &quot;snapshot&quot; of the cache element by
+<span class="lineNum">      94 </span>            :          *           copying it into a temporary buffer.
+<span class="lineNum">      95 </span>            :          *   Step 2: Check whether the snapshot contains consistent
+<span class="lineNum">      96 </span>            :          *           data: the timestamps at the start and end of
+<span class="lineNum">      97 </span>            :          *           the cache_element should both match the 'seconds'
+<span class="lineNum">      98 </span>            :          *           value that we computed from the input time.
+<span class="lineNum">      99 </span>            :          *           If these three don't match, then the snapshot
+<span class="lineNum">     100 </span>            :          *           shows the cache_element in the middle of an
+<span class="lineNum">     101 </span>            :          *           update, and its contents are invalid.
+<span class="lineNum">     102 </span>            :          *   Step 3: If the snapshot is valid, use it.  Otherwise,
+<span class="lineNum">     103 </span>            :          *           just give up on the cache and explode the
+<span class="lineNum">     104 </span>            :          *           input time.
+<span class="lineNum">     105 </span>            :          */
+<span class="lineNum">     106 </span><span class="lineCov">          2 :         memcpy(&amp;cache_element_snapshot, cache_element,</span>
+<span class="lineNum">     107 </span>            :                sizeof(struct exploded_time_cache_element));
+<span class="lineNum">     108 </span><span class="lineCov">          4 :         if ((seconds != cache_element_snapshot.t) ||</span>
+<span class="lineNum">     109 </span><span class="lineCov">          2 :             (seconds != cache_element_snapshot.t_validate)) {</span>
+<span class="lineNum">     110 </span>            :             /* Invalid snapshot */
+<span class="lineNum">     111 </span><span class="lineNoCov">          0 :             if (use_gmt) {</span>
+<span class="lineNum">     112 </span><span class="lineNoCov">          0 :                 return apr_time_exp_gmt(xt, t);</span>
+<span class="lineNum">     113 </span>            :             }
+<span class="lineNum">     114 </span>            :             else {
+<span class="lineNum">     115 </span><span class="lineNoCov">          0 :                 return apr_time_exp_lt(xt, t);</span>
+<span class="lineNum">     116 </span>            :             }
+<span class="lineNum">     117 </span>            :         }
+<span class="lineNum">     118 </span>            :         else {
+<span class="lineNum">     119 </span>            :             /* Valid snapshot */
+<span class="lineNum">     120 </span><span class="lineCov">          2 :             memcpy(xt, &amp;(cache_element_snapshot.xt),</span>
+<span class="lineNum">     121 </span>            :                    sizeof(apr_time_exp_t));
+<span class="lineNum">     122 </span>            :         }
+<span class="lineNum">     123 </span>            :     }
+<span class="lineNum">     124 </span>            :     else {
+<span class="lineNum">     125 </span>            :         apr_status_t r;
+<span class="lineNum">     126 </span><span class="lineCov">          2 :         if (use_gmt) {</span>
+<span class="lineNum">     127 </span><span class="lineCov">          1 :             r = apr_time_exp_gmt(xt, t);</span>
+<span class="lineNum">     128 </span>            :         }
+<span class="lineNum">     129 </span>            :         else {
+<span class="lineNum">     130 </span><span class="lineCov">          1 :             r = apr_time_exp_lt(xt, t);</span>
+<span class="lineNum">     131 </span>            :         }
+<span class="lineNum">     132 </span><span class="lineCov">          2 :         if (r != APR_SUCCESS) {</span>
+<span class="lineNum">     133 </span><span class="lineNoCov">          0 :             return r;</span>
+<span class="lineNum">     134 </span>            :         }
+<span class="lineNum">     135 </span><span class="lineCov">          2 :         cache_element-&gt;t = seconds;</span>
+<span class="lineNum">     136 </span><span class="lineCov">          2 :         memcpy(&amp;(cache_element-&gt;xt), xt, sizeof(apr_time_exp_t));</span>
+<span class="lineNum">     137 </span><span class="lineCov">          2 :         cache_element-&gt;t_validate = seconds;</span>
+<span class="lineNum">     138 </span>            :     }
+<span class="lineNum">     139 </span><span class="lineCov">          4 :     xt-&gt;tm_usec = (int)apr_time_usec(t);</span>
+<span class="lineNum">     140 </span><span class="lineCov">          4 :     return APR_SUCCESS;</span>
+<span class="lineNum">     141 </span>            : }
+<a name="142"><span class="lineNum">     142 </span>            : </a>
+<span class="lineNum">     143 </span>            : 
+<span class="lineNum">     144 </span><span class="lineCov">          3 : AP_DECLARE(apr_status_t) ap_explode_recent_localtime(apr_time_exp_t * tm,</span>
+<span class="lineNum">     145 </span>            :                                                      apr_time_t t)
+<span class="lineNum">     146 </span>            : {
+<span class="lineNum">     147 </span><span class="lineCov">          3 :     return cached_explode(tm, t, exploded_cache_localtime, 0);</span>
+<a name="148"><span class="lineNum">     148 </span>            : }</a>
+<span class="lineNum">     149 </span>            : 
+<span class="lineNum">     150 </span><span class="lineCov">          1 : AP_DECLARE(apr_status_t) ap_explode_recent_gmt(apr_time_exp_t * tm,</span>
+<span class="lineNum">     151 </span>            :                                                apr_time_t t)
+<span class="lineNum">     152 </span>            : {
+<span class="lineNum">     153 </span><span class="lineCov">          1 :     return cached_explode(tm, t, exploded_cache_gmt, 1);</span>
+<a name="154"><span class="lineNum">     154 </span>            : }</a>
+<span class="lineNum">     155 </span>            : 
+<span class="lineNum">     156 </span><span class="lineNoCov">          0 : AP_DECLARE(apr_status_t) ap_recent_ctime(char *date_str, apr_time_t t)</span>
+<span class="lineNum">     157 </span>            : {
+<span class="lineNum">     158 </span><span class="lineNoCov">          0 :     int len = APR_CTIME_LEN;</span>
+<span class="lineNum">     159 </span><span class="lineNoCov">          0 :     return ap_recent_ctime_ex(date_str, t, AP_CTIME_OPTION_NONE, &amp;len);</span>
+<a name="160"><span class="lineNum">     160 </span>            : }</a>
+<span class="lineNum">     161 </span>            : 
+<span class="lineNum">     162 </span><span class="lineCov">          3 : AP_DECLARE(apr_status_t) ap_recent_ctime_ex(char *date_str, apr_time_t t,</span>
+<span class="lineNum">     163 </span>            :                                             int option, int *len)
+<span class="lineNum">     164 </span>            : {
+<span class="lineNum">     165 </span>            :     /* ### This code is a clone of apr_ctime(), except that it
+<span class="lineNum">     166 </span>            :      * uses ap_explode_recent_localtime() instead of apr_time_exp_lt().
+<span class="lineNum">     167 </span>            :      */
+<span class="lineNum">     168 </span>            :     apr_time_exp_t xt;
+<span class="lineNum">     169 </span>            :     const char *s;
+<span class="lineNum">     170 </span>            :     int real_year;
+<span class="lineNum">     171 </span>            :     int needed;
+<span class="lineNum">     172 </span>            : 
+<span class="lineNum">     173 </span>            : 
+<span class="lineNum">     174 </span>            :     /* Calculate the needed buffer length */
+<span class="lineNum">     175 </span><span class="lineCov">          3 :     if (option &amp; AP_CTIME_OPTION_COMPACT)</span>
+<span class="lineNum">     176 </span><span class="lineNoCov">          0 :         needed = AP_CTIME_COMPACT_LEN;</span>
+<span class="lineNum">     177 </span>            :     else
+<span class="lineNum">     178 </span><span class="lineCov">          3 :         needed = APR_CTIME_LEN;</span>
+<span class="lineNum">     179 </span>            : 
+<span class="lineNum">     180 </span><span class="lineCov">          3 :     if (option &amp; AP_CTIME_OPTION_USEC) {</span>
+<span class="lineNum">     181 </span><span class="lineCov">          3 :         needed += AP_CTIME_USEC_LENGTH;</span>
+<span class="lineNum">     182 </span>            :     }
+<span class="lineNum">     183 </span>            : 
+<span class="lineNum">     184 </span>            :     /* Check the provided buffer length */
+<span class="lineNum">     185 </span><span class="lineCov">          3 :     if (len &amp;&amp; *len &gt;= needed) {</span>
+<span class="lineNum">     186 </span><span class="lineCov">          3 :         *len = needed;</span>
+<span class="lineNum">     187 </span>            :     }
+<span class="lineNum">     188 </span>            :     else {
+<span class="lineNum">     189 </span><span class="lineNoCov">          0 :         if (len != NULL) {</span>
+<span class="lineNum">     190 </span><span class="lineNoCov">          0 :             *len = 0;</span>
+<span class="lineNum">     191 </span>            :         }
+<span class="lineNum">     192 </span><span class="lineNoCov">          0 :         return APR_ENOMEM;</span>
+<span class="lineNum">     193 </span>            :     }
+<span class="lineNum">     194 </span>            : 
+<span class="lineNum">     195 </span>            :     /* example without options: &quot;Wed Jun 30 21:49:08 1993&quot; */
+<span class="lineNum">     196 </span>            :     /*                           123456789012345678901234  */
+<span class="lineNum">     197 </span>            :     /* example for compact format: &quot;1993-06-30 21:49:08&quot; */
+<span class="lineNum">     198 </span>            :     /*                              1234567890123456789  */
+<span class="lineNum">     199 </span>            : 
+<span class="lineNum">     200 </span><span class="lineCov">          3 :     ap_explode_recent_localtime(&amp;xt, t);</span>
+<span class="lineNum">     201 </span><span class="lineCov">          3 :     real_year = 1900 + xt.tm_year;</span>
+<span class="lineNum">     202 </span><span class="lineCov">          3 :     if (option &amp; AP_CTIME_OPTION_COMPACT) {</span>
+<span class="lineNum">     203 </span><span class="lineNoCov">          0 :         int real_month = xt.tm_mon + 1;</span>
+<span class="lineNum">     204 </span><span class="lineNoCov">          0 :         *date_str++ = real_year / 1000 + '0';</span>
+<span class="lineNum">     205 </span><span class="lineNoCov">          0 :         *date_str++ = real_year % 1000 / 100 + '0';</span>
+<span class="lineNum">     206 </span><span class="lineNoCov">          0 :         *date_str++ = real_year % 100 / 10 + '0';</span>
+<span class="lineNum">     207 </span><span class="lineNoCov">          0 :         *date_str++ = real_year % 10 + '0';</span>
+<span class="lineNum">     208 </span><span class="lineNoCov">          0 :         *date_str++ = '-';</span>
+<span class="lineNum">     209 </span><span class="lineNoCov">          0 :         *date_str++ = real_month / 10 + '0';</span>
+<span class="lineNum">     210 </span><span class="lineNoCov">          0 :         *date_str++ = real_month % 10 + '0';</span>
+<span class="lineNum">     211 </span><span class="lineNoCov">          0 :         *date_str++ = '-';</span>
+<span class="lineNum">     212 </span>            :     }
+<span class="lineNum">     213 </span>            :     else {
+<span class="lineNum">     214 </span><span class="lineCov">          3 :         s = &amp;apr_day_snames[xt.tm_wday][0];</span>
+<span class="lineNum">     215 </span><span class="lineCov">          3 :         *date_str++ = *s++;</span>
+<span class="lineNum">     216 </span><span class="lineCov">          3 :         *date_str++ = *s++;</span>
+<span class="lineNum">     217 </span><span class="lineCov">          3 :         *date_str++ = *s++;</span>
+<span class="lineNum">     218 </span><span class="lineCov">          3 :         *date_str++ = ' ';</span>
+<span class="lineNum">     219 </span><span class="lineCov">          3 :         s = &amp;apr_month_snames[xt.tm_mon][0];</span>
+<span class="lineNum">     220 </span><span class="lineCov">          3 :         *date_str++ = *s++;</span>
+<span class="lineNum">     221 </span><span class="lineCov">          3 :         *date_str++ = *s++;</span>
+<span class="lineNum">     222 </span><span class="lineCov">          3 :         *date_str++ = *s++;</span>
+<span class="lineNum">     223 </span><span class="lineCov">          3 :         *date_str++ = ' ';</span>
+<span class="lineNum">     224 </span>            :     }
+<span class="lineNum">     225 </span><span class="lineCov">          3 :     *date_str++ = xt.tm_mday / 10 + '0';</span>
+<span class="lineNum">     226 </span><span class="lineCov">          3 :     *date_str++ = xt.tm_mday % 10 + '0';</span>
+<span class="lineNum">     227 </span><span class="lineCov">          3 :     *date_str++ = ' ';</span>
+<span class="lineNum">     228 </span><span class="lineCov">          3 :     *date_str++ = xt.tm_hour / 10 + '0';</span>
+<span class="lineNum">     229 </span><span class="lineCov">          3 :     *date_str++ = xt.tm_hour % 10 + '0';</span>
+<span class="lineNum">     230 </span><span class="lineCov">          3 :     *date_str++ = ':';</span>
+<span class="lineNum">     231 </span><span class="lineCov">          3 :     *date_str++ = xt.tm_min / 10 + '0';</span>
+<span class="lineNum">     232 </span><span class="lineCov">          3 :     *date_str++ = xt.tm_min % 10 + '0';</span>
+<span class="lineNum">     233 </span><span class="lineCov">          3 :     *date_str++ = ':';</span>
+<span class="lineNum">     234 </span><span class="lineCov">          3 :     *date_str++ = xt.tm_sec / 10 + '0';</span>
+<span class="lineNum">     235 </span><span class="lineCov">          3 :     *date_str++ = xt.tm_sec % 10 + '0';</span>
+<span class="lineNum">     236 </span><span class="lineCov">          3 :     if (option &amp; AP_CTIME_OPTION_USEC) {</span>
+<span class="lineNum">     237 </span>            :         int div;
+<span class="lineNum">     238 </span><span class="lineCov">          3 :         int usec = (int)xt.tm_usec;</span>
+<span class="lineNum">     239 </span><span class="lineCov">          3 :         *date_str++ = '.';</span>
+<span class="lineNum">     240 </span><span class="lineCov">         21 :         for (div=100000; div&gt;0; div=div/10) {</span>
+<span class="lineNum">     241 </span><span class="lineCov">         18 :             *date_str++ = usec / div + '0';</span>
+<span class="lineNum">     242 </span><span class="lineCov">         18 :             usec = usec % div;</span>
+<span class="lineNum">     243 </span>            :         }
+<span class="lineNum">     244 </span>            :     }
+<span class="lineNum">     245 </span><span class="lineCov">          3 :     if (!(option &amp; AP_CTIME_OPTION_COMPACT)) {</span>
+<span class="lineNum">     246 </span><span class="lineCov">          3 :         *date_str++ = ' ';</span>
+<span class="lineNum">     247 </span><span class="lineCov">          3 :         *date_str++ = real_year / 1000 + '0';</span>
+<span class="lineNum">     248 </span><span class="lineCov">          3 :         *date_str++ = real_year % 1000 / 100 + '0';</span>
+<span class="lineNum">     249 </span><span class="lineCov">          3 :         *date_str++ = real_year % 100 / 10 + '0';</span>
+<span class="lineNum">     250 </span><span class="lineCov">          3 :         *date_str++ = real_year % 10 + '0';</span>
+<span class="lineNum">     251 </span>            :     }
+<span class="lineNum">     252 </span><span class="lineCov">          3 :     *date_str++ = 0;</span>
+<span class="lineNum">     253 </span>            : 
+<span class="lineNum">     254 </span><span class="lineCov">          3 :     return APR_SUCCESS;</span>
+<a name="255"><span class="lineNum">     255 </span>            : }</a>
+<span class="lineNum">     256 </span>            : 
+<span class="lineNum">     257 </span><span class="lineCov">          1 : AP_DECLARE(apr_status_t) ap_recent_rfc822_date(char *date_str, apr_time_t t)</span>
+<span class="lineNum">     258 </span>            : {
+<span class="lineNum">     259 </span>            :     /* ### This code is a clone of apr_rfc822_date(), except that it
+<span class="lineNum">     260 </span>            :      * uses ap_explode_recent_gmt() instead of apr_time_exp_gmt().
+<span class="lineNum">     261 </span>            :      */
+<span class="lineNum">     262 </span>            :     apr_time_exp_t xt;
+<span class="lineNum">     263 </span>            :     const char *s;
+<span class="lineNum">     264 </span>            :     int real_year;
+<span class="lineNum">     265 </span>            : 
+<span class="lineNum">     266 </span><span class="lineCov">          1 :     ap_explode_recent_gmt(&amp;xt, t);</span>
+<span class="lineNum">     267 </span>            : 
+<span class="lineNum">     268 </span>            :     /* example: &quot;Sat, 08 Jan 2000 18:31:41 GMT&quot; */
+<span class="lineNum">     269 </span>            :     /*           12345678901234567890123456789  */
+<span class="lineNum">     270 </span>            : 
+<span class="lineNum">     271 </span><span class="lineCov">          1 :     s = &amp;apr_day_snames[xt.tm_wday][0];</span>
+<span class="lineNum">     272 </span><span class="lineCov">          1 :     *date_str++ = *s++;</span>
+<span class="lineNum">     273 </span><span class="lineCov">          1 :     *date_str++ = *s++;</span>
+<span class="lineNum">     274 </span><span class="lineCov">          1 :     *date_str++ = *s++;</span>
+<span class="lineNum">     275 </span><span class="lineCov">          1 :     *date_str++ = ',';</span>
+<span class="lineNum">     276 </span><span class="lineCov">          1 :     *date_str++ = ' ';</span>
+<span class="lineNum">     277 </span><span class="lineCov">          1 :     *date_str++ = xt.tm_mday / 10 + '0';</span>
+<span class="lineNum">     278 </span><span class="lineCov">          1 :     *date_str++ = xt.tm_mday % 10 + '0';</span>
+<span class="lineNum">     279 </span><span class="lineCov">          1 :     *date_str++ = ' ';</span>
+<span class="lineNum">     280 </span><span class="lineCov">          1 :     s = &amp;apr_month_snames[xt.tm_mon][0];</span>
+<span class="lineNum">     281 </span><span class="lineCov">          1 :     *date_str++ = *s++;</span>
+<span class="lineNum">     282 </span><span class="lineCov">          1 :     *date_str++ = *s++;</span>
+<span class="lineNum">     283 </span><span class="lineCov">          1 :     *date_str++ = *s++;</span>
+<span class="lineNum">     284 </span><span class="lineCov">          1 :     *date_str++ = ' ';</span>
+<span class="lineNum">     285 </span><span class="lineCov">          1 :     real_year = 1900 + xt.tm_year;</span>
+<span class="lineNum">     286 </span>            :     /* This routine isn't y10k ready. */
+<span class="lineNum">     287 </span><span class="lineCov">          1 :     *date_str++ = real_year / 1000 + '0';</span>
+<span class="lineNum">     288 </span><span class="lineCov">          1 :     *date_str++ = real_year % 1000 / 100 + '0';</span>
+<span class="lineNum">     289 </span><span class="lineCov">          1 :     *date_str++ = real_year % 100 / 10 + '0';</span>
+<span class="lineNum">     290 </span><span class="lineCov">          1 :     *date_str++ = real_year % 10 + '0';</span>
+<span class="lineNum">     291 </span><span class="lineCov">          1 :     *date_str++ = ' ';</span>
+<span class="lineNum">     292 </span><span class="lineCov">          1 :     *date_str++ = xt.tm_hour / 10 + '0';</span>
+<span class="lineNum">     293 </span><span class="lineCov">          1 :     *date_str++ = xt.tm_hour % 10 + '0';</span>
+<span class="lineNum">     294 </span><span class="lineCov">          1 :     *date_str++ = ':';</span>
+<span class="lineNum">     295 </span><span class="lineCov">          1 :     *date_str++ = xt.tm_min / 10 + '0';</span>
+<span class="lineNum">     296 </span><span class="lineCov">          1 :     *date_str++ = xt.tm_min % 10 + '0';</span>
+<span class="lineNum">     297 </span><span class="lineCov">          1 :     *date_str++ = ':';</span>
+<span class="lineNum">     298 </span><span class="lineCov">          1 :     *date_str++ = xt.tm_sec / 10 + '0';</span>
+<span class="lineNum">     299 </span><span class="lineCov">          1 :     *date_str++ = xt.tm_sec % 10 + '0';</span>
+<span class="lineNum">     300 </span><span class="lineCov">          1 :     *date_str++ = ' ';</span>
+<span class="lineNum">     301 </span><span class="lineCov">          1 :     *date_str++ = 'G';</span>
+<span class="lineNum">     302 </span><span class="lineCov">          1 :     *date_str++ = 'M';</span>
+<span class="lineNum">     303 </span><span class="lineCov">          1 :     *date_str++ = 'T';</span>
+<span class="lineNum">     304 </span><span class="lineCov">          1 :     *date_str++ = 0;</span>
+<span class="lineNum">     305 </span><span class="lineCov">          1 :     return APR_SUCCESS;</span>
+<span class="lineNum">     306 </span>            : }
+</pre>
+      </td>
+    </tr>
+  </table>
+  <br>
+
+  <table width="100%" border=0 cellspacing=0 cellpadding=0>
+    <tr><td class="ruler"><img src="../glass.png" width=3 height=3 alt=""></td></tr>
+    <tr><td class="versionInfo">Generated by: <a href="http://ltp.sourceforge.net/coverage/lcov.php" target="_parent">LCOV version 1.11</a></td></tr>
+  </table>
+  <br>
+
+</body>
+</html>

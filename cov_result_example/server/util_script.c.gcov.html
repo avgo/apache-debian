@@ -1,0 +1,933 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+
+<html lang="en">
+
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <title>LCOV - apptest.info - server/util_script.c</title>
+  <link rel="stylesheet" type="text/css" href="../gcov.css">
+</head>
+
+<body>
+
+  <table width="100%" border=0 cellspacing=0 cellpadding=0>
+    <tr><td class="title">LCOV - code coverage report</td></tr>
+    <tr><td class="ruler"><img src="../glass.png" width=3 height=3 alt=""></td></tr>
+
+    <tr>
+      <td width="100%">
+        <table cellpadding=1 border=0 width="100%">
+          <tr>
+            <td width="10%" class="headerItem">Current view:</td>
+            <td width="35%" class="headerValue"><a href="../index.html">top level</a> - <a href="index.html">server</a> - util_script.c<span style="font-size: 80%;"> (source / <a href="util_script.c.func-sort-c.html">functions</a>)</span></td>
+            <td width="5%"></td>
+            <td width="15%"></td>
+            <td width="10%" class="headerCovTableHead">Hit</td>
+            <td width="10%" class="headerCovTableHead">Total</td>
+            <td width="15%" class="headerCovTableHead">Coverage</td>
+          </tr>
+          <tr>
+            <td class="headerItem">Test:</td>
+            <td class="headerValue">apptest.info</td>
+            <td></td>
+            <td class="headerItem">Lines:</td>
+            <td class="headerCovTableEntry">0</td>
+            <td class="headerCovTableEntry">345</td>
+            <td class="headerCovTableEntryLo">0.0 %</td>
+          </tr>
+          <tr>
+            <td class="headerItem">Date:</td>
+            <td class="headerValue">2017-01-31 22:58:06</td>
+            <td></td>
+            <td class="headerItem">Functions:</td>
+            <td class="headerCovTableEntry">0</td>
+            <td class="headerCovTableEntry">22</td>
+            <td class="headerCovTableEntryLo">0.0 %</td>
+          </tr>
+          <tr><td><img src="../glass.png" width=3 height=3 alt=""></td></tr>
+        </table>
+      </td>
+    </tr>
+
+    <tr><td class="ruler"><img src="../glass.png" width=3 height=3 alt=""></td></tr>
+  </table>
+
+  <table cellpadding=0 cellspacing=0 border=0>
+    <tr>
+      <td><br></td>
+    </tr>
+    <tr>
+      <td>
+<pre class="sourceHeading">          Line data    Source code</pre>
+<pre class="source">
+<a name="1"><span class="lineNum">       1 </span>            : /* Licensed to the Apache Software Foundation (ASF) under one or more</a>
+<span class="lineNum">       2 </span>            :  * contributor license agreements.  See the NOTICE file distributed with
+<span class="lineNum">       3 </span>            :  * this work for additional information regarding copyright ownership.
+<span class="lineNum">       4 </span>            :  * The ASF licenses this file to You under the Apache License, Version 2.0
+<span class="lineNum">       5 </span>            :  * (the &quot;License&quot;); you may not use this file except in compliance with
+<span class="lineNum">       6 </span>            :  * the License.  You may obtain a copy of the License at
+<span class="lineNum">       7 </span>            :  *
+<span class="lineNum">       8 </span>            :  *     http://www.apache.org/licenses/LICENSE-2.0
+<span class="lineNum">       9 </span>            :  *
+<span class="lineNum">      10 </span>            :  * Unless required by applicable law or agreed to in writing, software
+<span class="lineNum">      11 </span>            :  * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+<span class="lineNum">      12 </span>            :  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+<span class="lineNum">      13 </span>            :  * See the License for the specific language governing permissions and
+<span class="lineNum">      14 </span>            :  * limitations under the License.
+<span class="lineNum">      15 </span>            :  */
+<span class="lineNum">      16 </span>            : 
+<span class="lineNum">      17 </span>            : #include &quot;apr.h&quot;
+<span class="lineNum">      18 </span>            : #include &quot;apr_lib.h&quot;
+<span class="lineNum">      19 </span>            : #include &quot;apr_strings.h&quot;
+<span class="lineNum">      20 </span>            : 
+<span class="lineNum">      21 </span>            : #define APR_WANT_STRFUNC
+<span class="lineNum">      22 </span>            : #include &quot;apr_want.h&quot;
+<span class="lineNum">      23 </span>            : 
+<span class="lineNum">      24 </span>            : #if APR_HAVE_STDLIB_H
+<span class="lineNum">      25 </span>            : #include &lt;stdlib.h&gt;
+<span class="lineNum">      26 </span>            : #endif
+<span class="lineNum">      27 </span>            : 
+<span class="lineNum">      28 </span>            : #include &quot;ap_config.h&quot;
+<span class="lineNum">      29 </span>            : #include &quot;httpd.h&quot;
+<span class="lineNum">      30 </span>            : #include &quot;http_config.h&quot;
+<span class="lineNum">      31 </span>            : #include &quot;http_main.h&quot;
+<span class="lineNum">      32 </span>            : #include &quot;http_log.h&quot;
+<span class="lineNum">      33 </span>            : #include &quot;http_core.h&quot;
+<span class="lineNum">      34 </span>            : #include &quot;http_protocol.h&quot;
+<span class="lineNum">      35 </span>            : #include &quot;http_request.h&quot;       /* for sub_req_lookup_uri() */
+<span class="lineNum">      36 </span>            : #include &quot;util_script.h&quot;
+<span class="lineNum">      37 </span>            : #include &quot;apr_date.h&quot;           /* For apr_date_parse_http() */
+<span class="lineNum">      38 </span>            : #include &quot;util_ebcdic.h&quot;
+<span class="lineNum">      39 </span>            : 
+<span class="lineNum">      40 </span>            : #ifdef OS2
+<span class="lineNum">      41 </span>            : #define INCL_DOS
+<span class="lineNum">      42 </span>            : #include &lt;os2.h&gt;
+<span class="lineNum">      43 </span>            : #endif
+<span class="lineNum">      44 </span>            : 
+<span class="lineNum">      45 </span>            : /*
+<span class="lineNum">      46 </span>            :  * Various utility functions which are common to a whole lot of
+<span class="lineNum">      47 </span>            :  * script-type extensions mechanisms, and might as well be gathered
+<span class="lineNum">      48 </span>            :  * in one place (if only to avoid creating inter-module dependancies
+<span class="lineNum">      49 </span>            :  * where there don't have to be).
+<span class="lineNum">      50 </span>            :  */
+<span class="lineNum">      51 </span>            : 
+<span class="lineNum">      52 </span>            : /* we know core's module_index is 0 */
+<span class="lineNum">      53 </span>            : #undef APLOG_MODULE_INDEX
+<a name="54"><span class="lineNum">      54 </span>            : #define APLOG_MODULE_INDEX AP_CORE_MODULE_INDEX</a>
+<span class="lineNum">      55 </span>            : 
+<span class="lineNum">      56 </span><span class="lineNoCov">          0 : static char *http2env(request_rec *r, const char *w)</span>
+<span class="lineNum">      57 </span>            : {
+<span class="lineNum">      58 </span><span class="lineNoCov">          0 :     char *res = (char *)apr_palloc(r-&gt;pool, sizeof(&quot;HTTP_&quot;) + strlen(w));</span>
+<span class="lineNum">      59 </span><span class="lineNoCov">          0 :     char *cp = res;</span>
+<span class="lineNum">      60 </span>            :     char c;
+<span class="lineNum">      61 </span>            : 
+<span class="lineNum">      62 </span><span class="lineNoCov">          0 :     *cp++ = 'H';</span>
+<span class="lineNum">      63 </span><span class="lineNoCov">          0 :     *cp++ = 'T';</span>
+<span class="lineNum">      64 </span><span class="lineNoCov">          0 :     *cp++ = 'T';</span>
+<span class="lineNum">      65 </span><span class="lineNoCov">          0 :     *cp++ = 'P';</span>
+<span class="lineNum">      66 </span><span class="lineNoCov">          0 :     *cp++ = '_';</span>
+<span class="lineNum">      67 </span>            : 
+<span class="lineNum">      68 </span><span class="lineNoCov">          0 :     while ((c = *w++) != 0) {</span>
+<span class="lineNum">      69 </span><span class="lineNoCov">          0 :         if (apr_isalnum(c)) {</span>
+<span class="lineNum">      70 </span><span class="lineNoCov">          0 :             *cp++ = apr_toupper(c);</span>
+<span class="lineNum">      71 </span>            :         }
+<span class="lineNum">      72 </span><span class="lineNoCov">          0 :         else if (c == '-') {</span>
+<span class="lineNum">      73 </span><span class="lineNoCov">          0 :             *cp++ = '_';</span>
+<span class="lineNum">      74 </span>            :         }
+<span class="lineNum">      75 </span>            :         else {
+<span class="lineNum">      76 </span><span class="lineNoCov">          0 :             if (APLOGrtrace1(r))</span>
+<span class="lineNum">      77 </span><span class="lineNoCov">          0 :                 ap_log_rerror(APLOG_MARK, APLOG_TRACE1, 0, r,</span>
+<span class="lineNum">      78 </span>            :                             &quot;Not exporting header with invalid name as envvar: %s&quot;,
+<span class="lineNum">      79 </span>            :                             ap_escape_logitem(r-&gt;pool, w));
+<span class="lineNum">      80 </span><span class="lineNoCov">          0 :             return NULL;</span>
+<span class="lineNum">      81 </span>            :         }
+<span class="lineNum">      82 </span>            :     }
+<span class="lineNum">      83 </span><span class="lineNoCov">          0 :     *cp = 0;</span>
+<span class="lineNum">      84 </span>            : 
+<span class="lineNum">      85 </span><span class="lineNoCov">          0 :     return res;</span>
+<a name="86"><span class="lineNum">      86 </span>            : }</a>
+<span class="lineNum">      87 </span>            : 
+<span class="lineNum">      88 </span><span class="lineNoCov">          0 : static void add_unless_null(apr_table_t *table, const char *name, const char *val)</span>
+<span class="lineNum">      89 </span>            : {
+<span class="lineNum">      90 </span><span class="lineNoCov">          0 :     if (name &amp;&amp; val) {</span>
+<span class="lineNum">      91 </span><span class="lineNoCov">          0 :         apr_table_addn(table, name, val);</span>
+<span class="lineNum">      92 </span>            :     }
+<a name="93"><span class="lineNum">      93 </span><span class="lineNoCov">          0 : }</span></a>
+<span class="lineNum">      94 </span>            : 
+<span class="lineNum">      95 </span><span class="lineNoCov">          0 : static void env2env(apr_table_t *table, const char *name)</span>
+<span class="lineNum">      96 </span>            : {
+<span class="lineNum">      97 </span><span class="lineNoCov">          0 :     add_unless_null(table, name, getenv(name));</span>
+<a name="98"><span class="lineNum">      98 </span><span class="lineNoCov">          0 : }</span></a>
+<span class="lineNum">      99 </span>            : 
+<span class="lineNum">     100 </span><span class="lineNoCov">          0 : AP_DECLARE(char **) ap_create_environment(apr_pool_t *p, apr_table_t *t)</span>
+<span class="lineNum">     101 </span>            : {
+<span class="lineNum">     102 </span><span class="lineNoCov">          0 :     const apr_array_header_t *env_arr = apr_table_elts(t);</span>
+<span class="lineNum">     103 </span><span class="lineNoCov">          0 :     const apr_table_entry_t *elts = (const apr_table_entry_t *) env_arr-&gt;elts;</span>
+<span class="lineNum">     104 </span><span class="lineNoCov">          0 :     char **env = (char **) apr_palloc(p, (env_arr-&gt;nelts + 2) * sizeof(char *));</span>
+<span class="lineNum">     105 </span>            :     int i, j;
+<span class="lineNum">     106 </span>            :     char *tz;
+<span class="lineNum">     107 </span>            :     char *whack;
+<span class="lineNum">     108 </span>            : 
+<span class="lineNum">     109 </span><span class="lineNoCov">          0 :     j = 0;</span>
+<span class="lineNum">     110 </span><span class="lineNoCov">          0 :     if (!apr_table_get(t, &quot;TZ&quot;)) {</span>
+<span class="lineNum">     111 </span><span class="lineNoCov">          0 :         tz = getenv(&quot;TZ&quot;);</span>
+<span class="lineNum">     112 </span><span class="lineNoCov">          0 :         if (tz != NULL) {</span>
+<span class="lineNum">     113 </span><span class="lineNoCov">          0 :             env[j++] = apr_pstrcat(p, &quot;TZ=&quot;, tz, NULL);</span>
+<span class="lineNum">     114 </span>            :         }
+<span class="lineNum">     115 </span>            :     }
+<span class="lineNum">     116 </span><span class="lineNoCov">          0 :     for (i = 0; i &lt; env_arr-&gt;nelts; ++i) {</span>
+<span class="lineNum">     117 </span><span class="lineNoCov">          0 :         if (!elts[i].key) {</span>
+<span class="lineNum">     118 </span><span class="lineNoCov">          0 :             continue;</span>
+<span class="lineNum">     119 </span>            :         }
+<span class="lineNum">     120 </span><span class="lineNoCov">          0 :         env[j] = apr_pstrcat(p, elts[i].key, &quot;=&quot;, elts[i].val, NULL);</span>
+<span class="lineNum">     121 </span><span class="lineNoCov">          0 :         whack = env[j];</span>
+<span class="lineNum">     122 </span><span class="lineNoCov">          0 :         if (apr_isdigit(*whack)) {</span>
+<span class="lineNum">     123 </span><span class="lineNoCov">          0 :             *whack++ = '_';</span>
+<span class="lineNum">     124 </span>            :         }
+<span class="lineNum">     125 </span><span class="lineNoCov">          0 :         while (*whack != '=') {</span>
+<span class="lineNum">     126 </span><span class="lineNoCov">          0 :             if (!apr_isalnum(*whack)) {</span>
+<span class="lineNum">     127 </span><span class="lineNoCov">          0 :                 *whack = '_';</span>
+<span class="lineNum">     128 </span>            :             }
+<span class="lineNum">     129 </span><span class="lineNoCov">          0 :             ++whack;</span>
+<span class="lineNum">     130 </span>            :         }
+<span class="lineNum">     131 </span><span class="lineNoCov">          0 :         ++j;</span>
+<span class="lineNum">     132 </span>            :     }
+<span class="lineNum">     133 </span>            : 
+<span class="lineNum">     134 </span><span class="lineNoCov">          0 :     env[j] = NULL;</span>
+<span class="lineNum">     135 </span><span class="lineNoCov">          0 :     return env;</span>
+<a name="136"><span class="lineNum">     136 </span>            : }</a>
+<span class="lineNum">     137 </span>            : 
+<span class="lineNum">     138 </span><span class="lineNoCov">          0 : AP_DECLARE(void) ap_add_common_vars(request_rec *r)</span>
+<span class="lineNum">     139 </span>            : {
+<span class="lineNum">     140 </span>            :     apr_table_t *e;
+<span class="lineNum">     141 </span><span class="lineNoCov">          0 :     server_rec *s = r-&gt;server;</span>
+<span class="lineNum">     142 </span><span class="lineNoCov">          0 :     conn_rec *c = r-&gt;connection;</span>
+<span class="lineNum">     143 </span>            :     const char *env_temp;
+<span class="lineNum">     144 </span><span class="lineNoCov">          0 :     const apr_array_header_t *hdrs_arr = apr_table_elts(r-&gt;headers_in);</span>
+<span class="lineNum">     145 </span><span class="lineNoCov">          0 :     const apr_table_entry_t *hdrs = (const apr_table_entry_t *) hdrs_arr-&gt;elts;</span>
+<span class="lineNum">     146 </span>            :     int i;
+<span class="lineNum">     147 </span>            :     apr_port_t rport;
+<span class="lineNum">     148 </span>            :     char *q;
+<span class="lineNum">     149 </span>            : 
+<span class="lineNum">     150 </span>            :     /* use a temporary apr_table_t which we'll overlap onto
+<span class="lineNum">     151 </span>            :      * r-&gt;subprocess_env later
+<span class="lineNum">     152 </span>            :      * (exception: if r-&gt;subprocess_env is empty at the start,
+<span class="lineNum">     153 </span>            :      * write directly into it)
+<span class="lineNum">     154 </span>            :      */
+<span class="lineNum">     155 </span><span class="lineNoCov">          0 :     if (apr_is_empty_table(r-&gt;subprocess_env)) {</span>
+<span class="lineNum">     156 </span><span class="lineNoCov">          0 :         e = r-&gt;subprocess_env;</span>
+<span class="lineNum">     157 </span>            :     }
+<span class="lineNum">     158 </span>            :     else {
+<span class="lineNum">     159 </span><span class="lineNoCov">          0 :         e = apr_table_make(r-&gt;pool, 25 + hdrs_arr-&gt;nelts);</span>
+<span class="lineNum">     160 </span>            :     }
+<span class="lineNum">     161 </span>            : 
+<span class="lineNum">     162 </span>            :     /* First, add environment vars from headers... this is as per
+<span class="lineNum">     163 </span>            :      * CGI specs, though other sorts of scripting interfaces see
+<span class="lineNum">     164 </span>            :      * the same vars...
+<span class="lineNum">     165 </span>            :      */
+<span class="lineNum">     166 </span>            : 
+<span class="lineNum">     167 </span><span class="lineNoCov">          0 :     for (i = 0; i &lt; hdrs_arr-&gt;nelts; ++i) {</span>
+<span class="lineNum">     168 </span><span class="lineNoCov">          0 :         if (!hdrs[i].key) {</span>
+<span class="lineNum">     169 </span><span class="lineNoCov">          0 :             continue;</span>
+<span class="lineNum">     170 </span>            :         }
+<span class="lineNum">     171 </span>            : 
+<span class="lineNum">     172 </span>            :         /* A few headers are special cased --- Authorization to prevent
+<span class="lineNum">     173 </span>            :          * rogue scripts from capturing passwords; content-type and -length
+<span class="lineNum">     174 </span>            :          * for no particular reason.
+<span class="lineNum">     175 </span>            :          */
+<span class="lineNum">     176 </span>            : 
+<span class="lineNum">     177 </span><span class="lineNoCov">          0 :         if (!strcasecmp(hdrs[i].key, &quot;Content-type&quot;)) {</span>
+<span class="lineNum">     178 </span><span class="lineNoCov">          0 :             apr_table_addn(e, &quot;CONTENT_TYPE&quot;, hdrs[i].val);</span>
+<span class="lineNum">     179 </span>            :         }
+<span class="lineNum">     180 </span><span class="lineNoCov">          0 :         else if (!strcasecmp(hdrs[i].key, &quot;Content-length&quot;)) {</span>
+<span class="lineNum">     181 </span><span class="lineNoCov">          0 :             apr_table_addn(e, &quot;CONTENT_LENGTH&quot;, hdrs[i].val);</span>
+<span class="lineNum">     182 </span>            :         }
+<span class="lineNum">     183 </span>            :         /* HTTP_PROXY collides with a popular envvar used to configure
+<span class="lineNum">     184 </span>            :          * proxies, don't let clients set/override it.  But, if you must...
+<span class="lineNum">     185 </span>            :          */
+<span class="lineNum">     186 </span>            : #ifndef SECURITY_HOLE_PASS_PROXY
+<span class="lineNum">     187 </span><span class="lineNoCov">          0 :         else if (!strcasecmp(hdrs[i].key, &quot;Proxy&quot;)) {</span>
+<span class="lineNum">     188 </span>            :             ;
+<span class="lineNum">     189 </span>            :         }
+<span class="lineNum">     190 </span>            : #endif
+<span class="lineNum">     191 </span>            :         /*
+<span class="lineNum">     192 </span>            :          * You really don't want to disable this check, since it leaves you
+<span class="lineNum">     193 </span>            :          * wide open to CGIs stealing passwords and people viewing them
+<span class="lineNum">     194 </span>            :          * in the environment with &quot;ps -e&quot;.  But, if you must...
+<span class="lineNum">     195 </span>            :          */
+<span class="lineNum">     196 </span>            : #ifndef SECURITY_HOLE_PASS_AUTHORIZATION
+<span class="lineNum">     197 </span><span class="lineNoCov">          0 :         else if (!strcasecmp(hdrs[i].key, &quot;Authorization&quot;)</span>
+<span class="lineNum">     198 </span><span class="lineNoCov">          0 :                  || !strcasecmp(hdrs[i].key, &quot;Proxy-Authorization&quot;)) {</span>
+<span class="lineNum">     199 </span><span class="lineNoCov">          0 :             continue;</span>
+<span class="lineNum">     200 </span>            :         }
+<span class="lineNum">     201 </span>            : #endif
+<span class="lineNum">     202 </span>            :         else
+<span class="lineNum">     203 </span><span class="lineNoCov">          0 :             add_unless_null(e, http2env(r, hdrs[i].key), hdrs[i].val);</span>
+<span class="lineNum">     204 </span>            :     }
+<span class="lineNum">     205 </span>            : 
+<span class="lineNum">     206 </span><span class="lineNoCov">          0 :     env_temp = apr_table_get(r-&gt;subprocess_env, &quot;PATH&quot;);</span>
+<span class="lineNum">     207 </span><span class="lineNoCov">          0 :     if (env_temp == NULL) {</span>
+<span class="lineNum">     208 </span><span class="lineNoCov">          0 :         env_temp = getenv(&quot;PATH&quot;);</span>
+<span class="lineNum">     209 </span>            :     }
+<span class="lineNum">     210 </span><span class="lineNoCov">          0 :     if (env_temp == NULL) {</span>
+<span class="lineNum">     211 </span><span class="lineNoCov">          0 :         env_temp = DEFAULT_PATH;</span>
+<span class="lineNum">     212 </span>            :     }
+<span class="lineNum">     213 </span><span class="lineNoCov">          0 :     apr_table_addn(e, &quot;PATH&quot;, apr_pstrdup(r-&gt;pool, env_temp));</span>
+<span class="lineNum">     214 </span>            : 
+<span class="lineNum">     215 </span>            : #if defined(WIN32)
+<span class="lineNum">     216 </span>            :     env2env(e, &quot;SystemRoot&quot;);
+<span class="lineNum">     217 </span>            :     env2env(e, &quot;COMSPEC&quot;);
+<span class="lineNum">     218 </span>            :     env2env(e, &quot;PATHEXT&quot;);
+<span class="lineNum">     219 </span>            :     env2env(e, &quot;WINDIR&quot;);
+<span class="lineNum">     220 </span>            : #elif defined(OS2)
+<span class="lineNum">     221 </span>            :     env2env(e, &quot;COMSPEC&quot;);
+<span class="lineNum">     222 </span>            :     env2env(e, &quot;ETC&quot;);
+<span class="lineNum">     223 </span>            :     env2env(e, &quot;DPATH&quot;);
+<span class="lineNum">     224 </span>            :     env2env(e, &quot;PERLLIB_PREFIX&quot;);
+<span class="lineNum">     225 </span>            : #elif defined(BEOS)
+<span class="lineNum">     226 </span>            :     env2env(e, &quot;LIBRARY_PATH&quot;);
+<span class="lineNum">     227 </span>            : #elif defined(DARWIN)
+<span class="lineNum">     228 </span>            :     env2env(e, &quot;DYLD_LIBRARY_PATH&quot;);
+<span class="lineNum">     229 </span>            : #elif defined(_AIX)
+<span class="lineNum">     230 </span>            :     env2env(e, &quot;LIBPATH&quot;);
+<span class="lineNum">     231 </span>            : #elif defined(__HPUX__)
+<span class="lineNum">     232 </span>            :     /* HPUX PARISC 2.0W knows both, otherwise redundancy is harmless */
+<span class="lineNum">     233 </span>            :     env2env(e, &quot;SHLIB_PATH&quot;);
+<span class="lineNum">     234 </span>            :     env2env(e, &quot;LD_LIBRARY_PATH&quot;);
+<span class="lineNum">     235 </span>            : #else /* Some Unix */
+<span class="lineNum">     236 </span><span class="lineNoCov">          0 :     env2env(e, &quot;LD_LIBRARY_PATH&quot;);</span>
+<span class="lineNum">     237 </span>            : #endif
+<span class="lineNum">     238 </span>            : 
+<span class="lineNum">     239 </span><span class="lineNoCov">          0 :     apr_table_addn(e, &quot;SERVER_SIGNATURE&quot;, ap_psignature(&quot;&quot;, r));</span>
+<span class="lineNum">     240 </span><span class="lineNoCov">          0 :     apr_table_addn(e, &quot;SERVER_SOFTWARE&quot;, ap_get_server_banner());</span>
+<span class="lineNum">     241 </span><span class="lineNoCov">          0 :     apr_table_addn(e, &quot;SERVER_NAME&quot;,</span>
+<span class="lineNum">     242 </span><span class="lineNoCov">          0 :                    ap_escape_html(r-&gt;pool, ap_get_server_name_for_url(r)));</span>
+<span class="lineNum">     243 </span><span class="lineNoCov">          0 :     apr_table_addn(e, &quot;SERVER_ADDR&quot;, r-&gt;connection-&gt;local_ip);  /* Apache */</span>
+<span class="lineNum">     244 </span><span class="lineNoCov">          0 :     apr_table_addn(e, &quot;SERVER_PORT&quot;,</span>
+<span class="lineNum">     245 </span><span class="lineNoCov">          0 :                   apr_psprintf(r-&gt;pool, &quot;%u&quot;, ap_get_server_port(r)));</span>
+<span class="lineNum">     246 </span><span class="lineNoCov">          0 :     add_unless_null(e, &quot;REMOTE_HOST&quot;,</span>
+<span class="lineNum">     247 </span><span class="lineNoCov">          0 :                     ap_get_remote_host(c, r-&gt;per_dir_config, REMOTE_HOST, NULL));</span>
+<span class="lineNum">     248 </span><span class="lineNoCov">          0 :     apr_table_addn(e, &quot;REMOTE_ADDR&quot;, r-&gt;useragent_ip);</span>
+<span class="lineNum">     249 </span><span class="lineNoCov">          0 :     apr_table_addn(e, &quot;DOCUMENT_ROOT&quot;, ap_document_root(r));    /* Apache */</span>
+<span class="lineNum">     250 </span><span class="lineNoCov">          0 :     apr_table_setn(e, &quot;REQUEST_SCHEME&quot;, ap_http_scheme(r));</span>
+<span class="lineNum">     251 </span><span class="lineNoCov">          0 :     apr_table_addn(e, &quot;CONTEXT_PREFIX&quot;, ap_context_prefix(r));</span>
+<span class="lineNum">     252 </span><span class="lineNoCov">          0 :     apr_table_addn(e, &quot;CONTEXT_DOCUMENT_ROOT&quot;, ap_context_document_root(r));</span>
+<span class="lineNum">     253 </span><span class="lineNoCov">          0 :     apr_table_addn(e, &quot;SERVER_ADMIN&quot;, s-&gt;server_admin); /* Apache */</span>
+<span class="lineNum">     254 </span><span class="lineNoCov">          0 :     if (apr_table_get(r-&gt;notes, &quot;proxy-noquery&quot;) &amp;&amp; (q = ap_strchr(r-&gt;filename, '?'))) {</span>
+<span class="lineNum">     255 </span><span class="lineNoCov">          0 :         *q = '\0';</span>
+<span class="lineNum">     256 </span><span class="lineNoCov">          0 :         apr_table_addn(e, &quot;SCRIPT_FILENAME&quot;, apr_pstrdup(r-&gt;pool, r-&gt;filename));</span>
+<span class="lineNum">     257 </span><span class="lineNoCov">          0 :         *q = '?';</span>
+<span class="lineNum">     258 </span>            :     }
+<span class="lineNum">     259 </span>            :     else {
+<span class="lineNum">     260 </span><span class="lineNoCov">          0 :         apr_table_addn(e, &quot;SCRIPT_FILENAME&quot;, r-&gt;filename);  /* Apache */</span>
+<span class="lineNum">     261 </span>            :     }
+<span class="lineNum">     262 </span>            : 
+<span class="lineNum">     263 </span><span class="lineNoCov">          0 :     rport = c-&gt;client_addr-&gt;port;</span>
+<span class="lineNum">     264 </span><span class="lineNoCov">          0 :     apr_table_addn(e, &quot;REMOTE_PORT&quot;, apr_itoa(r-&gt;pool, rport));</span>
+<span class="lineNum">     265 </span>            : 
+<span class="lineNum">     266 </span><span class="lineNoCov">          0 :     if (r-&gt;user) {</span>
+<span class="lineNum">     267 </span><span class="lineNoCov">          0 :         apr_table_addn(e, &quot;REMOTE_USER&quot;, r-&gt;user);</span>
+<span class="lineNum">     268 </span>            :     }
+<span class="lineNum">     269 </span><span class="lineNoCov">          0 :     else if (r-&gt;prev) {</span>
+<span class="lineNum">     270 </span><span class="lineNoCov">          0 :         request_rec *back = r-&gt;prev;</span>
+<span class="lineNum">     271 </span>            : 
+<span class="lineNum">     272 </span><span class="lineNoCov">          0 :         while (back) {</span>
+<span class="lineNum">     273 </span><span class="lineNoCov">          0 :             if (back-&gt;user) {</span>
+<span class="lineNum">     274 </span><span class="lineNoCov">          0 :                 apr_table_addn(e, &quot;REDIRECT_REMOTE_USER&quot;, back-&gt;user);</span>
+<span class="lineNum">     275 </span><span class="lineNoCov">          0 :                 break;</span>
+<span class="lineNum">     276 </span>            :             }
+<span class="lineNum">     277 </span><span class="lineNoCov">          0 :             back = back-&gt;prev;</span>
+<span class="lineNum">     278 </span>            :         }
+<span class="lineNum">     279 </span>            :     }
+<span class="lineNum">     280 </span><span class="lineNoCov">          0 :     add_unless_null(e, &quot;AUTH_TYPE&quot;, r-&gt;ap_auth_type);</span>
+<span class="lineNum">     281 </span><span class="lineNoCov">          0 :     env_temp = ap_get_remote_logname(r);</span>
+<span class="lineNum">     282 </span><span class="lineNoCov">          0 :     if (env_temp) {</span>
+<span class="lineNum">     283 </span><span class="lineNoCov">          0 :         apr_table_addn(e, &quot;REMOTE_IDENT&quot;, apr_pstrdup(r-&gt;pool, env_temp));</span>
+<span class="lineNum">     284 </span>            :     }
+<span class="lineNum">     285 </span>            : 
+<span class="lineNum">     286 </span>            :     /* Apache custom error responses. If we have redirected set two new vars */
+<span class="lineNum">     287 </span>            : 
+<span class="lineNum">     288 </span><span class="lineNoCov">          0 :     if (r-&gt;prev) {</span>
+<span class="lineNum">     289 </span><span class="lineNoCov">          0 :         add_unless_null(e, &quot;REDIRECT_QUERY_STRING&quot;, r-&gt;prev-&gt;args);</span>
+<span class="lineNum">     290 </span><span class="lineNoCov">          0 :         add_unless_null(e, &quot;REDIRECT_URL&quot;, r-&gt;prev-&gt;uri);</span>
+<span class="lineNum">     291 </span>            :     }
+<span class="lineNum">     292 </span>            : 
+<span class="lineNum">     293 </span><span class="lineNoCov">          0 :     if (e != r-&gt;subprocess_env) {</span>
+<span class="lineNum">     294 </span><span class="lineNoCov">          0 :       apr_table_overlap(r-&gt;subprocess_env, e, APR_OVERLAP_TABLES_SET);</span>
+<span class="lineNum">     295 </span>            :     }
+<span class="lineNum">     296 </span><span class="lineNoCov">          0 : }</span>
+<span class="lineNum">     297 </span>            : 
+<span class="lineNum">     298 </span>            : /* This &quot;cute&quot; little function comes about because the path info on
+<span class="lineNum">     299 </span>            :  * filenames and URLs aren't always the same. So we take the two,
+<span class="lineNum">     300 </span>            :  * and find as much of the two that match as possible.
+<a name="301"><span class="lineNum">     301 </span>            :  */</a>
+<span class="lineNum">     302 </span>            : 
+<span class="lineNum">     303 </span><span class="lineNoCov">          0 : AP_DECLARE(int) ap_find_path_info(const char *uri, const char *path_info)</span>
+<span class="lineNum">     304 </span>            : {
+<span class="lineNum">     305 </span><span class="lineNoCov">          0 :     int lu = strlen(uri);</span>
+<span class="lineNum">     306 </span><span class="lineNoCov">          0 :     int lp = strlen(path_info);</span>
+<span class="lineNum">     307 </span>            : 
+<span class="lineNum">     308 </span><span class="lineNoCov">          0 :     while (lu-- &amp;&amp; lp-- &amp;&amp; uri[lu] == path_info[lp]) {</span>
+<span class="lineNum">     309 </span><span class="lineNoCov">          0 :         if (path_info[lp] == '/') {</span>
+<span class="lineNum">     310 </span><span class="lineNoCov">          0 :             while (lu &amp;&amp; uri[lu-1] == '/') lu--;</span>
+<span class="lineNum">     311 </span>            :         }
+<span class="lineNum">     312 </span>            :     }
+<span class="lineNum">     313 </span>            : 
+<span class="lineNum">     314 </span><span class="lineNoCov">          0 :     if (lu == -1) {</span>
+<span class="lineNum">     315 </span><span class="lineNoCov">          0 :         lu = 0;</span>
+<span class="lineNum">     316 </span>            :     }
+<span class="lineNum">     317 </span>            : 
+<span class="lineNum">     318 </span><span class="lineNoCov">          0 :     while (uri[lu] != '\0' &amp;&amp; uri[lu] != '/') {</span>
+<span class="lineNum">     319 </span><span class="lineNoCov">          0 :         lu++;</span>
+<span class="lineNum">     320 </span>            :     }
+<span class="lineNum">     321 </span><span class="lineNoCov">          0 :     return lu;</span>
+<span class="lineNum">     322 </span>            : }
+<span class="lineNum">     323 </span>            : 
+<span class="lineNum">     324 </span>            : /* Obtain the Request-URI from the original request-line, returning
+<a name="325"><span class="lineNum">     325 </span>            :  * a new string from the request pool containing the URI or &quot;&quot;.</a>
+<span class="lineNum">     326 </span>            :  */
+<span class="lineNum">     327 </span><span class="lineNoCov">          0 : static char *original_uri(request_rec *r)</span>
+<span class="lineNum">     328 </span>            : {
+<span class="lineNum">     329 </span>            :     char *first, *last;
+<span class="lineNum">     330 </span>            : 
+<span class="lineNum">     331 </span><span class="lineNoCov">          0 :     if (r-&gt;the_request == NULL) {</span>
+<span class="lineNum">     332 </span><span class="lineNoCov">          0 :         return (char *) apr_pcalloc(r-&gt;pool, 1);</span>
+<span class="lineNum">     333 </span>            :     }
+<span class="lineNum">     334 </span>            : 
+<span class="lineNum">     335 </span><span class="lineNoCov">          0 :     first = r-&gt;the_request;     /* use the request-line */</span>
+<span class="lineNum">     336 </span>            : 
+<span class="lineNum">     337 </span><span class="lineNoCov">          0 :     while (*first &amp;&amp; !apr_isspace(*first)) {</span>
+<span class="lineNum">     338 </span><span class="lineNoCov">          0 :         ++first;                /* skip over the method */</span>
+<span class="lineNum">     339 </span>            :     }
+<span class="lineNum">     340 </span><span class="lineNoCov">          0 :     while (apr_isspace(*first)) {</span>
+<span class="lineNum">     341 </span><span class="lineNoCov">          0 :         ++first;                /*   and the space(s)   */</span>
+<span class="lineNum">     342 </span>            :     }
+<span class="lineNum">     343 </span>            : 
+<span class="lineNum">     344 </span><span class="lineNoCov">          0 :     last = first;</span>
+<span class="lineNum">     345 </span><span class="lineNoCov">          0 :     while (*last &amp;&amp; !apr_isspace(*last)) {</span>
+<span class="lineNum">     346 </span><span class="lineNoCov">          0 :         ++last;                 /* end at next whitespace */</span>
+<span class="lineNum">     347 </span>            :     }
+<span class="lineNum">     348 </span>            : 
+<span class="lineNum">     349 </span><span class="lineNoCov">          0 :     return apr_pstrmemdup(r-&gt;pool, first, last - first);</span>
+<a name="350"><span class="lineNum">     350 </span>            : }</a>
+<span class="lineNum">     351 </span>            : 
+<span class="lineNum">     352 </span><span class="lineNoCov">          0 : AP_DECLARE(void) ap_add_cgi_vars(request_rec *r)</span>
+<span class="lineNum">     353 </span>            : {
+<span class="lineNum">     354 </span><span class="lineNoCov">          0 :     apr_table_t *e = r-&gt;subprocess_env;</span>
+<span class="lineNum">     355 </span>            : 
+<span class="lineNum">     356 </span><span class="lineNoCov">          0 :     apr_table_setn(e, &quot;GATEWAY_INTERFACE&quot;, &quot;CGI/1.1&quot;);</span>
+<span class="lineNum">     357 </span><span class="lineNoCov">          0 :     apr_table_setn(e, &quot;SERVER_PROTOCOL&quot;, r-&gt;protocol);</span>
+<span class="lineNum">     358 </span><span class="lineNoCov">          0 :     apr_table_setn(e, &quot;REQUEST_METHOD&quot;, r-&gt;method);</span>
+<span class="lineNum">     359 </span><span class="lineNoCov">          0 :     apr_table_setn(e, &quot;QUERY_STRING&quot;, r-&gt;args ? r-&gt;args : &quot;&quot;);</span>
+<span class="lineNum">     360 </span><span class="lineNoCov">          0 :     apr_table_setn(e, &quot;REQUEST_URI&quot;, original_uri(r));</span>
+<span class="lineNum">     361 </span>            : 
+<span class="lineNum">     362 </span>            :     /* Note that the code below special-cases scripts run from includes,
+<span class="lineNum">     363 </span>            :      * because it &quot;knows&quot; that the sub_request has been hacked to have the
+<span class="lineNum">     364 </span>            :      * args and path_info of the original request, and not any that may have
+<span class="lineNum">     365 </span>            :      * come with the script URI in the include command.  Ugh.
+<span class="lineNum">     366 </span>            :      */
+<span class="lineNum">     367 </span>            : 
+<span class="lineNum">     368 </span><span class="lineNoCov">          0 :     if (!strcmp(r-&gt;protocol, &quot;INCLUDED&quot;)) {</span>
+<span class="lineNum">     369 </span><span class="lineNoCov">          0 :         apr_table_setn(e, &quot;SCRIPT_NAME&quot;, r-&gt;uri);</span>
+<span class="lineNum">     370 </span><span class="lineNoCov">          0 :         if (r-&gt;path_info &amp;&amp; *r-&gt;path_info) {</span>
+<span class="lineNum">     371 </span><span class="lineNoCov">          0 :             apr_table_setn(e, &quot;PATH_INFO&quot;, r-&gt;path_info);</span>
+<span class="lineNum">     372 </span>            :         }
+<span class="lineNum">     373 </span>            :     }
+<span class="lineNum">     374 </span><span class="lineNoCov">          0 :     else if (!r-&gt;path_info || !*r-&gt;path_info) {</span>
+<span class="lineNum">     375 </span><span class="lineNoCov">          0 :         apr_table_setn(e, &quot;SCRIPT_NAME&quot;, r-&gt;uri);</span>
+<span class="lineNum">     376 </span>            :     }
+<span class="lineNum">     377 </span>            :     else {
+<span class="lineNum">     378 </span><span class="lineNoCov">          0 :         int path_info_start = ap_find_path_info(r-&gt;uri, r-&gt;path_info);</span>
+<span class="lineNum">     379 </span>            : 
+<span class="lineNum">     380 </span><span class="lineNoCov">          0 :         apr_table_setn(e, &quot;SCRIPT_NAME&quot;,</span>
+<span class="lineNum">     381 </span><span class="lineNoCov">          0 :                       apr_pstrndup(r-&gt;pool, r-&gt;uri, path_info_start));</span>
+<span class="lineNum">     382 </span>            : 
+<span class="lineNum">     383 </span><span class="lineNoCov">          0 :         apr_table_setn(e, &quot;PATH_INFO&quot;, r-&gt;path_info);</span>
+<span class="lineNum">     384 </span>            :     }
+<span class="lineNum">     385 </span>            : 
+<span class="lineNum">     386 </span><span class="lineNoCov">          0 :     if (r-&gt;path_info &amp;&amp; r-&gt;path_info[0]) {</span>
+<span class="lineNum">     387 </span>            :         /*
+<span class="lineNum">     388 </span>            :          * To get PATH_TRANSLATED, treat PATH_INFO as a URI path.
+<span class="lineNum">     389 </span>            :          * Need to re-escape it for this, since the entire URI was
+<span class="lineNum">     390 </span>            :          * un-escaped before we determined where the PATH_INFO began.
+<span class="lineNum">     391 </span>            :          */
+<span class="lineNum">     392 </span>            :         request_rec *pa_req;
+<span class="lineNum">     393 </span>            : 
+<span class="lineNum">     394 </span><span class="lineNoCov">          0 :         pa_req = ap_sub_req_lookup_uri(ap_escape_uri(r-&gt;pool, r-&gt;path_info), r,</span>
+<span class="lineNum">     395 </span>            :                                        NULL);
+<span class="lineNum">     396 </span>            : 
+<span class="lineNum">     397 </span><span class="lineNoCov">          0 :         if (pa_req-&gt;filename) {</span>
+<span class="lineNum">     398 </span><span class="lineNoCov">          0 :             char *pt = apr_pstrcat(r-&gt;pool, pa_req-&gt;filename, pa_req-&gt;path_info,</span>
+<span class="lineNum">     399 </span>            :                                   NULL);
+<span class="lineNum">     400 </span>            : #ifdef WIN32
+<span class="lineNum">     401 </span>            :             /* We need to make this a real Windows path name */
+<span class="lineNum">     402 </span>            :             apr_filepath_merge(&amp;pt, &quot;&quot;, pt, APR_FILEPATH_NATIVE, r-&gt;pool);
+<span class="lineNum">     403 </span>            : #endif
+<span class="lineNum">     404 </span><span class="lineNoCov">          0 :             apr_table_setn(e, &quot;PATH_TRANSLATED&quot;, pt);</span>
+<span class="lineNum">     405 </span>            :         }
+<span class="lineNum">     406 </span><span class="lineNoCov">          0 :         ap_destroy_sub_req(pa_req);</span>
+<span class="lineNum">     407 </span>            :     }
+<span class="lineNum">     408 </span><span class="lineNoCov">          0 : }</span>
+<a name="409"><span class="lineNum">     409 </span>            : </a>
+<span class="lineNum">     410 </span>            : 
+<span class="lineNum">     411 </span><span class="lineNoCov">          0 : static int set_cookie_doo_doo(void *v, const char *key, const char *val)</span>
+<span class="lineNum">     412 </span>            : {
+<span class="lineNum">     413 </span><span class="lineNoCov">          0 :     apr_table_addn(v, key, val);</span>
+<span class="lineNum">     414 </span><span class="lineNoCov">          0 :     return 1;</span>
+<span class="lineNum">     415 </span>            : }
+<span class="lineNum">     416 </span>            : 
+<span class="lineNum">     417 </span>            : #define HTTP_UNSET (-HTTP_OK)
+<a name="418"><span class="lineNum">     418 </span>            : #define SCRIPT_LOG_MARK  __FILE__,__LINE__,module_index</a>
+<span class="lineNum">     419 </span>            : 
+<span class="lineNum">     420 </span><span class="lineNoCov">          0 : AP_DECLARE(int) ap_scan_script_header_err_core_ex(request_rec *r, char *buffer,</span>
+<span class="lineNum">     421 </span>            :                                        int (*getsfunc) (char *, int, void *),
+<span class="lineNum">     422 </span>            :                                        void *getsfunc_data,
+<span class="lineNum">     423 </span>            :                                        int module_index)
+<span class="lineNum">     424 </span>            : {
+<span class="lineNum">     425 </span>            :     char x[MAX_STRING_LEN];
+<span class="lineNum">     426 </span>            :     char *w, *l;
+<span class="lineNum">     427 </span>            :     int p;
+<span class="lineNum">     428 </span><span class="lineNoCov">          0 :     int cgi_status = HTTP_UNSET;</span>
+<span class="lineNum">     429 </span>            :     apr_table_t *merge;
+<span class="lineNum">     430 </span>            :     apr_table_t *cookie_table;
+<span class="lineNum">     431 </span><span class="lineNoCov">          0 :     int trace_log = APLOG_R_MODULE_IS_LEVEL(r, module_index, APLOG_TRACE1);</span>
+<span class="lineNum">     432 </span><span class="lineNoCov">          0 :     int first_header = 1;</span>
+<span class="lineNum">     433 </span>            : 
+<span class="lineNum">     434 </span><span class="lineNoCov">          0 :     if (buffer) {</span>
+<span class="lineNum">     435 </span><span class="lineNoCov">          0 :         *buffer = '\0';</span>
+<span class="lineNum">     436 </span>            :     }
+<span class="lineNum">     437 </span><span class="lineNoCov">          0 :     w = buffer ? buffer : x;</span>
+<span class="lineNum">     438 </span>            : 
+<span class="lineNum">     439 </span>            :     /* temporary place to hold headers to merge in later */
+<span class="lineNum">     440 </span><span class="lineNoCov">          0 :     merge = apr_table_make(r-&gt;pool, 10);</span>
+<span class="lineNum">     441 </span>            : 
+<span class="lineNum">     442 </span>            :     /* The HTTP specification says that it is legal to merge duplicate
+<span class="lineNum">     443 </span>            :      * headers into one.  Some browsers that support Cookies don't like
+<span class="lineNum">     444 </span>            :      * merged headers and prefer that each Set-Cookie header is sent
+<span class="lineNum">     445 </span>            :      * separately.  Lets humour those browsers by not merging.
+<span class="lineNum">     446 </span>            :      * Oh what a pain it is.
+<span class="lineNum">     447 </span>            :      */
+<span class="lineNum">     448 </span><span class="lineNoCov">          0 :     cookie_table = apr_table_make(r-&gt;pool, 2);</span>
+<span class="lineNum">     449 </span><span class="lineNoCov">          0 :     apr_table_do(set_cookie_doo_doo, cookie_table, r-&gt;err_headers_out, &quot;Set-Cookie&quot;, NULL);</span>
+<span class="lineNum">     450 </span>            : 
+<span class="lineNum">     451 </span>            :     while (1) {
+<span class="lineNum">     452 </span>            : 
+<span class="lineNum">     453 </span><span class="lineNoCov">          0 :         int rv = (*getsfunc) (w, MAX_STRING_LEN - 1, getsfunc_data);</span>
+<span class="lineNum">     454 </span><span class="lineNoCov">          0 :         if (rv == 0) {</span>
+<span class="lineNum">     455 </span><span class="lineNoCov">          0 :             const char *msg = &quot;Premature end of script headers&quot;;</span>
+<span class="lineNum">     456 </span><span class="lineNoCov">          0 :             if (first_header)</span>
+<span class="lineNum">     457 </span><span class="lineNoCov">          0 :                 msg = &quot;End of script output before headers&quot;;</span>
+<span class="lineNum">     458 </span><span class="lineNoCov">          0 :             ap_log_rerror(SCRIPT_LOG_MARK, APLOG_ERR|APLOG_TOCLIENT, 0, r,</span>
+<span class="lineNum">     459 </span>            :                           &quot;%s: %s&quot;, msg,
+<span class="lineNum">     460 </span>            :                           apr_filepath_name_get(r-&gt;filename));
+<span class="lineNum">     461 </span><span class="lineNoCov">          0 :             return HTTP_INTERNAL_SERVER_ERROR;</span>
+<span class="lineNum">     462 </span>            :         }
+<span class="lineNum">     463 </span><span class="lineNoCov">          0 :         else if (rv == -1) {</span>
+<span class="lineNum">     464 </span><span class="lineNoCov">          0 :             ap_log_rerror(SCRIPT_LOG_MARK, APLOG_ERR|APLOG_TOCLIENT, 0, r,</span>
+<span class="lineNum">     465 </span>            :                           &quot;Script timed out before returning headers: %s&quot;,
+<span class="lineNum">     466 </span>            :                           apr_filepath_name_get(r-&gt;filename));
+<span class="lineNum">     467 </span><span class="lineNoCov">          0 :             return HTTP_GATEWAY_TIME_OUT;</span>
+<span class="lineNum">     468 </span>            :         }
+<span class="lineNum">     469 </span>            : 
+<span class="lineNum">     470 </span>            :         /* Delete terminal (CR?)LF */
+<span class="lineNum">     471 </span>            : 
+<span class="lineNum">     472 </span><span class="lineNoCov">          0 :         p = strlen(w);</span>
+<span class="lineNum">     473 </span>            :              /* Indeed, the host's '\n':
+<span class="lineNum">     474 </span>            :                 '\012' for UNIX; '\015' for MacOS; '\025' for OS/390
+<span class="lineNum">     475 </span>            :                  -- whatever the script generates.
+<span class="lineNum">     476 </span>            :              */
+<span class="lineNum">     477 </span><span class="lineNoCov">          0 :         if (p &gt; 0 &amp;&amp; w[p - 1] == '\n') {</span>
+<span class="lineNum">     478 </span><span class="lineNoCov">          0 :             if (p &gt; 1 &amp;&amp; w[p - 2] == CR) {</span>
+<span class="lineNum">     479 </span><span class="lineNoCov">          0 :                 w[p - 2] = '\0';</span>
+<span class="lineNum">     480 </span>            :             }
+<span class="lineNum">     481 </span>            :             else {
+<span class="lineNum">     482 </span><span class="lineNoCov">          0 :                 w[p - 1] = '\0';</span>
+<span class="lineNum">     483 </span>            :             }
+<span class="lineNum">     484 </span>            :         }
+<span class="lineNum">     485 </span>            : 
+<span class="lineNum">     486 </span>            :         /*
+<span class="lineNum">     487 </span>            :          * If we've finished reading the headers, check to make sure any
+<span class="lineNum">     488 </span>            :          * HTTP/1.1 conditions are met.  If so, we're done; normal processing
+<span class="lineNum">     489 </span>            :          * will handle the script's output.  If not, just return the error.
+<span class="lineNum">     490 </span>            :          * The appropriate thing to do would be to send the script process a
+<span class="lineNum">     491 </span>            :          * SIGPIPE to let it know we're ignoring it, close the channel to the
+<span class="lineNum">     492 </span>            :          * script process, and *then* return the failed-to-meet-condition
+<span class="lineNum">     493 </span>            :          * error.  Otherwise we'd be waiting for the script to finish
+<span class="lineNum">     494 </span>            :          * blithering before telling the client the output was no good.
+<span class="lineNum">     495 </span>            :          * However, we don't have the information to do that, so we have to
+<span class="lineNum">     496 </span>            :          * leave it to an upper layer.
+<span class="lineNum">     497 </span>            :          */
+<span class="lineNum">     498 </span><span class="lineNoCov">          0 :         if (w[0] == '\0') {</span>
+<span class="lineNum">     499 </span><span class="lineNoCov">          0 :             int cond_status = OK;</span>
+<span class="lineNum">     500 </span>            : 
+<span class="lineNum">     501 </span>            :             /* PR#38070: This fails because it gets confused when a
+<span class="lineNum">     502 </span>            :              * CGI Status header overrides ap_meets_conditions.
+<span class="lineNum">     503 </span>            :              *
+<span class="lineNum">     504 </span>            :              * We can fix that by dropping ap_meets_conditions when
+<span class="lineNum">     505 </span>            :              * Status has been set.  Since this is the only place
+<span class="lineNum">     506 </span>            :              * cgi_status gets used, let's test it explicitly.
+<span class="lineNum">     507 </span>            :              *
+<span class="lineNum">     508 </span>            :              * The alternative would be to ignore CGI Status when
+<span class="lineNum">     509 </span>            :              * ap_meets_conditions returns anything interesting.
+<span class="lineNum">     510 </span>            :              * That would be safer wrt HTTP, but would break CGI.
+<span class="lineNum">     511 </span>            :              */
+<span class="lineNum">     512 </span><span class="lineNoCov">          0 :             if ((cgi_status == HTTP_UNSET) &amp;&amp; (r-&gt;method_number == M_GET)) {</span>
+<span class="lineNum">     513 </span><span class="lineNoCov">          0 :                 cond_status = ap_meets_conditions(r);</span>
+<span class="lineNum">     514 </span>            :             }
+<span class="lineNum">     515 </span><span class="lineNoCov">          0 :             apr_table_overlap(r-&gt;err_headers_out, merge,</span>
+<span class="lineNum">     516 </span>            :                 APR_OVERLAP_TABLES_MERGE);
+<span class="lineNum">     517 </span><span class="lineNoCov">          0 :             if (!apr_is_empty_table(cookie_table)) {</span>
+<span class="lineNum">     518 </span>            :                 /* the cookies have already been copied to the cookie_table */
+<span class="lineNum">     519 </span><span class="lineNoCov">          0 :                 apr_table_unset(r-&gt;err_headers_out, &quot;Set-Cookie&quot;);</span>
+<span class="lineNum">     520 </span><span class="lineNoCov">          0 :                 r-&gt;err_headers_out = apr_table_overlay(r-&gt;pool,</span>
+<span class="lineNum">     521 </span><span class="lineNoCov">          0 :                     r-&gt;err_headers_out, cookie_table);</span>
+<span class="lineNum">     522 </span>            :             }
+<span class="lineNum">     523 </span><span class="lineNoCov">          0 :             return cond_status;</span>
+<span class="lineNum">     524 </span>            :         }
+<span class="lineNum">     525 </span>            : 
+<span class="lineNum">     526 </span><span class="lineNoCov">          0 :         if (trace_log) {</span>
+<span class="lineNum">     527 </span><span class="lineNoCov">          0 :             if (first_header)</span>
+<span class="lineNum">     528 </span><span class="lineNoCov">          0 :                 ap_log_rerror(SCRIPT_LOG_MARK, APLOG_TRACE4, 0, r,</span>
+<span class="lineNum">     529 </span>            :                               &quot;Headers from script '%s':&quot;,
+<span class="lineNum">     530 </span>            :                               apr_filepath_name_get(r-&gt;filename));
+<span class="lineNum">     531 </span><span class="lineNoCov">          0 :             ap_log_rerror(SCRIPT_LOG_MARK, APLOG_TRACE4, 0, r, &quot;  %s&quot;, w);</span>
+<span class="lineNum">     532 </span>            :         }
+<span class="lineNum">     533 </span>            : 
+<span class="lineNum">     534 </span>            :         /* if we see a bogus header don't ignore it. Shout and scream */
+<span class="lineNum">     535 </span>            : 
+<span class="lineNum">     536 </span>            : #if APR_CHARSET_EBCDIC
+<span class="lineNum">     537 </span>            :             /* Chances are that we received an ASCII header text instead of
+<span class="lineNum">     538 </span>            :              * the expected EBCDIC header lines. Try to auto-detect:
+<span class="lineNum">     539 </span>            :              */
+<span class="lineNum">     540 </span>            :         if (!(l = strchr(w, ':'))) {
+<span class="lineNum">     541 </span>            :             int maybeASCII = 0, maybeEBCDIC = 0;
+<span class="lineNum">     542 </span>            :             unsigned char *cp, native;
+<span class="lineNum">     543 </span>            :             apr_size_t inbytes_left, outbytes_left;
+<span class="lineNum">     544 </span>            : 
+<span class="lineNum">     545 </span>            :             for (cp = w; *cp != '\0'; ++cp) {
+<span class="lineNum">     546 </span>            :                 native = apr_xlate_conv_byte(ap_hdrs_from_ascii, *cp);
+<span class="lineNum">     547 </span>            :                 if (apr_isprint(*cp) &amp;&amp; !apr_isprint(native))
+<span class="lineNum">     548 </span>            :                     ++maybeEBCDIC;
+<span class="lineNum">     549 </span>            :                 if (!apr_isprint(*cp) &amp;&amp; apr_isprint(native))
+<span class="lineNum">     550 </span>            :                     ++maybeASCII;
+<span class="lineNum">     551 </span>            :             }
+<span class="lineNum">     552 </span>            :             if (maybeASCII &gt; maybeEBCDIC) {
+<span class="lineNum">     553 </span>            :                 ap_log_error(SCRIPT_LOG_MARK, APLOG_ERR, 0, r-&gt;server,
+<span class="lineNum">     554 </span>            :                              APLOGNO(02660) &quot;CGI Interface Error: &quot;
+<span class="lineNum">     555 </span>            :                              &quot;Script headers apparently ASCII: (CGI = %s)&quot;,
+<span class="lineNum">     556 </span>            :                              r-&gt;filename);
+<span class="lineNum">     557 </span>            :                 inbytes_left = outbytes_left = cp - w;
+<span class="lineNum">     558 </span>            :                 apr_xlate_conv_buffer(ap_hdrs_from_ascii,
+<span class="lineNum">     559 </span>            :                                       w, &amp;inbytes_left, w, &amp;outbytes_left);
+<span class="lineNum">     560 </span>            :             }
+<span class="lineNum">     561 </span>            :         }
+<span class="lineNum">     562 </span>            : #endif /*APR_CHARSET_EBCDIC*/
+<span class="lineNum">     563 </span><span class="lineNoCov">          0 :         if (!(l = strchr(w, ':'))) {</span>
+<span class="lineNum">     564 </span><span class="lineNoCov">          0 :             if (!buffer) {</span>
+<span class="lineNum">     565 </span>            :                 /* Soak up all the script output - may save an outright kill */
+<span class="lineNum">     566 </span><span class="lineNoCov">          0 :                 while ((*getsfunc)(w, MAX_STRING_LEN - 1, getsfunc_data) &gt; 0) {</span>
+<span class="lineNum">     567 </span><span class="lineNoCov">          0 :                     continue;</span>
+<span class="lineNum">     568 </span>            :                 }
+<span class="lineNum">     569 </span>            :             }
+<span class="lineNum">     570 </span>            : 
+<span class="lineNum">     571 </span><span class="lineNoCov">          0 :             ap_log_rerror(SCRIPT_LOG_MARK, APLOG_ERR|APLOG_TOCLIENT, 0, r,</span>
+<span class="lineNum">     572 </span>            :                           &quot;malformed header from script '%s': Bad header: %.30s&quot;,
+<span class="lineNum">     573 </span>            :                           apr_filepath_name_get(r-&gt;filename), w);
+<span class="lineNum">     574 </span><span class="lineNoCov">          0 :             return HTTP_INTERNAL_SERVER_ERROR;</span>
+<span class="lineNum">     575 </span>            :         }
+<span class="lineNum">     576 </span>            : 
+<span class="lineNum">     577 </span><span class="lineNoCov">          0 :         *l++ = '\0';</span>
+<span class="lineNum">     578 </span><span class="lineNoCov">          0 :         while (apr_isspace(*l)) {</span>
+<span class="lineNum">     579 </span><span class="lineNoCov">          0 :             ++l;</span>
+<span class="lineNum">     580 </span>            :         }
+<span class="lineNum">     581 </span>            : 
+<span class="lineNum">     582 </span><span class="lineNoCov">          0 :         if (!strcasecmp(w, &quot;Content-type&quot;)) {</span>
+<span class="lineNum">     583 </span>            :             char *tmp;
+<span class="lineNum">     584 </span>            : 
+<span class="lineNum">     585 </span>            :             /* Nuke trailing whitespace */
+<span class="lineNum">     586 </span>            : 
+<span class="lineNum">     587 </span><span class="lineNoCov">          0 :             char *endp = l + strlen(l) - 1;</span>
+<span class="lineNum">     588 </span><span class="lineNoCov">          0 :             while (endp &gt; l &amp;&amp; apr_isspace(*endp)) {</span>
+<span class="lineNum">     589 </span><span class="lineNoCov">          0 :                 *endp-- = '\0';</span>
+<span class="lineNum">     590 </span>            :             }
+<span class="lineNum">     591 </span>            : 
+<span class="lineNum">     592 </span><span class="lineNoCov">          0 :             tmp = apr_pstrdup(r-&gt;pool, l);</span>
+<span class="lineNum">     593 </span><span class="lineNoCov">          0 :             ap_content_type_tolower(tmp);</span>
+<span class="lineNum">     594 </span><span class="lineNoCov">          0 :             ap_set_content_type(r, tmp);</span>
+<span class="lineNum">     595 </span>            :         }
+<span class="lineNum">     596 </span>            :         /*
+<span class="lineNum">     597 </span>            :          * If the script returned a specific status, that's what
+<span class="lineNum">     598 </span>            :          * we'll use - otherwise we assume 200 OK.
+<span class="lineNum">     599 </span>            :          */
+<span class="lineNum">     600 </span><span class="lineNoCov">          0 :         else if (!strcasecmp(w, &quot;Status&quot;)) {</span>
+<span class="lineNum">     601 </span><span class="lineNoCov">          0 :             r-&gt;status = cgi_status = atoi(l);</span>
+<span class="lineNum">     602 </span><span class="lineNoCov">          0 :             if (!ap_is_HTTP_VALID_RESPONSE(cgi_status))</span>
+<span class="lineNum">     603 </span><span class="lineNoCov">          0 :                 ap_log_rerror(SCRIPT_LOG_MARK, APLOG_ERR|APLOG_TOCLIENT, 0, r,</span>
+<span class="lineNum">     604 </span>            :                               &quot;Invalid status line from script '%s': %.30s&quot;,
+<span class="lineNum">     605 </span>            :                               apr_filepath_name_get(r-&gt;filename), l);
+<span class="lineNum">     606 </span>            :             else
+<span class="lineNum">     607 </span><span class="lineNoCov">          0 :                 if (APLOGrtrace1(r))</span>
+<span class="lineNum">     608 </span><span class="lineNoCov">          0 :                    ap_log_rerror(SCRIPT_LOG_MARK, APLOG_TRACE1, 0, r,</span>
+<span class="lineNum">     609 </span>            :                                  &quot;Status line from script '%s': %.30s&quot;,
+<span class="lineNum">     610 </span>            :                                  apr_filepath_name_get(r-&gt;filename), l);
+<span class="lineNum">     611 </span><span class="lineNoCov">          0 :             r-&gt;status_line = apr_pstrdup(r-&gt;pool, l);</span>
+<span class="lineNum">     612 </span>            :         }
+<span class="lineNum">     613 </span><span class="lineNoCov">          0 :         else if (!strcasecmp(w, &quot;Location&quot;)) {</span>
+<span class="lineNum">     614 </span><span class="lineNoCov">          0 :             apr_table_set(r-&gt;headers_out, w, l);</span>
+<span class="lineNum">     615 </span>            :         }
+<span class="lineNum">     616 </span><span class="lineNoCov">          0 :         else if (!strcasecmp(w, &quot;Content-Length&quot;)) {</span>
+<span class="lineNum">     617 </span><span class="lineNoCov">          0 :             apr_table_set(r-&gt;headers_out, w, l);</span>
+<span class="lineNum">     618 </span>            :         }
+<span class="lineNum">     619 </span><span class="lineNoCov">          0 :         else if (!strcasecmp(w, &quot;Content-Range&quot;)) {</span>
+<span class="lineNum">     620 </span><span class="lineNoCov">          0 :             apr_table_set(r-&gt;headers_out, w, l);</span>
+<span class="lineNum">     621 </span>            :         }
+<span class="lineNum">     622 </span><span class="lineNoCov">          0 :         else if (!strcasecmp(w, &quot;Transfer-Encoding&quot;)) {</span>
+<span class="lineNum">     623 </span><span class="lineNoCov">          0 :             apr_table_set(r-&gt;headers_out, w, l);</span>
+<span class="lineNum">     624 </span>            :         }
+<span class="lineNum">     625 </span><span class="lineNoCov">          0 :         else if (!strcasecmp(w, &quot;ETag&quot;)) {</span>
+<span class="lineNum">     626 </span><span class="lineNoCov">          0 :             apr_table_set(r-&gt;headers_out, w, l);</span>
+<span class="lineNum">     627 </span>            :         }
+<span class="lineNum">     628 </span>            :         /*
+<span class="lineNum">     629 </span>            :          * If the script gave us a Last-Modified header, we can't just
+<span class="lineNum">     630 </span>            :          * pass it on blindly because of restrictions on future values.
+<span class="lineNum">     631 </span>            :          */
+<span class="lineNum">     632 </span><span class="lineNoCov">          0 :         else if (!strcasecmp(w, &quot;Last-Modified&quot;)) {</span>
+<span class="lineNum">     633 </span><span class="lineNoCov">          0 :             ap_update_mtime(r, apr_date_parse_http(l));</span>
+<span class="lineNum">     634 </span><span class="lineNoCov">          0 :             ap_set_last_modified(r);</span>
+<span class="lineNum">     635 </span>            :         }
+<span class="lineNum">     636 </span><span class="lineNoCov">          0 :         else if (!strcasecmp(w, &quot;Set-Cookie&quot;)) {</span>
+<span class="lineNum">     637 </span><span class="lineNoCov">          0 :             apr_table_add(cookie_table, w, l);</span>
+<span class="lineNum">     638 </span>            :         }
+<span class="lineNum">     639 </span>            :         else {
+<span class="lineNum">     640 </span><span class="lineNoCov">          0 :             apr_table_add(merge, w, l);</span>
+<span class="lineNum">     641 </span>            :         }
+<span class="lineNum">     642 </span><span class="lineNoCov">          0 :         first_header = 0;</span>
+<span class="lineNum">     643 </span><span class="lineNoCov">          0 :     }</span>
+<span class="lineNum">     644 </span>            :     /* never reached - we leave this function within the while loop above */
+<span class="lineNum">     645 </span>            :     return OK;
+<a name="646"><span class="lineNum">     646 </span>            : }</a>
+<span class="lineNum">     647 </span>            : 
+<span class="lineNum">     648 </span><span class="lineNoCov">          0 : AP_DECLARE(int) ap_scan_script_header_err_core(request_rec *r, char *buffer,</span>
+<span class="lineNum">     649 </span>            :                                        int (*getsfunc) (char *, int, void *),
+<span class="lineNum">     650 </span>            :                                        void *getsfunc_data)
+<span class="lineNum">     651 </span>            : {
+<span class="lineNum">     652 </span><span class="lineNoCov">          0 :     return ap_scan_script_header_err_core_ex(r, buffer, getsfunc,</span>
+<span class="lineNum">     653 </span>            :                                              getsfunc_data,
+<span class="lineNum">     654 </span>            :                                              APLOG_MODULE_INDEX);
+<a name="655"><span class="lineNum">     655 </span>            : }</a>
+<span class="lineNum">     656 </span>            : 
+<span class="lineNum">     657 </span><span class="lineNoCov">          0 : static int getsfunc_FILE(char *buf, int len, void *f)</span>
+<span class="lineNum">     658 </span>            : {
+<span class="lineNum">     659 </span><span class="lineNoCov">          0 :     return apr_file_gets(buf, len, (apr_file_t *) f) == APR_SUCCESS;</span>
+<a name="660"><span class="lineNum">     660 </span>            : }</a>
+<span class="lineNum">     661 </span>            : 
+<span class="lineNum">     662 </span><span class="lineNoCov">          0 : AP_DECLARE(int) ap_scan_script_header_err(request_rec *r, apr_file_t *f,</span>
+<span class="lineNum">     663 </span>            :                                           char *buffer)
+<span class="lineNum">     664 </span>            : {
+<span class="lineNum">     665 </span><span class="lineNoCov">          0 :     return ap_scan_script_header_err_core_ex(r, buffer, getsfunc_FILE, f,</span>
+<span class="lineNum">     666 </span>            :                                              APLOG_MODULE_INDEX);
+<a name="667"><span class="lineNum">     667 </span>            : }</a>
+<span class="lineNum">     668 </span>            : 
+<span class="lineNum">     669 </span><span class="lineNoCov">          0 : AP_DECLARE(int) ap_scan_script_header_err_ex(request_rec *r, apr_file_t *f,</span>
+<span class="lineNum">     670 </span>            :                                           char *buffer, int module_index)
+<span class="lineNum">     671 </span>            : {
+<span class="lineNum">     672 </span><span class="lineNoCov">          0 :     return ap_scan_script_header_err_core_ex(r, buffer, getsfunc_FILE, f,</span>
+<span class="lineNum">     673 </span>            :                                              module_index);
+<span class="lineNum">     674 </span>            : }
+<a name="675"><span class="lineNum">     675 </span>            : </a>
+<span class="lineNum">     676 </span>            : 
+<span class="lineNum">     677 </span><span class="lineNoCov">          0 : static int getsfunc_BRIGADE(char *buf, int len, void *arg)</span>
+<span class="lineNum">     678 </span>            : {
+<span class="lineNum">     679 </span><span class="lineNoCov">          0 :     apr_bucket_brigade *bb = (apr_bucket_brigade *)arg;</span>
+<span class="lineNum">     680 </span><span class="lineNoCov">          0 :     const char *dst_end = buf + len - 1; /* leave room for terminating null */</span>
+<span class="lineNum">     681 </span><span class="lineNoCov">          0 :     char *dst = buf;</span>
+<span class="lineNum">     682 </span><span class="lineNoCov">          0 :     apr_bucket *e = APR_BRIGADE_FIRST(bb);</span>
+<span class="lineNum">     683 </span>            :     apr_status_t rv;
+<span class="lineNum">     684 </span><span class="lineNoCov">          0 :     int done = 0;</span>
+<span class="lineNum">     685 </span>            : 
+<span class="lineNum">     686 </span><span class="lineNoCov">          0 :     while ((dst &lt; dst_end) &amp;&amp; !done &amp;&amp; e != APR_BRIGADE_SENTINEL(bb)</span>
+<span class="lineNum">     687 </span><span class="lineNoCov">          0 :            &amp;&amp; !APR_BUCKET_IS_EOS(e)) {</span>
+<span class="lineNum">     688 </span>            :         const char *bucket_data;
+<span class="lineNum">     689 </span>            :         apr_size_t bucket_data_len;
+<span class="lineNum">     690 </span>            :         const char *src;
+<span class="lineNum">     691 </span>            :         const char *src_end;
+<span class="lineNum">     692 </span>            :         apr_bucket * next;
+<span class="lineNum">     693 </span>            : 
+<span class="lineNum">     694 </span><span class="lineNoCov">          0 :         rv = apr_bucket_read(e, &amp;bucket_data, &amp;bucket_data_len,</span>
+<span class="lineNum">     695 </span>            :                              APR_BLOCK_READ);
+<span class="lineNum">     696 </span><span class="lineNoCov">          0 :         if (rv != APR_SUCCESS || (bucket_data_len == 0)) {</span>
+<span class="lineNum">     697 </span><span class="lineNoCov">          0 :             *dst = '\0';</span>
+<span class="lineNum">     698 </span><span class="lineNoCov">          0 :             return APR_STATUS_IS_TIMEUP(rv) ? -1 : 0;</span>
+<span class="lineNum">     699 </span>            :         }
+<span class="lineNum">     700 </span><span class="lineNoCov">          0 :         src = bucket_data;</span>
+<span class="lineNum">     701 </span><span class="lineNoCov">          0 :         src_end = bucket_data + bucket_data_len;</span>
+<span class="lineNum">     702 </span><span class="lineNoCov">          0 :         while ((src &lt; src_end) &amp;&amp; (dst &lt; dst_end) &amp;&amp; !done) {</span>
+<span class="lineNum">     703 </span><span class="lineNoCov">          0 :             if (*src == '\n') {</span>
+<span class="lineNum">     704 </span><span class="lineNoCov">          0 :                 done = 1;</span>
+<span class="lineNum">     705 </span>            :             }
+<span class="lineNum">     706 </span><span class="lineNoCov">          0 :             else if (*src != '\r') {</span>
+<span class="lineNum">     707 </span><span class="lineNoCov">          0 :                 *dst++ = *src;</span>
+<span class="lineNum">     708 </span>            :             }
+<span class="lineNum">     709 </span><span class="lineNoCov">          0 :             src++;</span>
+<span class="lineNum">     710 </span>            :         }
+<span class="lineNum">     711 </span>            : 
+<span class="lineNum">     712 </span><span class="lineNoCov">          0 :         if (src &lt; src_end) {</span>
+<span class="lineNum">     713 </span><span class="lineNoCov">          0 :             apr_bucket_split(e, src - bucket_data);</span>
+<span class="lineNum">     714 </span>            :         }
+<span class="lineNum">     715 </span><span class="lineNoCov">          0 :         next = APR_BUCKET_NEXT(e);</span>
+<span class="lineNum">     716 </span><span class="lineNoCov">          0 :         apr_bucket_delete(e);</span>
+<span class="lineNum">     717 </span><span class="lineNoCov">          0 :         e = next;</span>
+<span class="lineNum">     718 </span>            :     }
+<span class="lineNum">     719 </span><span class="lineNoCov">          0 :     *dst = 0;</span>
+<span class="lineNum">     720 </span><span class="lineNoCov">          0 :     return done;</span>
+<a name="721"><span class="lineNum">     721 </span>            : }</a>
+<span class="lineNum">     722 </span>            : 
+<span class="lineNum">     723 </span><span class="lineNoCov">          0 : AP_DECLARE(int) ap_scan_script_header_err_brigade(request_rec *r,</span>
+<span class="lineNum">     724 </span>            :                                                   apr_bucket_brigade *bb,
+<span class="lineNum">     725 </span>            :                                                   char *buffer)
+<span class="lineNum">     726 </span>            : {
+<span class="lineNum">     727 </span><span class="lineNoCov">          0 :     return ap_scan_script_header_err_core_ex(r, buffer, getsfunc_BRIGADE, bb,</span>
+<span class="lineNum">     728 </span>            :                                              APLOG_MODULE_INDEX);
+<a name="729"><span class="lineNum">     729 </span>            : }</a>
+<span class="lineNum">     730 </span>            : 
+<span class="lineNum">     731 </span><span class="lineNoCov">          0 : AP_DECLARE(int) ap_scan_script_header_err_brigade_ex(request_rec *r,</span>
+<span class="lineNum">     732 </span>            :                                                      apr_bucket_brigade *bb,
+<span class="lineNum">     733 </span>            :                                                      char *buffer,
+<span class="lineNum">     734 </span>            :                                                      int module_index)
+<span class="lineNum">     735 </span>            : {
+<span class="lineNum">     736 </span><span class="lineNoCov">          0 :     return ap_scan_script_header_err_core_ex(r, buffer, getsfunc_BRIGADE, bb,</span>
+<span class="lineNum">     737 </span>            :                                              module_index);
+<span class="lineNum">     738 </span>            : }
+<span class="lineNum">     739 </span>            : 
+<span class="lineNum">     740 </span>            : 
+<span class="lineNum">     741 </span>            : struct vastrs {
+<span class="lineNum">     742 </span>            :     va_list args;
+<span class="lineNum">     743 </span>            :     int arg;
+<span class="lineNum">     744 </span>            :     const char *curpos;
+<a name="745"><span class="lineNum">     745 </span>            : };</a>
+<span class="lineNum">     746 </span>            : 
+<span class="lineNum">     747 </span><span class="lineNoCov">          0 : static int getsfunc_STRING(char *w, int len, void *pvastrs)</span>
+<span class="lineNum">     748 </span>            : {
+<span class="lineNum">     749 </span><span class="lineNoCov">          0 :     struct vastrs *strs = (struct vastrs*) pvastrs;</span>
+<span class="lineNum">     750 </span>            :     const char *p;
+<span class="lineNum">     751 </span>            :     int t;
+<span class="lineNum">     752 </span>            : 
+<span class="lineNum">     753 </span><span class="lineNoCov">          0 :     if (!strs-&gt;curpos || !*strs-&gt;curpos) {</span>
+<span class="lineNum">     754 </span><span class="lineNoCov">          0 :         w[0] = '\0';</span>
+<span class="lineNum">     755 </span><span class="lineNoCov">          0 :         return 0;</span>
+<span class="lineNum">     756 </span>            :     }
+<span class="lineNum">     757 </span><span class="lineNoCov">          0 :     p = ap_strchr_c(strs-&gt;curpos, '\n');</span>
+<span class="lineNum">     758 </span><span class="lineNoCov">          0 :     if (p)</span>
+<span class="lineNum">     759 </span><span class="lineNoCov">          0 :         ++p;</span>
+<span class="lineNum">     760 </span>            :     else
+<span class="lineNum">     761 </span><span class="lineNoCov">          0 :         p = ap_strchr_c(strs-&gt;curpos, '\0');</span>
+<span class="lineNum">     762 </span><span class="lineNoCov">          0 :     t = p - strs-&gt;curpos;</span>
+<span class="lineNum">     763 </span><span class="lineNoCov">          0 :     if (t &gt; len)</span>
+<span class="lineNum">     764 </span><span class="lineNoCov">          0 :         t = len;</span>
+<span class="lineNum">     765 </span><span class="lineNoCov">          0 :     strncpy (w, strs-&gt;curpos, t);</span>
+<span class="lineNum">     766 </span><span class="lineNoCov">          0 :     w[t] = '\0';</span>
+<span class="lineNum">     767 </span><span class="lineNoCov">          0 :     if (!strs-&gt;curpos[t]) {</span>
+<span class="lineNum">     768 </span><span class="lineNoCov">          0 :         ++strs-&gt;arg;</span>
+<span class="lineNum">     769 </span><span class="lineNoCov">          0 :         strs-&gt;curpos = va_arg(strs-&gt;args, const char *);</span>
+<span class="lineNum">     770 </span>            :     }
+<span class="lineNum">     771 </span>            :     else
+<span class="lineNum">     772 </span><span class="lineNoCov">          0 :         strs-&gt;curpos += t;</span>
+<span class="lineNum">     773 </span><span class="lineNoCov">          0 :     return t;</span>
+<span class="lineNum">     774 </span>            : }
+<span class="lineNum">     775 </span>            : 
+<span class="lineNum">     776 </span>            : /* ap_scan_script_header_err_strs() accepts additional const char* args...
+<span class="lineNum">     777 </span>            :  * each is treated as one or more header lines, and the first non-header
+<span class="lineNum">     778 </span>            :  * character is returned to **arg, **data.  (The first optional arg is
+<a name="779"><span class="lineNum">     779 </span>            :  * counted as 0.)</a>
+<span class="lineNum">     780 </span>            :  */
+<span class="lineNum">     781 </span><span class="lineNoCov">          0 : AP_DECLARE_NONSTD(int) ap_scan_script_header_err_strs_ex(request_rec *r,</span>
+<span class="lineNum">     782 </span>            :                                                          char *buffer,
+<span class="lineNum">     783 </span>            :                                                          int module_index,
+<span class="lineNum">     784 </span>            :                                                          const char **termch,
+<span class="lineNum">     785 </span>            :                                                          int *termarg, ...)
+<span class="lineNum">     786 </span>            : {
+<span class="lineNum">     787 </span>            :     struct vastrs strs;
+<span class="lineNum">     788 </span>            :     int res;
+<span class="lineNum">     789 </span>            : 
+<span class="lineNum">     790 </span><span class="lineNoCov">          0 :     va_start(strs.args, termarg);</span>
+<span class="lineNum">     791 </span><span class="lineNoCov">          0 :     strs.arg = 0;</span>
+<span class="lineNum">     792 </span><span class="lineNoCov">          0 :     strs.curpos = va_arg(strs.args, char*);</span>
+<span class="lineNum">     793 </span><span class="lineNoCov">          0 :     res = ap_scan_script_header_err_core_ex(r, buffer, getsfunc_STRING,</span>
+<span class="lineNum">     794 </span>            :                                             (void *) &amp;strs, module_index);
+<span class="lineNum">     795 </span><span class="lineNoCov">          0 :     if (termch)</span>
+<span class="lineNum">     796 </span><span class="lineNoCov">          0 :         *termch = strs.curpos;</span>
+<span class="lineNum">     797 </span><span class="lineNoCov">          0 :     if (termarg)</span>
+<span class="lineNum">     798 </span><span class="lineNoCov">          0 :         *termarg = strs.arg;</span>
+<span class="lineNum">     799 </span><span class="lineNoCov">          0 :     va_end(strs.args);</span>
+<span class="lineNum">     800 </span><span class="lineNoCov">          0 :     return res;</span>
+<a name="801"><span class="lineNum">     801 </span>            : }</a>
+<span class="lineNum">     802 </span>            : 
+<span class="lineNum">     803 </span><span class="lineNoCov">          0 : AP_DECLARE_NONSTD(int) ap_scan_script_header_err_strs(request_rec *r,</span>
+<span class="lineNum">     804 </span>            :                                                       char *buffer,
+<span class="lineNum">     805 </span>            :                                                       const char **termch,
+<span class="lineNum">     806 </span>            :                                                       int *termarg, ...)
+<span class="lineNum">     807 </span>            : {
+<span class="lineNum">     808 </span>            :     struct vastrs strs;
+<span class="lineNum">     809 </span>            :     int res;
+<span class="lineNum">     810 </span>            : 
+<span class="lineNum">     811 </span><span class="lineNoCov">          0 :     va_start(strs.args, termarg);</span>
+<span class="lineNum">     812 </span><span class="lineNoCov">          0 :     strs.arg = 0;</span>
+<span class="lineNum">     813 </span><span class="lineNoCov">          0 :     strs.curpos = va_arg(strs.args, char*);</span>
+<span class="lineNum">     814 </span><span class="lineNoCov">          0 :     res = ap_scan_script_header_err_core_ex(r, buffer, getsfunc_STRING,</span>
+<span class="lineNum">     815 </span>            :                                             (void *) &amp;strs, APLOG_MODULE_INDEX);
+<span class="lineNum">     816 </span><span class="lineNoCov">          0 :     if (termch)</span>
+<span class="lineNum">     817 </span><span class="lineNoCov">          0 :         *termch = strs.curpos;</span>
+<span class="lineNum">     818 </span><span class="lineNoCov">          0 :     if (termarg)</span>
+<span class="lineNum">     819 </span><span class="lineNoCov">          0 :         *termarg = strs.arg;</span>
+<span class="lineNum">     820 </span><span class="lineNoCov">          0 :     va_end(strs.args);</span>
+<span class="lineNum">     821 </span><span class="lineNoCov">          0 :     return res;</span>
+<span class="lineNum">     822 </span>            : }
+<a name="823"><span class="lineNum">     823 </span>            : </a>
+<span class="lineNum">     824 </span>            : static void
+<span class="lineNum">     825 </span><span class="lineNoCov">          0 : argstr_to_table(char *str, apr_table_t *parms)</span>
+<span class="lineNum">     826 </span>            : {
+<span class="lineNum">     827 </span>            :     char *key;
+<span class="lineNum">     828 </span>            :     char *value;
+<span class="lineNum">     829 </span>            :     char *strtok_state;
+<span class="lineNum">     830 </span>            : 
+<span class="lineNum">     831 </span><span class="lineNoCov">          0 :     if (str == NULL) {</span>
+<span class="lineNum">     832 </span><span class="lineNoCov">          0 :         return;</span>
+<span class="lineNum">     833 </span>            :     }
+<span class="lineNum">     834 </span>            : 
+<span class="lineNum">     835 </span><span class="lineNoCov">          0 :     key = apr_strtok(str, &quot;&amp;&quot;, &amp;strtok_state);</span>
+<span class="lineNum">     836 </span><span class="lineNoCov">          0 :     while (key) {</span>
+<span class="lineNum">     837 </span><span class="lineNoCov">          0 :         value = strchr(key, '=');</span>
+<span class="lineNum">     838 </span><span class="lineNoCov">          0 :         if (value) {</span>
+<span class="lineNum">     839 </span><span class="lineNoCov">          0 :             *value = '\0';      /* Split the string in two */</span>
+<span class="lineNum">     840 </span><span class="lineNoCov">          0 :             value++;            /* Skip passed the = */</span>
+<span class="lineNum">     841 </span>            :         }
+<span class="lineNum">     842 </span>            :         else {
+<span class="lineNum">     843 </span><span class="lineNoCov">          0 :             value = &quot;1&quot;;</span>
+<span class="lineNum">     844 </span>            :         }
+<span class="lineNum">     845 </span><span class="lineNoCov">          0 :         ap_unescape_url(key);</span>
+<span class="lineNum">     846 </span><span class="lineNoCov">          0 :         ap_unescape_url(value);</span>
+<span class="lineNum">     847 </span><span class="lineNoCov">          0 :         apr_table_set(parms, key, value);</span>
+<span class="lineNum">     848 </span><span class="lineNoCov">          0 :         key = apr_strtok(NULL, &quot;&amp;&quot;, &amp;strtok_state);</span>
+<span class="lineNum">     849 </span>            :     }
+<a name="850"><span class="lineNum">     850 </span>            : }</a>
+<span class="lineNum">     851 </span>            : 
+<span class="lineNum">     852 </span><span class="lineNoCov">          0 : AP_DECLARE(void) ap_args_to_table(request_rec *r, apr_table_t **table)</span>
+<span class="lineNum">     853 </span>            : {
+<span class="lineNum">     854 </span><span class="lineNoCov">          0 :     apr_table_t *t = apr_table_make(r-&gt;pool, 10);</span>
+<span class="lineNum">     855 </span><span class="lineNoCov">          0 :     argstr_to_table(apr_pstrdup(r-&gt;pool, r-&gt;args), t);</span>
+<span class="lineNum">     856 </span><span class="lineNoCov">          0 :     *table = t;</span>
+<span class="lineNum">     857 </span><span class="lineNoCov">          0 : }</span>
+</pre>
+      </td>
+    </tr>
+  </table>
+  <br>
+
+  <table width="100%" border=0 cellspacing=0 cellpadding=0>
+    <tr><td class="ruler"><img src="../glass.png" width=3 height=3 alt=""></td></tr>
+    <tr><td class="versionInfo">Generated by: <a href="http://ltp.sourceforge.net/coverage/lcov.php" target="_parent">LCOV version 1.11</a></td></tr>
+  </table>
+  <br>
+
+</body>
+</html>

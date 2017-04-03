@@ -1,0 +1,282 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+
+<html lang="en">
+
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <title>LCOV - apptest.info - server/connection.c</title>
+  <link rel="stylesheet" type="text/css" href="../gcov.css">
+</head>
+
+<body>
+
+  <table width="100%" border=0 cellspacing=0 cellpadding=0>
+    <tr><td class="title">LCOV - code coverage report</td></tr>
+    <tr><td class="ruler"><img src="../glass.png" width=3 height=3 alt=""></td></tr>
+
+    <tr>
+      <td width="100%">
+        <table cellpadding=1 border=0 width="100%">
+          <tr>
+            <td width="10%" class="headerItem">Current view:</td>
+            <td width="35%" class="headerValue"><a href="../index.html">top level</a> - <a href="index.html">server</a> - connection.c<span style="font-size: 80%;"> (source / <a href="connection.c.func-sort-c.html">functions</a>)</span></td>
+            <td width="5%"></td>
+            <td width="15%"></td>
+            <td width="10%" class="headerCovTableHead">Hit</td>
+            <td width="10%" class="headerCovTableHead">Total</td>
+            <td width="15%" class="headerCovTableHead">Coverage</td>
+          </tr>
+          <tr>
+            <td class="headerItem">Test:</td>
+            <td class="headerValue">apptest.info</td>
+            <td></td>
+            <td class="headerItem">Lines:</td>
+            <td class="headerCovTableEntry">21</td>
+            <td class="headerCovTableEntry">52</td>
+            <td class="headerCovTableEntryLo">40.4 %</td>
+          </tr>
+          <tr>
+            <td class="headerItem">Date:</td>
+            <td class="headerValue">2017-01-31 22:58:06</td>
+            <td></td>
+            <td class="headerItem">Functions:</td>
+            <td class="headerCovTableEntry">8</td>
+            <td class="headerCovTableEntry">13</td>
+            <td class="headerCovTableEntryLo">61.5 %</td>
+          </tr>
+          <tr><td><img src="../glass.png" width=3 height=3 alt=""></td></tr>
+        </table>
+      </td>
+    </tr>
+
+    <tr><td class="ruler"><img src="../glass.png" width=3 height=3 alt=""></td></tr>
+  </table>
+
+  <table cellpadding=0 cellspacing=0 border=0>
+    <tr>
+      <td><br></td>
+    </tr>
+    <tr>
+      <td>
+<pre class="sourceHeading">          Line data    Source code</pre>
+<pre class="source">
+<a name="1"><span class="lineNum">       1 </span>            : /* Licensed to the Apache Software Foundation (ASF) under one or more</a>
+<span class="lineNum">       2 </span>            :  * contributor license agreements.  See the NOTICE file distributed with
+<span class="lineNum">       3 </span>            :  * this work for additional information regarding copyright ownership.
+<span class="lineNum">       4 </span>            :  * The ASF licenses this file to You under the Apache License, Version 2.0
+<span class="lineNum">       5 </span>            :  * (the &quot;License&quot;); you may not use this file except in compliance with
+<span class="lineNum">       6 </span>            :  * the License.  You may obtain a copy of the License at
+<span class="lineNum">       7 </span>            :  *
+<span class="lineNum">       8 </span>            :  *     http://www.apache.org/licenses/LICENSE-2.0
+<span class="lineNum">       9 </span>            :  *
+<span class="lineNum">      10 </span>            :  * Unless required by applicable law or agreed to in writing, software
+<span class="lineNum">      11 </span>            :  * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+<span class="lineNum">      12 </span>            :  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+<span class="lineNum">      13 </span>            :  * See the License for the specific language governing permissions and
+<span class="lineNum">      14 </span>            :  * limitations under the License.
+<span class="lineNum">      15 </span>            :  */
+<span class="lineNum">      16 </span>            : 
+<span class="lineNum">      17 </span>            : #include &quot;apr.h&quot;
+<span class="lineNum">      18 </span>            : #include &quot;apr_strings.h&quot;
+<span class="lineNum">      19 </span>            : 
+<span class="lineNum">      20 </span>            : #include &quot;ap_config.h&quot;
+<span class="lineNum">      21 </span>            : #include &quot;httpd.h&quot;
+<span class="lineNum">      22 </span>            : #include &quot;http_connection.h&quot;
+<span class="lineNum">      23 </span>            : #include &quot;http_request.h&quot;
+<span class="lineNum">      24 </span>            : #include &quot;http_protocol.h&quot;
+<span class="lineNum">      25 </span>            : #include &quot;ap_mpm.h&quot;
+<span class="lineNum">      26 </span>            : #include &quot;http_config.h&quot;
+<span class="lineNum">      27 </span>            : #include &quot;http_core.h&quot;
+<span class="lineNum">      28 </span>            : #include &quot;http_vhost.h&quot;
+<span class="lineNum">      29 </span>            : #include &quot;scoreboard.h&quot;
+<span class="lineNum">      30 </span>            : #include &quot;http_log.h&quot;
+<span class="lineNum">      31 </span>            : #include &quot;util_filter.h&quot;
+<span class="lineNum">      32 </span>            : 
+<span class="lineNum">      33 </span>            : APR_HOOK_STRUCT(
+<span class="lineNum">      34 </span>            :             APR_HOOK_LINK(create_connection)
+<span class="lineNum">      35 </span>            :             APR_HOOK_LINK(process_connection)
+<a name="36"><span class="lineNum">      36 </span>            :             APR_HOOK_LINK(pre_connection)</a>
+<span class="lineNum">      37 </span>            : )
+<span class="lineNum">      38 </span><span class="lineCov">          5 : AP_IMPLEMENT_HOOK_RUN_FIRST(conn_rec *,create_connection,</span>
+<a name="39"><span class="lineNum">      39 </span>            :                             (apr_pool_t *p, server_rec *server, apr_socket_t *csd, long conn_id, void *sbh, apr_bucket_alloc_t *alloc),</a>
+<a name="40"><span class="lineNum">      40 </span>            :                             (p, server, csd, conn_id, sbh, alloc), NULL)</a>
+<span class="lineNum">      41 </span><span class="lineCov">          6 : AP_IMPLEMENT_HOOK_RUN_FIRST(int,process_connection,(conn_rec *c),(c),DECLINED)</span>
+<span class="lineNum">      42 </span><span class="lineCov">          5 : AP_IMPLEMENT_HOOK_RUN_ALL(int,pre_connection,(conn_rec *c, void *csd),(c, csd),OK,DECLINED)</span>
+<span class="lineNum">      43 </span>            : /*
+<span class="lineNum">      44 </span>            :  * More machine-dependent networking gooo... on some systems,
+<span class="lineNum">      45 </span>            :  * you've got to be *really* sure that all the packets are acknowledged
+<span class="lineNum">      46 </span>            :  * before closing the connection, since the client will not be able
+<span class="lineNum">      47 </span>            :  * to see the last response if their TCP buffer is flushed by a RST
+<span class="lineNum">      48 </span>            :  * packet from us, which is what the server's TCP stack will send
+<span class="lineNum">      49 </span>            :  * if it receives any request data after closing the connection.
+<span class="lineNum">      50 </span>            :  *
+<span class="lineNum">      51 </span>            :  * In an ideal world, this function would be accomplished by simply
+<span class="lineNum">      52 </span>            :  * setting the socket option SO_LINGER and handling it within the
+<span class="lineNum">      53 </span>            :  * server's TCP stack while the process continues on to the next request.
+<span class="lineNum">      54 </span>            :  * Unfortunately, it seems that most (if not all) operating systems
+<span class="lineNum">      55 </span>            :  * block the server process on close() when SO_LINGER is used.
+<span class="lineNum">      56 </span>            :  * For those that don't, see USE_SO_LINGER below.  For the rest,
+<span class="lineNum">      57 </span>            :  * we have created a home-brew lingering_close.
+<span class="lineNum">      58 </span>            :  *
+<span class="lineNum">      59 </span>            :  * Many operating systems tend to block, puke, or otherwise mishandle
+<span class="lineNum">      60 </span>            :  * calls to shutdown only half of the connection.  You should define
+<span class="lineNum">      61 </span>            :  * NO_LINGCLOSE in ap_config.h if such is the case for your system.
+<span class="lineNum">      62 </span>            :  */
+<span class="lineNum">      63 </span>            : #ifndef MAX_SECS_TO_LINGER
+<span class="lineNum">      64 </span>            : #define MAX_SECS_TO_LINGER 30
+<a name="65"><span class="lineNum">      65 </span>            : #endif</a>
+<span class="lineNum">      66 </span>            : 
+<span class="lineNum">      67 </span><span class="lineCov">          1 : AP_CORE_DECLARE(void) ap_flush_conn(conn_rec *c)</span>
+<span class="lineNum">      68 </span>            : {
+<span class="lineNum">      69 </span>            :     apr_bucket_brigade *bb;
+<span class="lineNum">      70 </span>            :     apr_bucket *b;
+<span class="lineNum">      71 </span>            : 
+<span class="lineNum">      72 </span><span class="lineCov">          1 :     bb = apr_brigade_create(c-&gt;pool, c-&gt;bucket_alloc);</span>
+<span class="lineNum">      73 </span>            : 
+<span class="lineNum">      74 </span>            :     /* FLUSH bucket */
+<span class="lineNum">      75 </span><span class="lineCov">          1 :     b = apr_bucket_flush_create(c-&gt;bucket_alloc);</span>
+<span class="lineNum">      76 </span><span class="lineCov">          1 :     APR_BRIGADE_INSERT_TAIL(bb, b);</span>
+<span class="lineNum">      77 </span>            : 
+<span class="lineNum">      78 </span>            :     /* End Of Connection bucket */
+<span class="lineNum">      79 </span><span class="lineCov">          1 :     b = ap_bucket_eoc_create(c-&gt;bucket_alloc);</span>
+<span class="lineNum">      80 </span><span class="lineCov">          1 :     APR_BRIGADE_INSERT_TAIL(bb, b);</span>
+<span class="lineNum">      81 </span>            : 
+<span class="lineNum">      82 </span><span class="lineCov">          1 :     ap_pass_brigade(c-&gt;output_filters, bb);</span>
+<span class="lineNum">      83 </span><span class="lineCov">          1 : }</span>
+<span class="lineNum">      84 </span>            : 
+<span class="lineNum">      85 </span>            : /* we now proceed to read from the client until we get EOF, or until
+<span class="lineNum">      86 </span>            :  * MAX_SECS_TO_LINGER has passed.  The reasons for doing this are
+<span class="lineNum">      87 </span>            :  * documented in a draft:
+<span class="lineNum">      88 </span>            :  *
+<span class="lineNum">      89 </span>            :  * http://tools.ietf.org/html/draft-ietf-http-connection-00.txt
+<span class="lineNum">      90 </span>            :  *
+<span class="lineNum">      91 </span>            :  * in a nutshell -- if we don't make this effort we risk causing
+<span class="lineNum">      92 </span>            :  * TCP RST packets to be sent which can tear down a connection before
+<span class="lineNum">      93 </span>            :  * all the response data has been sent to the client.
+<span class="lineNum">      94 </span>            :  */
+<a name="95"><span class="lineNum">      95 </span>            : #define SECONDS_TO_LINGER  2</a>
+<span class="lineNum">      96 </span>            : 
+<span class="lineNum">      97 </span><span class="lineCov">          1 : AP_DECLARE(int) ap_start_lingering_close(conn_rec *c)</span>
+<span class="lineNum">      98 </span>            : {
+<span class="lineNum">      99 </span><span class="lineCov">          1 :     apr_socket_t *csd = ap_get_conn_socket(c);</span>
+<span class="lineNum">     100 </span>            : 
+<span class="lineNum">     101 </span><span class="lineCov">          1 :     if (!csd) {</span>
+<span class="lineNum">     102 </span><span class="lineNoCov">          0 :         return 1;</span>
+<span class="lineNum">     103 </span>            :     }
+<span class="lineNum">     104 </span>            : 
+<span class="lineNum">     105 </span><span class="lineCov">          1 :     if (c-&gt;sbh) {</span>
+<span class="lineNum">     106 </span><span class="lineCov">          1 :         ap_update_child_status(c-&gt;sbh, SERVER_CLOSING, NULL);</span>
+<span class="lineNum">     107 </span>            :     }
+<span class="lineNum">     108 </span>            : 
+<span class="lineNum">     109 </span>            : #ifdef NO_LINGCLOSE
+<span class="lineNum">     110 </span>            :     ap_flush_conn(c); /* just close it */
+<span class="lineNum">     111 </span>            :     apr_socket_close(csd);
+<span class="lineNum">     112 </span>            :     return 1;
+<span class="lineNum">     113 </span>            : #endif
+<span class="lineNum">     114 </span>            : 
+<span class="lineNum">     115 </span>            :     /* Close the connection, being careful to send out whatever is still
+<span class="lineNum">     116 </span>            :      * in our buffers.  If possible, try to avoid a hard close until the
+<span class="lineNum">     117 </span>            :      * client has ACKed our FIN and/or has stopped sending us data.
+<span class="lineNum">     118 </span>            :      */
+<span class="lineNum">     119 </span>            : 
+<span class="lineNum">     120 </span>            :     /* Send any leftover data to the client, but never try to again */
+<span class="lineNum">     121 </span><span class="lineCov">          1 :     ap_flush_conn(c);</span>
+<span class="lineNum">     122 </span>            : 
+<span class="lineNum">     123 </span><span class="lineCov">          1 :     if (c-&gt;aborted) {</span>
+<span class="lineNum">     124 </span><span class="lineNoCov">          0 :         apr_socket_close(csd);</span>
+<span class="lineNum">     125 </span><span class="lineNoCov">          0 :         return 1;</span>
+<span class="lineNum">     126 </span>            :     }
+<span class="lineNum">     127 </span>            : 
+<span class="lineNum">     128 </span>            :     /* Shut down the socket for write, which will send a FIN
+<span class="lineNum">     129 </span>            :      * to the peer.
+<span class="lineNum">     130 </span>            :      */
+<span class="lineNum">     131 </span><span class="lineCov">          1 :     if (apr_socket_shutdown(csd, APR_SHUTDOWN_WRITE) != APR_SUCCESS</span>
+<span class="lineNum">     132 </span><span class="lineCov">          1 :         || c-&gt;aborted) {</span>
+<span class="lineNum">     133 </span><span class="lineNoCov">          0 :         apr_socket_close(csd);</span>
+<span class="lineNum">     134 </span><span class="lineNoCov">          0 :         return 1;</span>
+<span class="lineNum">     135 </span>            :     }
+<span class="lineNum">     136 </span>            : 
+<span class="lineNum">     137 </span><span class="lineCov">          1 :     return 0;</span>
+<a name="138"><span class="lineNum">     138 </span>            : }</a>
+<span class="lineNum">     139 </span>            : 
+<span class="lineNum">     140 </span><span class="lineNoCov">          0 : AP_DECLARE(void) ap_lingering_close(conn_rec *c)</span>
+<span class="lineNum">     141 </span>            : {
+<span class="lineNum">     142 </span>            :     char dummybuf[512];
+<span class="lineNum">     143 </span>            :     apr_size_t nbytes;
+<span class="lineNum">     144 </span><span class="lineNoCov">          0 :     apr_time_t now, timeup = 0;</span>
+<span class="lineNum">     145 </span><span class="lineNoCov">          0 :     apr_socket_t *csd = ap_get_conn_socket(c);</span>
+<span class="lineNum">     146 </span>            : 
+<span class="lineNum">     147 </span><span class="lineNoCov">          0 :     if (ap_start_lingering_close(c)) {</span>
+<span class="lineNum">     148 </span><span class="lineNoCov">          0 :         return;</span>
+<span class="lineNum">     149 </span>            :     }
+<span class="lineNum">     150 </span>            : 
+<span class="lineNum">     151 </span>            :     /* Read available data from the client whilst it continues sending
+<span class="lineNum">     152 </span>            :      * it, for a maximum time of MAX_SECS_TO_LINGER.  If the client
+<span class="lineNum">     153 </span>            :      * does not send any data within 2 seconds (a value pulled from
+<span class="lineNum">     154 </span>            :      * Apache 1.3 which seems to work well), give up.
+<span class="lineNum">     155 </span>            :      */
+<span class="lineNum">     156 </span><span class="lineNoCov">          0 :     apr_socket_timeout_set(csd, apr_time_from_sec(SECONDS_TO_LINGER));</span>
+<span class="lineNum">     157 </span><span class="lineNoCov">          0 :     apr_socket_opt_set(csd, APR_INCOMPLETE_READ, 1);</span>
+<span class="lineNum">     158 </span>            : 
+<span class="lineNum">     159 </span>            :     /* The common path here is that the initial apr_socket_recv() call
+<span class="lineNum">     160 </span>            :      * will return 0 bytes read; so that case must avoid the expensive
+<span class="lineNum">     161 </span>            :      * apr_time_now() call and time arithmetic. */
+<span class="lineNum">     162 </span>            : 
+<span class="lineNum">     163 </span>            :     do {
+<span class="lineNum">     164 </span><span class="lineNoCov">          0 :         nbytes = sizeof(dummybuf);</span>
+<span class="lineNum">     165 </span><span class="lineNoCov">          0 :         if (apr_socket_recv(csd, dummybuf, &amp;nbytes) || nbytes == 0)</span>
+<span class="lineNum">     166 </span>            :             break;
+<span class="lineNum">     167 </span>            : 
+<span class="lineNum">     168 </span><span class="lineNoCov">          0 :         now = apr_time_now();</span>
+<span class="lineNum">     169 </span><span class="lineNoCov">          0 :         if (timeup == 0) {</span>
+<span class="lineNum">     170 </span>            :             /*
+<span class="lineNum">     171 </span>            :              * First time through;
+<span class="lineNum">     172 </span>            :              * calculate now + 30 seconds (MAX_SECS_TO_LINGER).
+<span class="lineNum">     173 </span>            :              *
+<span class="lineNum">     174 </span>            :              * If some module requested a shortened waiting period, only wait for
+<span class="lineNum">     175 </span>            :              * 2s (SECONDS_TO_LINGER). This is useful for mitigating certain
+<span class="lineNum">     176 </span>            :              * DoS attacks.
+<span class="lineNum">     177 </span>            :              */
+<span class="lineNum">     178 </span><span class="lineNoCov">          0 :             if (apr_table_get(c-&gt;notes, &quot;short-lingering-close&quot;)) {</span>
+<span class="lineNum">     179 </span><span class="lineNoCov">          0 :                 timeup = now + apr_time_from_sec(SECONDS_TO_LINGER);</span>
+<span class="lineNum">     180 </span>            :             }
+<span class="lineNum">     181 </span>            :             else {
+<span class="lineNum">     182 </span><span class="lineNoCov">          0 :                 timeup = now + apr_time_from_sec(MAX_SECS_TO_LINGER);</span>
+<span class="lineNum">     183 </span>            :             }
+<span class="lineNum">     184 </span><span class="lineNoCov">          0 :             continue;</span>
+<span class="lineNum">     185 </span>            :         }
+<span class="lineNum">     186 </span><span class="lineNoCov">          0 :     } while (now &lt; timeup);</span>
+<span class="lineNum">     187 </span>            : 
+<span class="lineNum">     188 </span><span class="lineNoCov">          0 :     apr_socket_close(csd);</span>
+<span class="lineNum">     189 </span><span class="lineNoCov">          0 :     return;</span>
+<a name="190"><span class="lineNum">     190 </span>            : }</a>
+<span class="lineNum">     191 </span>            : 
+<span class="lineNum">     192 </span><span class="lineNoCov">          0 : AP_CORE_DECLARE(void) ap_process_connection(conn_rec *c, void *csd)</span>
+<span class="lineNum">     193 </span>            : {
+<span class="lineNum">     194 </span>            :     int rc;
+<span class="lineNum">     195 </span><span class="lineNoCov">          0 :     ap_update_vhost_given_ip(c);</span>
+<span class="lineNum">     196 </span>            : 
+<span class="lineNum">     197 </span><span class="lineNoCov">          0 :     rc = ap_run_pre_connection(c, csd);</span>
+<span class="lineNum">     198 </span><span class="lineNoCov">          0 :     if (rc != OK &amp;&amp; rc != DONE) {</span>
+<span class="lineNum">     199 </span><span class="lineNoCov">          0 :         c-&gt;aborted = 1;</span>
+<span class="lineNum">     200 </span>            :     }
+<span class="lineNum">     201 </span>            : 
+<span class="lineNum">     202 </span><span class="lineNoCov">          0 :     if (!c-&gt;aborted) {</span>
+<span class="lineNum">     203 </span><span class="lineNoCov">          0 :         ap_run_process_connection(c);</span>
+<span class="lineNum">     204 </span>            :     }
+<span class="lineNum">     205 </span><span class="lineNoCov">          0 : }</span>
+<span class="lineNum">     206 </span>            : 
+</pre>
+      </td>
+    </tr>
+  </table>
+  <br>
+
+  <table width="100%" border=0 cellspacing=0 cellpadding=0>
+    <tr><td class="ruler"><img src="../glass.png" width=3 height=3 alt=""></td></tr>
+    <tr><td class="versionInfo">Generated by: <a href="http://ltp.sourceforge.net/coverage/lcov.php" target="_parent">LCOV version 1.11</a></td></tr>
+  </table>
+  <br>
+
+</body>
+</html>

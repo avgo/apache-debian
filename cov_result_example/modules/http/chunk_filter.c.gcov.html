@@ -1,0 +1,272 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+
+<html lang="en">
+
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <title>LCOV - apptest.info - modules/http/chunk_filter.c</title>
+  <link rel="stylesheet" type="text/css" href="../../gcov.css">
+</head>
+
+<body>
+
+  <table width="100%" border=0 cellspacing=0 cellpadding=0>
+    <tr><td class="title">LCOV - code coverage report</td></tr>
+    <tr><td class="ruler"><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
+
+    <tr>
+      <td width="100%">
+        <table cellpadding=1 border=0 width="100%">
+          <tr>
+            <td width="10%" class="headerItem">Current view:</td>
+            <td width="35%" class="headerValue"><a href="../../index.html">top level</a> - <a href="index.html">modules/http</a> - chunk_filter.c<span style="font-size: 80%;"> (source / <a href="chunk_filter.c.func-sort-c.html">functions</a>)</span></td>
+            <td width="5%"></td>
+            <td width="15%"></td>
+            <td width="10%" class="headerCovTableHead">Hit</td>
+            <td width="10%" class="headerCovTableHead">Total</td>
+            <td width="15%" class="headerCovTableHead">Coverage</td>
+          </tr>
+          <tr>
+            <td class="headerItem">Test:</td>
+            <td class="headerValue">apptest.info</td>
+            <td></td>
+            <td class="headerItem">Lines:</td>
+            <td class="headerCovTableEntry">0</td>
+            <td class="headerCovTableEntry">52</td>
+            <td class="headerCovTableEntryLo">0.0 %</td>
+          </tr>
+          <tr>
+            <td class="headerItem">Date:</td>
+            <td class="headerValue">2017-01-31 22:58:06</td>
+            <td></td>
+            <td class="headerItem">Functions:</td>
+            <td class="headerCovTableEntry">0</td>
+            <td class="headerCovTableEntry">1</td>
+            <td class="headerCovTableEntryLo">0.0 %</td>
+          </tr>
+          <tr><td><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
+        </table>
+      </td>
+    </tr>
+
+    <tr><td class="ruler"><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
+  </table>
+
+  <table cellpadding=0 cellspacing=0 border=0>
+    <tr>
+      <td><br></td>
+    </tr>
+    <tr>
+      <td>
+<pre class="sourceHeading">          Line data    Source code</pre>
+<pre class="source">
+<a name="1"><span class="lineNum">       1 </span>            : /* Licensed to the Apache Software Foundation (ASF) under one or more</a>
+<span class="lineNum">       2 </span>            :  * contributor license agreements.  See the NOTICE file distributed with
+<span class="lineNum">       3 </span>            :  * this work for additional information regarding copyright ownership.
+<span class="lineNum">       4 </span>            :  * The ASF licenses this file to You under the Apache License, Version 2.0
+<span class="lineNum">       5 </span>            :  * (the &quot;License&quot;); you may not use this file except in compliance with
+<span class="lineNum">       6 </span>            :  * the License.  You may obtain a copy of the License at
+<span class="lineNum">       7 </span>            :  *
+<span class="lineNum">       8 </span>            :  *     http://www.apache.org/licenses/LICENSE-2.0
+<span class="lineNum">       9 </span>            :  *
+<span class="lineNum">      10 </span>            :  * Unless required by applicable law or agreed to in writing, software
+<span class="lineNum">      11 </span>            :  * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+<span class="lineNum">      12 </span>            :  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+<span class="lineNum">      13 </span>            :  * See the License for the specific language governing permissions and
+<span class="lineNum">      14 </span>            :  * limitations under the License.
+<span class="lineNum">      15 </span>            :  */
+<span class="lineNum">      16 </span>            : 
+<span class="lineNum">      17 </span>            : /*
+<span class="lineNum">      18 </span>            :  * chunk_filter.c --- HTTP/1.1 chunked transfer encoding filter.
+<span class="lineNum">      19 </span>            :  */
+<span class="lineNum">      20 </span>            : 
+<span class="lineNum">      21 </span>            : #include &quot;apr_strings.h&quot;
+<span class="lineNum">      22 </span>            : #include &quot;apr_thread_proc.h&quot;    /* for RLIMIT stuff */
+<span class="lineNum">      23 </span>            : 
+<span class="lineNum">      24 </span>            : #define APR_WANT_STRFUNC
+<span class="lineNum">      25 </span>            : #include &quot;apr_want.h&quot;
+<span class="lineNum">      26 </span>            : 
+<span class="lineNum">      27 </span>            : #include &quot;httpd.h&quot;
+<span class="lineNum">      28 </span>            : #include &quot;http_config.h&quot;
+<span class="lineNum">      29 </span>            : #include &quot;http_connection.h&quot;
+<span class="lineNum">      30 </span>            : #include &quot;http_core.h&quot;
+<span class="lineNum">      31 </span>            : #include &quot;http_protocol.h&quot;  /* For index_of_response().  Grump. */
+<span class="lineNum">      32 </span>            : #include &quot;http_request.h&quot;
+<span class="lineNum">      33 </span>            : 
+<span class="lineNum">      34 </span>            : #include &quot;util_filter.h&quot;
+<span class="lineNum">      35 </span>            : #include &quot;util_ebcdic.h&quot;
+<span class="lineNum">      36 </span>            : #include &quot;ap_mpm.h&quot;
+<span class="lineNum">      37 </span>            : #include &quot;scoreboard.h&quot;
+<span class="lineNum">      38 </span>            : 
+<span class="lineNum">      39 </span>            : #include &quot;mod_core.h&quot;
+<span class="lineNum">      40 </span>            : 
+<span class="lineNum">      41 </span>            : /*
+<span class="lineNum">      42 </span>            :  * A pointer to this is used to memorize in the filter context that a bad
+<span class="lineNum">      43 </span>            :  * gateway error bucket had been seen. It is used as an invented unique pointer.
+<span class="lineNum">      44 </span>            :  */
+<a name="45"><span class="lineNum">      45 </span>            : static char bad_gateway_seen;</a>
+<span class="lineNum">      46 </span>            : 
+<span class="lineNum">      47 </span><span class="lineNoCov">          0 : apr_status_t ap_http_chunk_filter(ap_filter_t *f, apr_bucket_brigade *b)</span>
+<span class="lineNum">      48 </span>            : {
+<span class="lineNum">      49 </span>            : #define ASCII_CRLF  &quot;\015\012&quot;
+<span class="lineNum">      50 </span>            : #define ASCII_ZERO  &quot;\060&quot;
+<span class="lineNum">      51 </span><span class="lineNoCov">          0 :     conn_rec *c = f-&gt;r-&gt;connection;</span>
+<span class="lineNum">      52 </span>            :     apr_bucket_brigade *more, *tmp;
+<span class="lineNum">      53 </span>            :     apr_bucket *e;
+<span class="lineNum">      54 </span>            :     apr_status_t rv;
+<span class="lineNum">      55 </span>            : 
+<span class="lineNum">      56 </span><span class="lineNoCov">          0 :     for (more = tmp = NULL; b; b = more, more = NULL) {</span>
+<span class="lineNum">      57 </span><span class="lineNoCov">          0 :         apr_off_t bytes = 0;</span>
+<span class="lineNum">      58 </span><span class="lineNoCov">          0 :         apr_bucket *eos = NULL;</span>
+<span class="lineNum">      59 </span><span class="lineNoCov">          0 :         apr_bucket *flush = NULL;</span>
+<span class="lineNum">      60 </span>            :         /* XXX: chunk_hdr must remain at this scope since it is used in a
+<span class="lineNum">      61 </span>            :          *      transient bucket.
+<span class="lineNum">      62 </span>            :          */
+<span class="lineNum">      63 </span>            :         char chunk_hdr[20]; /* enough space for the snprintf below */
+<span class="lineNum">      64 </span>            : 
+<span class="lineNum">      65 </span>            : 
+<span class="lineNum">      66 </span><span class="lineNoCov">          0 :         for (e = APR_BRIGADE_FIRST(b);</span>
+<span class="lineNum">      67 </span><span class="lineNoCov">          0 :              e != APR_BRIGADE_SENTINEL(b);</span>
+<span class="lineNum">      68 </span><span class="lineNoCov">          0 :              e = APR_BUCKET_NEXT(e))</span>
+<span class="lineNum">      69 </span>            :         {
+<span class="lineNum">      70 </span><span class="lineNoCov">          0 :             if (APR_BUCKET_IS_EOS(e)) {</span>
+<span class="lineNum">      71 </span>            :                 /* there shouldn't be anything after the eos */
+<span class="lineNum">      72 </span><span class="lineNoCov">          0 :                 eos = e;</span>
+<span class="lineNum">      73 </span><span class="lineNoCov">          0 :                 break;</span>
+<span class="lineNum">      74 </span>            :             }
+<span class="lineNum">      75 </span><span class="lineNoCov">          0 :             if (AP_BUCKET_IS_ERROR(e)</span>
+<span class="lineNum">      76 </span><span class="lineNoCov">          0 :                 &amp;&amp; (((ap_bucket_error *)(e-&gt;data))-&gt;status</span>
+<span class="lineNum">      77 </span>            :                     == HTTP_BAD_GATEWAY)) {
+<span class="lineNum">      78 </span>            :                 /*
+<span class="lineNum">      79 </span>            :                  * We had a broken backend. Memorize this in the filter
+<span class="lineNum">      80 </span>            :                  * context.
+<span class="lineNum">      81 </span>            :                  */
+<span class="lineNum">      82 </span><span class="lineNoCov">          0 :                 f-&gt;ctx = &amp;bad_gateway_seen;</span>
+<span class="lineNum">      83 </span><span class="lineNoCov">          0 :                 continue;</span>
+<span class="lineNum">      84 </span>            :             }
+<span class="lineNum">      85 </span><span class="lineNoCov">          0 :             if (APR_BUCKET_IS_FLUSH(e)) {</span>
+<span class="lineNum">      86 </span><span class="lineNoCov">          0 :                 flush = e;</span>
+<span class="lineNum">      87 </span><span class="lineNoCov">          0 :                 if (e != APR_BRIGADE_LAST(b)) {</span>
+<span class="lineNum">      88 </span><span class="lineNoCov">          0 :                     more = apr_brigade_split_ex(b, APR_BUCKET_NEXT(e), tmp);</span>
+<span class="lineNum">      89 </span>            :                 }
+<span class="lineNum">      90 </span><span class="lineNoCov">          0 :                 break;</span>
+<span class="lineNum">      91 </span>            :             }
+<span class="lineNum">      92 </span><span class="lineNoCov">          0 :             else if (e-&gt;length == (apr_size_t)-1) {</span>
+<span class="lineNum">      93 </span>            :                 /* unknown amount of data (e.g. a pipe) */
+<span class="lineNum">      94 </span>            :                 const char *data;
+<span class="lineNum">      95 </span>            :                 apr_size_t len;
+<span class="lineNum">      96 </span>            : 
+<span class="lineNum">      97 </span><span class="lineNoCov">          0 :                 rv = apr_bucket_read(e, &amp;data, &amp;len, APR_BLOCK_READ);</span>
+<span class="lineNum">      98 </span><span class="lineNoCov">          0 :                 if (rv != APR_SUCCESS) {</span>
+<span class="lineNum">      99 </span><span class="lineNoCov">          0 :                     return rv;</span>
+<span class="lineNum">     100 </span>            :                 }
+<span class="lineNum">     101 </span><span class="lineNoCov">          0 :                 if (len &gt; 0) {</span>
+<span class="lineNum">     102 </span>            :                     /*
+<span class="lineNum">     103 </span>            :                      * There may be a new next bucket representing the
+<span class="lineNum">     104 </span>            :                      * rest of the data stream on which a read() may
+<span class="lineNum">     105 </span>            :                      * block so we pass down what we have so far.
+<span class="lineNum">     106 </span>            :                      */
+<span class="lineNum">     107 </span><span class="lineNoCov">          0 :                     bytes += len;</span>
+<span class="lineNum">     108 </span><span class="lineNoCov">          0 :                     more = apr_brigade_split_ex(b, APR_BUCKET_NEXT(e), tmp);</span>
+<span class="lineNum">     109 </span><span class="lineNoCov">          0 :                     break;</span>
+<span class="lineNum">     110 </span>            :                 }
+<span class="lineNum">     111 </span>            :                 else {
+<span class="lineNum">     112 </span>            :                     /* If there was nothing in this bucket then we can
+<span class="lineNum">     113 </span>            :                      * safely move on to the next one without pausing
+<span class="lineNum">     114 </span>            :                      * to pass down what we have counted up so far.
+<span class="lineNum">     115 </span>            :                      */
+<span class="lineNum">     116 </span><span class="lineNoCov">          0 :                     continue;</span>
+<span class="lineNum">     117 </span>            :                 }
+<span class="lineNum">     118 </span>            :             }
+<span class="lineNum">     119 </span>            :             else {
+<span class="lineNum">     120 </span><span class="lineNoCov">          0 :                 bytes += e-&gt;length;</span>
+<span class="lineNum">     121 </span>            :             }
+<span class="lineNum">     122 </span>            :         }
+<span class="lineNum">     123 </span>            : 
+<span class="lineNum">     124 </span>            :         /*
+<span class="lineNum">     125 </span>            :          * XXX: if there aren't very many bytes at this point it may
+<span class="lineNum">     126 </span>            :          * be a good idea to set them aside and return for more,
+<span class="lineNum">     127 </span>            :          * unless we haven't finished counting this brigade yet.
+<span class="lineNum">     128 </span>            :          */
+<span class="lineNum">     129 </span>            :         /* if there are content bytes, then wrap them in a chunk */
+<span class="lineNum">     130 </span><span class="lineNoCov">          0 :         if (bytes &gt; 0) {</span>
+<span class="lineNum">     131 </span>            :             apr_size_t hdr_len;
+<span class="lineNum">     132 </span>            :             /*
+<span class="lineNum">     133 </span>            :              * Insert the chunk header, specifying the number of bytes in
+<span class="lineNum">     134 </span>            :              * the chunk.
+<span class="lineNum">     135 </span>            :              */
+<span class="lineNum">     136 </span><span class="lineNoCov">          0 :             hdr_len = apr_snprintf(chunk_hdr, sizeof(chunk_hdr),</span>
+<span class="lineNum">     137 </span>            :                                    &quot;%&quot; APR_UINT64_T_HEX_FMT CRLF, (apr_uint64_t)bytes);
+<span class="lineNum">     138 </span>            :             ap_xlate_proto_to_ascii(chunk_hdr, hdr_len);
+<span class="lineNum">     139 </span><span class="lineNoCov">          0 :             e = apr_bucket_transient_create(chunk_hdr, hdr_len,</span>
+<span class="lineNum">     140 </span><span class="lineNoCov">          0 :                                             c-&gt;bucket_alloc);</span>
+<span class="lineNum">     141 </span><span class="lineNoCov">          0 :             APR_BRIGADE_INSERT_HEAD(b, e);</span>
+<span class="lineNum">     142 </span>            : 
+<span class="lineNum">     143 </span>            :             /*
+<span class="lineNum">     144 </span>            :              * Insert the end-of-chunk CRLF before an EOS or
+<span class="lineNum">     145 </span>            :              * FLUSH bucket, or appended to the brigade
+<span class="lineNum">     146 </span>            :              */
+<span class="lineNum">     147 </span><span class="lineNoCov">          0 :             e = apr_bucket_immortal_create(ASCII_CRLF, 2, c-&gt;bucket_alloc);</span>
+<span class="lineNum">     148 </span><span class="lineNoCov">          0 :             if (eos != NULL) {</span>
+<span class="lineNum">     149 </span><span class="lineNoCov">          0 :                 APR_BUCKET_INSERT_BEFORE(eos, e);</span>
+<span class="lineNum">     150 </span>            :             }
+<span class="lineNum">     151 </span><span class="lineNoCov">          0 :             else if (flush != NULL) {</span>
+<span class="lineNum">     152 </span><span class="lineNoCov">          0 :                 APR_BUCKET_INSERT_BEFORE(flush, e);</span>
+<span class="lineNum">     153 </span>            :             }
+<span class="lineNum">     154 </span>            :             else {
+<span class="lineNum">     155 </span><span class="lineNoCov">          0 :                 APR_BRIGADE_INSERT_TAIL(b, e);</span>
+<span class="lineNum">     156 </span>            :             }
+<span class="lineNum">     157 </span>            :         }
+<span class="lineNum">     158 </span>            : 
+<span class="lineNum">     159 </span>            :         /* RFC 2616, Section 3.6.1
+<span class="lineNum">     160 </span>            :          *
+<span class="lineNum">     161 </span>            :          * If there is an EOS bucket, then prefix it with:
+<span class="lineNum">     162 </span>            :          *   1) the last-chunk marker (&quot;0&quot; CRLF)
+<span class="lineNum">     163 </span>            :          *   2) the trailer
+<span class="lineNum">     164 </span>            :          *   3) the end-of-chunked body CRLF
+<span class="lineNum">     165 </span>            :          *
+<span class="lineNum">     166 </span>            :          * We only do this if we have not seen an error bucket with
+<span class="lineNum">     167 </span>            :          * status HTTP_BAD_GATEWAY. We have memorized an
+<span class="lineNum">     168 </span>            :          * error bucket that we had seen in the filter context.
+<span class="lineNum">     169 </span>            :          * The error bucket with status HTTP_BAD_GATEWAY indicates that the
+<span class="lineNum">     170 </span>            :          * connection to the backend (mod_proxy) broke in the middle of the
+<span class="lineNum">     171 </span>            :          * response. In order to signal the client that something went wrong
+<span class="lineNum">     172 </span>            :          * we do not create the last-chunk marker and set c-&gt;keepalive to
+<span class="lineNum">     173 </span>            :          * AP_CONN_CLOSE in the core output filter.
+<span class="lineNum">     174 </span>            :          *
+<span class="lineNum">     175 </span>            :          * XXX: it would be nice to combine this with the end-of-chunk
+<span class="lineNum">     176 </span>            :          * marker above, but this is a bit more straight-forward for
+<span class="lineNum">     177 </span>            :          * now.
+<span class="lineNum">     178 </span>            :          */
+<span class="lineNum">     179 </span><span class="lineNoCov">          0 :         if (eos &amp;&amp; !f-&gt;ctx) {</span>
+<span class="lineNum">     180 </span>            :             /* XXX: (2) trailers ... does not yet exist */
+<span class="lineNum">     181 </span><span class="lineNoCov">          0 :             e = apr_bucket_immortal_create(ASCII_ZERO ASCII_CRLF</span>
+<span class="lineNum">     182 </span>            :                                            /* &lt;trailers&gt; */
+<span class="lineNum">     183 </span><span class="lineNoCov">          0 :                                            ASCII_CRLF, 5, c-&gt;bucket_alloc);</span>
+<span class="lineNum">     184 </span><span class="lineNoCov">          0 :             APR_BUCKET_INSERT_BEFORE(eos, e);</span>
+<span class="lineNum">     185 </span>            :         }
+<span class="lineNum">     186 </span>            : 
+<span class="lineNum">     187 </span>            :         /* pass the brigade to the next filter. */
+<span class="lineNum">     188 </span><span class="lineNoCov">          0 :         rv = ap_pass_brigade(f-&gt;next, b);</span>
+<span class="lineNum">     189 </span><span class="lineNoCov">          0 :         if (rv != APR_SUCCESS || eos != NULL) {</span>
+<span class="lineNum">     190 </span><span class="lineNoCov">          0 :             return rv;</span>
+<span class="lineNum">     191 </span>            :         }
+<span class="lineNum">     192 </span><span class="lineNoCov">          0 :         tmp = b;</span>
+<span class="lineNum">     193 </span><span class="lineNoCov">          0 :         apr_brigade_cleanup(tmp);</span>
+<span class="lineNum">     194 </span>            :     }
+<span class="lineNum">     195 </span><span class="lineNoCov">          0 :     return APR_SUCCESS;</span>
+<span class="lineNum">     196 </span>            : }
+</pre>
+      </td>
+    </tr>
+  </table>
+  <br>
+
+  <table width="100%" border=0 cellspacing=0 cellpadding=0>
+    <tr><td class="ruler"><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
+    <tr><td class="versionInfo">Generated by: <a href="http://ltp.sourceforge.net/coverage/lcov.php" target="_parent">LCOV version 1.11</a></td></tr>
+  </table>
+  <br>
+
+</body>
+</html>

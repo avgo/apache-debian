@@ -1,0 +1,285 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+
+<html lang="en">
+
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <title>LCOV - apptest.info - server/util_regex.c</title>
+  <link rel="stylesheet" type="text/css" href="../gcov.css">
+</head>
+
+<body>
+
+  <table width="100%" border=0 cellspacing=0 cellpadding=0>
+    <tr><td class="title">LCOV - code coverage report</td></tr>
+    <tr><td class="ruler"><img src="../glass.png" width=3 height=3 alt=""></td></tr>
+
+    <tr>
+      <td width="100%">
+        <table cellpadding=1 border=0 width="100%">
+          <tr>
+            <td width="10%" class="headerItem">Current view:</td>
+            <td width="35%" class="headerValue"><a href="../index.html">top level</a> - <a href="index.html">server</a> - util_regex.c<span style="font-size: 80%;"> (source / <a href="util_regex.c.func-sort-c.html">functions</a>)</span></td>
+            <td width="5%"></td>
+            <td width="15%"></td>
+            <td width="10%" class="headerCovTableHead">Hit</td>
+            <td width="10%" class="headerCovTableHead">Total</td>
+            <td width="15%" class="headerCovTableHead">Coverage</td>
+          </tr>
+          <tr>
+            <td class="headerItem">Test:</td>
+            <td class="headerValue">apptest.info</td>
+            <td></td>
+            <td class="headerItem">Lines:</td>
+            <td class="headerCovTableEntry">0</td>
+            <td class="headerCovTableEntry">92</td>
+            <td class="headerCovTableEntryLo">0.0 %</td>
+          </tr>
+          <tr>
+            <td class="headerItem">Date:</td>
+            <td class="headerValue">2017-01-31 22:58:06</td>
+            <td></td>
+            <td class="headerItem">Functions:</td>
+            <td class="headerCovTableEntry">0</td>
+            <td class="headerCovTableEntry">5</td>
+            <td class="headerCovTableEntryLo">0.0 %</td>
+          </tr>
+          <tr><td><img src="../glass.png" width=3 height=3 alt=""></td></tr>
+        </table>
+      </td>
+    </tr>
+
+    <tr><td class="ruler"><img src="../glass.png" width=3 height=3 alt=""></td></tr>
+  </table>
+
+  <table cellpadding=0 cellspacing=0 border=0>
+    <tr>
+      <td><br></td>
+    </tr>
+    <tr>
+      <td>
+<pre class="sourceHeading">          Line data    Source code</pre>
+<pre class="source">
+<a name="1"><span class="lineNum">       1 </span>            : /* Licensed to the Apache Software Foundation (ASF) under one or more</a>
+<span class="lineNum">       2 </span>            :  * contributor license agreements.  See the NOTICE file distributed with
+<span class="lineNum">       3 </span>            :  * this work for additional information regarding copyright ownership.
+<span class="lineNum">       4 </span>            :  * The ASF licenses this file to You under the Apache License, Version 2.0
+<span class="lineNum">       5 </span>            :  * (the &quot;License&quot;); you may not use this file except in compliance with
+<span class="lineNum">       6 </span>            :  * the License.  You may obtain a copy of the License at
+<span class="lineNum">       7 </span>            :  *
+<span class="lineNum">       8 </span>            :  *     http://www.apache.org/licenses/LICENSE-2.0
+<span class="lineNum">       9 </span>            :  *
+<span class="lineNum">      10 </span>            :  * Unless required by applicable law or agreed to in writing, software
+<span class="lineNum">      11 </span>            :  * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+<span class="lineNum">      12 </span>            :  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+<span class="lineNum">      13 </span>            :  * See the License for the specific language governing permissions and
+<span class="lineNum">      14 </span>            :  * limitations under the License.
+<span class="lineNum">      15 </span>            :  */
+<span class="lineNum">      16 </span>            : 
+<span class="lineNum">      17 </span>            : #include &quot;apr.h&quot;
+<span class="lineNum">      18 </span>            : #include &quot;apr_lib.h&quot;
+<span class="lineNum">      19 </span>            : #include &quot;apr_pools.h&quot;
+<span class="lineNum">      20 </span>            : #include &quot;apr_strings.h&quot;
+<span class="lineNum">      21 </span>            : #include &quot;ap_config.h&quot;
+<span class="lineNum">      22 </span>            : #include &quot;ap_regex.h&quot;
+<a name="23"><span class="lineNum">      23 </span>            : #include &quot;httpd.h&quot;</a>
+<span class="lineNum">      24 </span>            : 
+<span class="lineNum">      25 </span><span class="lineNoCov">          0 : static apr_status_t rxplus_cleanup(void *preg)</span>
+<span class="lineNum">      26 </span>            : {
+<span class="lineNum">      27 </span><span class="lineNoCov">          0 :     ap_regfree((ap_regex_t *) preg);</span>
+<span class="lineNum">      28 </span><span class="lineNoCov">          0 :     return APR_SUCCESS;</span>
+<a name="29"><span class="lineNum">      29 </span>            : }</a>
+<span class="lineNum">      30 </span>            : 
+<span class="lineNum">      31 </span><span class="lineNoCov">          0 : AP_DECLARE(ap_rxplus_t*) ap_rxplus_compile(apr_pool_t *pool,</span>
+<span class="lineNum">      32 </span>            :                                            const char *pattern)
+<span class="lineNum">      33 </span>            : {
+<span class="lineNum">      34 </span>            :     /* perl style patterns
+<span class="lineNum">      35 </span>            :      * add support for more as and when wanted
+<span class="lineNum">      36 </span>            :      * substitute: s/rx/subs/
+<span class="lineNum">      37 </span>            :      * match: m/rx/ or just /rx/
+<span class="lineNum">      38 </span>            :      */
+<span class="lineNum">      39 </span>            : 
+<span class="lineNum">      40 </span>            :     /* allow any nonalnum delimiter as first or second char.
+<span class="lineNum">      41 </span>            :      * If we ever use this with non-string pattern we'll need an extra check
+<span class="lineNum">      42 </span>            :      */
+<span class="lineNum">      43 </span><span class="lineNoCov">          0 :     const char *endp = 0;</span>
+<span class="lineNum">      44 </span><span class="lineNoCov">          0 :     const char *str = pattern;</span>
+<span class="lineNum">      45 </span>            :     const char *rxstr;
+<span class="lineNum">      46 </span><span class="lineNoCov">          0 :     ap_rxplus_t *ret = apr_pcalloc(pool, sizeof(ap_rxplus_t));</span>
+<span class="lineNum">      47 </span><span class="lineNoCov">          0 :     char delim = 0;</span>
+<span class="lineNum">      48 </span><span class="lineNoCov">          0 :     enum { SUBSTITUTE = 's', MATCH = 'm'} action = MATCH;</span>
+<span class="lineNum">      49 </span><span class="lineNoCov">          0 :     if (!apr_isalnum(pattern[0])) {</span>
+<span class="lineNum">      50 </span><span class="lineNoCov">          0 :         delim = *str++;</span>
+<span class="lineNum">      51 </span>            :     }
+<span class="lineNum">      52 </span><span class="lineNoCov">          0 :     else if (pattern[0] == 's' &amp;&amp; !apr_isalnum(pattern[1])) {</span>
+<span class="lineNum">      53 </span><span class="lineNoCov">          0 :         action = SUBSTITUTE;</span>
+<span class="lineNum">      54 </span><span class="lineNoCov">          0 :         delim = pattern[1];</span>
+<span class="lineNum">      55 </span><span class="lineNoCov">          0 :         str += 2;</span>
+<span class="lineNum">      56 </span>            :     }
+<span class="lineNum">      57 </span><span class="lineNoCov">          0 :     else if (pattern[0] == 'm' &amp;&amp; !apr_isalnum(pattern[1])) {</span>
+<span class="lineNum">      58 </span><span class="lineNoCov">          0 :         delim = pattern[1];</span>
+<span class="lineNum">      59 </span><span class="lineNoCov">          0 :         str += 2;</span>
+<span class="lineNum">      60 </span>            :     }
+<span class="lineNum">      61 </span>            :     /* TODO: support perl's after/before */
+<span class="lineNum">      62 </span>            :     /* FIXME: fix these simplminded delims */
+<span class="lineNum">      63 </span>            : 
+<span class="lineNum">      64 </span>            :     /* we think there's a delimiter.  Allow for it not to be if unmatched */
+<span class="lineNum">      65 </span><span class="lineNoCov">          0 :     if (delim) {</span>
+<span class="lineNum">      66 </span><span class="lineNoCov">          0 :         endp = ap_strchr_c(str, delim);</span>
+<span class="lineNum">      67 </span>            :     }
+<span class="lineNum">      68 </span><span class="lineNoCov">          0 :     if (!endp) { /* there's no delim  or flags */</span>
+<span class="lineNum">      69 </span><span class="lineNoCov">          0 :         if (ap_regcomp(&amp;ret-&gt;rx, pattern, 0) == 0) {</span>
+<span class="lineNum">      70 </span><span class="lineNoCov">          0 :             apr_pool_cleanup_register(pool, &amp;ret-&gt;rx, rxplus_cleanup,</span>
+<span class="lineNum">      71 </span>            :                                       apr_pool_cleanup_null);
+<span class="lineNum">      72 </span><span class="lineNoCov">          0 :             return ret;</span>
+<span class="lineNum">      73 </span>            :         }
+<span class="lineNum">      74 </span>            :         else {
+<span class="lineNum">      75 </span><span class="lineNoCov">          0 :             return NULL;</span>
+<span class="lineNum">      76 </span>            :         }
+<span class="lineNum">      77 </span>            :     }
+<span class="lineNum">      78 </span>            : 
+<span class="lineNum">      79 </span>            :     /* We have a delimiter.  Use it to extract the regexp */
+<span class="lineNum">      80 </span><span class="lineNoCov">          0 :     rxstr = apr_pstrndup(pool, str, endp-str);</span>
+<span class="lineNum">      81 </span>            : 
+<span class="lineNum">      82 </span>            :     /* If it's a substitution, we need the replacement string
+<span class="lineNum">      83 </span>            :      * TODO: possible future enhancement - support other parsing
+<span class="lineNum">      84 </span>            :      * in the replacement string.
+<span class="lineNum">      85 </span>            :      */
+<span class="lineNum">      86 </span><span class="lineNoCov">          0 :     if (action == SUBSTITUTE) {</span>
+<span class="lineNum">      87 </span><span class="lineNoCov">          0 :         str = endp+1;</span>
+<span class="lineNum">      88 </span><span class="lineNoCov">          0 :         if (!*str || (endp = ap_strchr_c(str, delim), !endp)) {</span>
+<span class="lineNum">      89 </span>            :             /* missing replacement string is an error */
+<span class="lineNum">      90 </span><span class="lineNoCov">          0 :             return NULL;</span>
+<span class="lineNum">      91 </span>            :         }
+<span class="lineNum">      92 </span><span class="lineNoCov">          0 :         ret-&gt;subs = apr_pstrndup(pool, str, (endp-str));</span>
+<span class="lineNum">      93 </span>            :     }
+<span class="lineNum">      94 </span>            : 
+<span class="lineNum">      95 </span>            :     /* anything after the current delimiter is flags */
+<span class="lineNum">      96 </span><span class="lineNoCov">          0 :     while (*++endp) {</span>
+<span class="lineNum">      97 </span><span class="lineNoCov">          0 :         switch (*endp) {</span>
+<span class="lineNum">      98 </span><span class="lineNoCov">          0 :         case 'i': ret-&gt;flags |= AP_REG_ICASE; break;</span>
+<span class="lineNum">      99 </span><span class="lineNoCov">          0 :         case 'm': ret-&gt;flags |= AP_REG_NEWLINE; break;</span>
+<span class="lineNum">     100 </span><span class="lineNoCov">          0 :         case 'n': ret-&gt;flags |= AP_REG_NOMEM; break;</span>
+<span class="lineNum">     101 </span><span class="lineNoCov">          0 :         case 'g': ret-&gt;flags |= AP_REG_MULTI; break;</span>
+<span class="lineNum">     102 </span><span class="lineNoCov">          0 :         case 's': ret-&gt;flags |= AP_REG_DOTALL; break;</span>
+<span class="lineNum">     103 </span><span class="lineNoCov">          0 :         case '^': ret-&gt;flags |= AP_REG_NOTBOL; break;</span>
+<span class="lineNum">     104 </span><span class="lineNoCov">          0 :         case '$': ret-&gt;flags |= AP_REG_NOTEOL; break;</span>
+<span class="lineNum">     105 </span><span class="lineNoCov">          0 :         default: break; /* we should probably be stricter here */</span>
+<span class="lineNum">     106 </span>            :         }
+<span class="lineNum">     107 </span>            :     }
+<span class="lineNum">     108 </span><span class="lineNoCov">          0 :     if (ap_regcomp(&amp;ret-&gt;rx, rxstr, ret-&gt;flags) == 0) {</span>
+<span class="lineNum">     109 </span><span class="lineNoCov">          0 :         apr_pool_cleanup_register(pool, &amp;ret-&gt;rx, rxplus_cleanup,</span>
+<span class="lineNum">     110 </span>            :                                   apr_pool_cleanup_null);
+<span class="lineNum">     111 </span>            :     }
+<span class="lineNum">     112 </span>            :     else {
+<span class="lineNum">     113 </span><span class="lineNoCov">          0 :         return NULL;</span>
+<span class="lineNum">     114 </span>            :     }
+<span class="lineNum">     115 </span><span class="lineNoCov">          0 :     if (!(ret-&gt;flags &amp; AP_REG_NOMEM)) {</span>
+<span class="lineNum">     116 </span>            :         /* count size of memory required, starting at 1 for the whole-match
+<span class="lineNum">     117 </span>            :          * Simpleminded should be fine 'cos regcomp already checked syntax
+<span class="lineNum">     118 </span>            :          */
+<span class="lineNum">     119 </span><span class="lineNoCov">          0 :         ret-&gt;nmatch = 1;</span>
+<span class="lineNum">     120 </span><span class="lineNoCov">          0 :         while (*rxstr) {</span>
+<span class="lineNum">     121 </span><span class="lineNoCov">          0 :             switch (*rxstr++) {</span>
+<span class="lineNum">     122 </span>            :             case '\\':  /* next char is escaped - skip it */
+<span class="lineNum">     123 </span><span class="lineNoCov">          0 :                 if (*rxstr != 0) {</span>
+<span class="lineNum">     124 </span><span class="lineNoCov">          0 :                     ++rxstr;</span>
+<span class="lineNum">     125 </span>            :                 }
+<span class="lineNum">     126 </span><span class="lineNoCov">          0 :                 break;</span>
+<span class="lineNum">     127 </span>            :             case '(':   /* unescaped bracket implies memory */
+<span class="lineNum">     128 </span><span class="lineNoCov">          0 :                 ++ret-&gt;nmatch;</span>
+<span class="lineNum">     129 </span><span class="lineNoCov">          0 :                 break;</span>
+<span class="lineNum">     130 </span>            :             default:
+<span class="lineNum">     131 </span><span class="lineNoCov">          0 :                 break;</span>
+<span class="lineNum">     132 </span>            :             }
+<span class="lineNum">     133 </span>            :         }
+<span class="lineNum">     134 </span><span class="lineNoCov">          0 :         ret-&gt;pmatch = apr_palloc(pool, ret-&gt;nmatch*sizeof(ap_regmatch_t));</span>
+<span class="lineNum">     135 </span>            :     }
+<span class="lineNum">     136 </span><span class="lineNoCov">          0 :     return ret;</span>
+<a name="137"><span class="lineNum">     137 </span>            : }</a>
+<span class="lineNum">     138 </span>            : 
+<span class="lineNum">     139 </span><span class="lineNoCov">          0 : AP_DECLARE(int) ap_rxplus_exec(apr_pool_t *pool, ap_rxplus_t *rx,</span>
+<span class="lineNum">     140 </span>            :                                const char *pattern, char **newpattern)
+<span class="lineNum">     141 </span>            : {
+<span class="lineNum">     142 </span><span class="lineNoCov">          0 :     int ret = 1;</span>
+<span class="lineNum">     143 </span>            :     int startl, oldl, newl, diffsz;
+<span class="lineNum">     144 </span>            :     const char *remainder;
+<span class="lineNum">     145 </span>            :     char *subs;
+<span class="lineNum">     146 </span>            : /* snrf process_regexp from mod_headers */
+<span class="lineNum">     147 </span><span class="lineNoCov">          0 :     if (ap_regexec(&amp;rx-&gt;rx, pattern, rx-&gt;nmatch, rx-&gt;pmatch, rx-&gt;flags) != 0) {</span>
+<span class="lineNum">     148 </span><span class="lineNoCov">          0 :         rx-&gt;match = NULL;</span>
+<span class="lineNum">     149 </span><span class="lineNoCov">          0 :         return 0; /* no match, nothing to do */</span>
+<span class="lineNum">     150 </span>            :     }
+<span class="lineNum">     151 </span><span class="lineNoCov">          0 :     rx-&gt;match = pattern;</span>
+<span class="lineNum">     152 </span><span class="lineNoCov">          0 :     if (rx-&gt;subs) {</span>
+<span class="lineNum">     153 </span><span class="lineNoCov">          0 :         *newpattern = ap_pregsub(pool, rx-&gt;subs, pattern,</span>
+<span class="lineNum">     154 </span>            :                                  rx-&gt;nmatch, rx-&gt;pmatch);
+<span class="lineNum">     155 </span><span class="lineNoCov">          0 :         if (!*newpattern) {</span>
+<span class="lineNum">     156 </span><span class="lineNoCov">          0 :             return 0; /* FIXME - should we do more to handle error? */</span>
+<span class="lineNum">     157 </span>            :         }
+<span class="lineNum">     158 </span><span class="lineNoCov">          0 :         startl = rx-&gt;pmatch[0].rm_so;</span>
+<span class="lineNum">     159 </span><span class="lineNoCov">          0 :         oldl = rx-&gt;pmatch[0].rm_eo - startl;</span>
+<span class="lineNum">     160 </span><span class="lineNoCov">          0 :         newl = strlen(*newpattern);</span>
+<span class="lineNum">     161 </span><span class="lineNoCov">          0 :         diffsz = newl - oldl;</span>
+<span class="lineNum">     162 </span><span class="lineNoCov">          0 :         remainder = pattern + startl + oldl;</span>
+<span class="lineNum">     163 </span><span class="lineNoCov">          0 :         if (rx-&gt;flags &amp; AP_REG_MULTI) {</span>
+<span class="lineNum">     164 </span>            :             /* recurse to do any further matches */
+<span class="lineNum">     165 </span><span class="lineNoCov">          0 :             ret += ap_rxplus_exec(pool, rx, remainder, &amp;subs);</span>
+<span class="lineNum">     166 </span><span class="lineNoCov">          0 :             if (ret &gt; 1) {</span>
+<span class="lineNum">     167 </span>            :                 /* a further substitution happened */
+<span class="lineNum">     168 </span><span class="lineNoCov">          0 :                 diffsz += strlen(subs) - strlen(remainder);</span>
+<span class="lineNum">     169 </span><span class="lineNoCov">          0 :                 remainder = subs;</span>
+<span class="lineNum">     170 </span>            :             }
+<span class="lineNum">     171 </span>            :         }
+<span class="lineNum">     172 </span><span class="lineNoCov">          0 :         subs  = apr_palloc(pool, strlen(pattern) + 1 + diffsz);</span>
+<span class="lineNum">     173 </span><span class="lineNoCov">          0 :         memcpy(subs, pattern, startl);</span>
+<span class="lineNum">     174 </span><span class="lineNoCov">          0 :         memcpy(subs+startl, *newpattern, newl);</span>
+<span class="lineNum">     175 </span><span class="lineNoCov">          0 :         strcpy(subs+startl+newl, remainder);</span>
+<span class="lineNum">     176 </span><span class="lineNoCov">          0 :         *newpattern = subs;</span>
+<span class="lineNum">     177 </span>            :     }
+<span class="lineNum">     178 </span><span class="lineNoCov">          0 :     return ret;</span>
+<span class="lineNum">     179 </span>            : }
+<span class="lineNum">     180 </span>            : #ifdef DOXYGEN
+<span class="lineNum">     181 </span>            : AP_DECLARE(int) ap_rxplus_nmatch(ap_rxplus_t *rx)
+<span class="lineNum">     182 </span>            : {
+<span class="lineNum">     183 </span>            :     return (rx-&gt;match != NULL) ? rx-&gt;nmatch : 0;
+<span class="lineNum">     184 </span>            : }
+<span class="lineNum">     185 </span>            : #endif
+<span class="lineNum">     186 </span>            : 
+<span class="lineNum">     187 </span>            : /* If this blows up on you, see the notes in the header/apidoc
+<span class="lineNum">     188 </span>            :  * rx-&gt;match is a pointer and it's your responsibility to ensure
+<a name="189"><span class="lineNum">     189 </span>            :  * it hasn't gone out-of-scope since the last ap_rxplus_exec</a>
+<span class="lineNum">     190 </span>            :  */
+<span class="lineNum">     191 </span><span class="lineNoCov">          0 : AP_DECLARE(void) ap_rxplus_match(ap_rxplus_t *rx, int n, int *len,</span>
+<span class="lineNum">     192 </span>            :                                  const char **match)
+<span class="lineNum">     193 </span>            : {
+<span class="lineNum">     194 </span><span class="lineNoCov">          0 :     if (n &gt;= 0 &amp;&amp; n &lt; ap_rxplus_nmatch(rx)) {</span>
+<span class="lineNum">     195 </span><span class="lineNoCov">          0 :         *match = rx-&gt;match + rx-&gt;pmatch[n].rm_so;</span>
+<span class="lineNum">     196 </span><span class="lineNoCov">          0 :         *len = rx-&gt;pmatch[n].rm_eo - rx-&gt;pmatch[n].rm_so;</span>
+<span class="lineNum">     197 </span>            :     }
+<span class="lineNum">     198 </span>            :     else {
+<span class="lineNum">     199 </span><span class="lineNoCov">          0 :         *len = -1;</span>
+<span class="lineNum">     200 </span><span class="lineNoCov">          0 :         *match = NULL;</span>
+<a name="201"><span class="lineNum">     201 </span>            :     }</a>
+<span class="lineNum">     202 </span><span class="lineNoCov">          0 : }</span>
+<span class="lineNum">     203 </span><span class="lineNoCov">          0 : AP_DECLARE(char*) ap_rxplus_pmatch(apr_pool_t *pool, ap_rxplus_t *rx, int n)</span>
+<span class="lineNum">     204 </span>            : {
+<span class="lineNum">     205 </span>            :     int len;
+<span class="lineNum">     206 </span>            :     const char *match;
+<span class="lineNum">     207 </span><span class="lineNoCov">          0 :     ap_rxplus_match(rx, n, &amp;len, &amp;match);</span>
+<span class="lineNum">     208 </span><span class="lineNoCov">          0 :     return apr_pstrndup(pool, match, len);</span>
+<span class="lineNum">     209 </span>            : }
+</pre>
+      </td>
+    </tr>
+  </table>
+  <br>
+
+  <table width="100%" border=0 cellspacing=0 cellpadding=0>
+    <tr><td class="ruler"><img src="../glass.png" width=3 height=3 alt=""></td></tr>
+    <tr><td class="versionInfo">Generated by: <a href="http://ltp.sourceforge.net/coverage/lcov.php" target="_parent">LCOV version 1.11</a></td></tr>
+  </table>
+  <br>
+
+</body>
+</html>

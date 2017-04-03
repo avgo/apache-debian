@@ -1,0 +1,485 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+
+<html lang="en">
+
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <title>LCOV - apptest.info - modules/mappers/mod_dir.c</title>
+  <link rel="stylesheet" type="text/css" href="../../gcov.css">
+</head>
+
+<body>
+
+  <table width="100%" border=0 cellspacing=0 cellpadding=0>
+    <tr><td class="title">LCOV - code coverage report</td></tr>
+    <tr><td class="ruler"><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
+
+    <tr>
+      <td width="100%">
+        <table cellpadding=1 border=0 width="100%">
+          <tr>
+            <td width="10%" class="headerItem">Current view:</td>
+            <td width="35%" class="headerValue"><a href="../../index.html">top level</a> - <a href="index.html">modules/mappers</a> - mod_dir.c<span style="font-size: 80%;"> (source / <a href="mod_dir.c.func-sort-c.html">functions</a>)</span></td>
+            <td width="5%"></td>
+            <td width="15%"></td>
+            <td width="10%" class="headerCovTableHead">Hit</td>
+            <td width="10%" class="headerCovTableHead">Total</td>
+            <td width="15%" class="headerCovTableHead">Coverage</td>
+          </tr>
+          <tr>
+            <td class="headerItem">Test:</td>
+            <td class="headerValue">apptest.info</td>
+            <td></td>
+            <td class="headerItem">Lines:</td>
+            <td class="headerCovTableEntry">48</td>
+            <td class="headerCovTableEntry">162</td>
+            <td class="headerCovTableEntryLo">29.6 %</td>
+          </tr>
+          <tr>
+            <td class="headerItem">Date:</td>
+            <td class="headerValue">2017-01-31 22:58:06</td>
+            <td></td>
+            <td class="headerItem">Functions:</td>
+            <td class="headerCovTableEntry">5</td>
+            <td class="headerCovTableEntry">10</td>
+            <td class="headerCovTableEntryLo">50.0 %</td>
+          </tr>
+          <tr><td><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
+        </table>
+      </td>
+    </tr>
+
+    <tr><td class="ruler"><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
+  </table>
+
+  <table cellpadding=0 cellspacing=0 border=0>
+    <tr>
+      <td><br></td>
+    </tr>
+    <tr>
+      <td>
+<pre class="sourceHeading">          Line data    Source code</pre>
+<pre class="source">
+<a name="1"><span class="lineNum">       1 </span>            : /* Licensed to the Apache Software Foundation (ASF) under one or more</a>
+<span class="lineNum">       2 </span>            :  * contributor license agreements.  See the NOTICE file distributed with
+<span class="lineNum">       3 </span>            :  * this work for additional information regarding copyright ownership.
+<span class="lineNum">       4 </span>            :  * The ASF licenses this file to You under the Apache License, Version 2.0
+<span class="lineNum">       5 </span>            :  * (the &quot;License&quot;); you may not use this file except in compliance with
+<span class="lineNum">       6 </span>            :  * the License.  You may obtain a copy of the License at
+<span class="lineNum">       7 </span>            :  *
+<span class="lineNum">       8 </span>            :  *     http://www.apache.org/licenses/LICENSE-2.0
+<span class="lineNum">       9 </span>            :  *
+<span class="lineNum">      10 </span>            :  * Unless required by applicable law or agreed to in writing, software
+<span class="lineNum">      11 </span>            :  * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+<span class="lineNum">      12 </span>            :  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+<span class="lineNum">      13 </span>            :  * See the License for the specific language governing permissions and
+<span class="lineNum">      14 </span>            :  * limitations under the License.
+<span class="lineNum">      15 </span>            :  */
+<span class="lineNum">      16 </span>            : 
+<span class="lineNum">      17 </span>            : /*
+<span class="lineNum">      18 </span>            :  * mod_dir.c: handle default index files, and trailing-/ redirects
+<span class="lineNum">      19 </span>            :  */
+<span class="lineNum">      20 </span>            : 
+<span class="lineNum">      21 </span>            : #include &quot;apr_strings.h&quot;
+<span class="lineNum">      22 </span>            : #include &quot;apr_lib.h&quot;
+<span class="lineNum">      23 </span>            : #include &quot;ap_config.h&quot;
+<span class="lineNum">      24 </span>            : #include &quot;httpd.h&quot;
+<span class="lineNum">      25 </span>            : #include &quot;http_config.h&quot;
+<span class="lineNum">      26 </span>            : #include &quot;http_core.h&quot;
+<span class="lineNum">      27 </span>            : #include &quot;http_request.h&quot;
+<span class="lineNum">      28 </span>            : #include &quot;http_protocol.h&quot;
+<span class="lineNum">      29 </span>            : #include &quot;http_log.h&quot;
+<span class="lineNum">      30 </span>            : #include &quot;http_main.h&quot;
+<span class="lineNum">      31 </span>            : #include &quot;util_script.h&quot;
+<span class="lineNum">      32 </span>            : #include &quot;mod_rewrite.h&quot;
+<span class="lineNum">      33 </span>            : 
+<span class="lineNum">      34 </span>            : module AP_MODULE_DECLARE_DATA dir_module;
+<span class="lineNum">      35 </span>            : 
+<span class="lineNum">      36 </span>            : typedef enum {
+<span class="lineNum">      37 </span>            :     MODDIR_OFF = 0,
+<span class="lineNum">      38 </span>            :     MODDIR_ON,
+<span class="lineNum">      39 </span>            :     MODDIR_UNSET
+<span class="lineNum">      40 </span>            : } moddir_cfg;
+<span class="lineNum">      41 </span>            : 
+<span class="lineNum">      42 </span>            : #define REDIRECT_OFF   0
+<span class="lineNum">      43 </span>            : #define REDIRECT_UNSET 1
+<span class="lineNum">      44 </span>            : 
+<span class="lineNum">      45 </span>            : typedef struct dir_config_struct {
+<span class="lineNum">      46 </span>            :     apr_array_header_t *index_names;
+<span class="lineNum">      47 </span>            :     moddir_cfg do_slash;
+<span class="lineNum">      48 </span>            :     moddir_cfg checkhandler;
+<span class="lineNum">      49 </span>            :     int redirect_index;
+<span class="lineNum">      50 </span>            :     const char *dflt;
+<span class="lineNum">      51 </span>            : } dir_config_rec;
+<span class="lineNum">      52 </span>            : 
+<a name="53"><span class="lineNum">      53 </span>            : #define DIR_CMD_PERMS OR_INDEXES</a>
+<span class="lineNum">      54 </span>            : 
+<span class="lineNum">      55 </span><span class="lineCov">          5 : static const char *add_index(cmd_parms *cmd, void *dummy, const char *arg)</span>
+<span class="lineNum">      56 </span>            : {
+<span class="lineNum">      57 </span><span class="lineCov">          5 :     dir_config_rec *d = dummy;</span>
+<span class="lineNum">      58 </span>            :     const char *t, *w;
+<span class="lineNum">      59 </span><span class="lineCov">          5 :     int count = 0;</span>
+<span class="lineNum">      60 </span>            : 
+<span class="lineNum">      61 </span><span class="lineCov">          5 :     if (!d-&gt;index_names) {</span>
+<span class="lineNum">      62 </span><span class="lineCov">          5 :         d-&gt;index_names = apr_array_make(cmd-&gt;pool, 2, sizeof(char *));</span>
+<span class="lineNum">      63 </span>            :     }
+<span class="lineNum">      64 </span>            : 
+<span class="lineNum">      65 </span><span class="lineCov">          5 :     t = arg;</span>
+<span class="lineNum">      66 </span><span class="lineCov">         15 :     while ((w = ap_getword_conf(cmd-&gt;pool, &amp;t)) &amp;&amp; w[0]) {</span>
+<span class="lineNum">      67 </span><span class="lineCov">          5 :         if (count == 0 &amp;&amp; !strcasecmp(w, &quot;disabled&quot;)) {</span>
+<span class="lineNum">      68 </span>            :             /* peek to see if &quot;disabled&quot; is first in a series of arguments */
+<span class="lineNum">      69 </span><span class="lineNoCov">          0 :             const char *tt = t;</span>
+<span class="lineNum">      70 </span><span class="lineNoCov">          0 :             const char *ww = ap_getword_conf(cmd-&gt;temp_pool, &amp;tt);</span>
+<span class="lineNum">      71 </span><span class="lineNoCov">          0 :             if (ww[0] == '\0') {</span>
+<span class="lineNum">      72 </span>            :                /* &quot;disabled&quot; is first, and alone */
+<span class="lineNum">      73 </span><span class="lineNoCov">          0 :                apr_array_clear(d-&gt;index_names); </span>
+<span class="lineNum">      74 </span><span class="lineNoCov">          0 :                break;</span>
+<span class="lineNum">      75 </span>            :             }
+<span class="lineNum">      76 </span>            :         }
+<span class="lineNum">      77 </span><span class="lineCov">          5 :         *(const char **)apr_array_push(d-&gt;index_names) = w;</span>
+<span class="lineNum">      78 </span><span class="lineCov">          5 :         count++;</span>
+<span class="lineNum">      79 </span>            :     }
+<span class="lineNum">      80 </span>            : 
+<span class="lineNum">      81 </span><span class="lineCov">          5 :     return NULL;</span>
+<a name="82"><span class="lineNum">      82 </span>            : }</a>
+<span class="lineNum">      83 </span>            : 
+<span class="lineNum">      84 </span><span class="lineNoCov">          0 : static const char *configure_slash(cmd_parms *cmd, void *d_, int arg)</span>
+<span class="lineNum">      85 </span>            : {
+<span class="lineNum">      86 </span><span class="lineNoCov">          0 :     dir_config_rec *d = d_;</span>
+<span class="lineNum">      87 </span>            : 
+<span class="lineNum">      88 </span><span class="lineNoCov">          0 :     d-&gt;do_slash = arg ? MODDIR_ON : MODDIR_OFF;</span>
+<a name="89"><span class="lineNum">      89 </span><span class="lineNoCov">          0 :     return NULL;</span></a>
+<span class="lineNum">      90 </span>            : }
+<span class="lineNum">      91 </span><span class="lineNoCov">          0 : static const char *configure_checkhandler(cmd_parms *cmd, void *d_, int arg)</span>
+<span class="lineNum">      92 </span>            : {
+<span class="lineNum">      93 </span><span class="lineNoCov">          0 :     dir_config_rec *d = d_;</span>
+<span class="lineNum">      94 </span>            : 
+<span class="lineNum">      95 </span><span class="lineNoCov">          0 :     d-&gt;checkhandler = arg ? MODDIR_ON : MODDIR_OFF;</span>
+<a name="96"><span class="lineNum">      96 </span><span class="lineNoCov">          0 :     return NULL;</span></a>
+<span class="lineNum">      97 </span>            : }
+<span class="lineNum">      98 </span><span class="lineNoCov">          0 : static const char *configure_redirect(cmd_parms *cmd, void *d_, const char *arg1)</span>
+<span class="lineNum">      99 </span>            : {
+<span class="lineNum">     100 </span><span class="lineNoCov">          0 :     dir_config_rec *d = d_;</span>
+<span class="lineNum">     101 </span>            :     int status;
+<span class="lineNum">     102 </span>            : 
+<span class="lineNum">     103 </span><span class="lineNoCov">          0 :     if (!strcasecmp(arg1, &quot;ON&quot;))</span>
+<span class="lineNum">     104 </span><span class="lineNoCov">          0 :         status = HTTP_MOVED_TEMPORARILY;</span>
+<span class="lineNum">     105 </span><span class="lineNoCov">          0 :     else if (!strcasecmp(arg1, &quot;OFF&quot;))</span>
+<span class="lineNum">     106 </span><span class="lineNoCov">          0 :         status = REDIRECT_OFF;</span>
+<span class="lineNum">     107 </span><span class="lineNoCov">          0 :     else if (!strcasecmp(arg1, &quot;permanent&quot;))</span>
+<span class="lineNum">     108 </span><span class="lineNoCov">          0 :         status = HTTP_MOVED_PERMANENTLY;</span>
+<span class="lineNum">     109 </span><span class="lineNoCov">          0 :     else if (!strcasecmp(arg1, &quot;temp&quot;))</span>
+<span class="lineNum">     110 </span><span class="lineNoCov">          0 :         status = HTTP_MOVED_TEMPORARILY;</span>
+<span class="lineNum">     111 </span><span class="lineNoCov">          0 :     else if (!strcasecmp(arg1, &quot;seeother&quot;))</span>
+<span class="lineNum">     112 </span><span class="lineNoCov">          0 :         status = HTTP_SEE_OTHER;</span>
+<span class="lineNum">     113 </span><span class="lineNoCov">          0 :     else if (apr_isdigit(*arg1)) {</span>
+<span class="lineNum">     114 </span><span class="lineNoCov">          0 :         status = atoi(arg1);</span>
+<span class="lineNum">     115 </span><span class="lineNoCov">          0 :         if (!ap_is_HTTP_REDIRECT(status)) {</span>
+<span class="lineNum">     116 </span><span class="lineNoCov">          0 :             return &quot;DirectoryIndexRedirect only accepts values between 300 and 399&quot;;</span>
+<span class="lineNum">     117 </span>            :         }
+<span class="lineNum">     118 </span>            :     }
+<span class="lineNum">     119 </span>            :     else {
+<span class="lineNum">     120 </span><span class="lineNoCov">          0 :         return &quot;DirectoryIndexRedirect ON|OFF|permanent|temp|seeother|3xx&quot;;</span>
+<span class="lineNum">     121 </span>            :     }
+<span class="lineNum">     122 </span>            : 
+<span class="lineNum">     123 </span><span class="lineNoCov">          0 :     d-&gt;redirect_index = status;</span>
+<span class="lineNum">     124 </span><span class="lineNoCov">          0 :     return NULL;</span>
+<span class="lineNum">     125 </span>            : }
+<span class="lineNum">     126 </span>            : static const command_rec dir_cmds[] =
+<span class="lineNum">     127 </span>            : {
+<span class="lineNum">     128 </span>            :     AP_INIT_TAKE1(&quot;FallbackResource&quot;, ap_set_string_slot,
+<span class="lineNum">     129 </span>            :                   (void*)APR_OFFSETOF(dir_config_rec, dflt),
+<span class="lineNum">     130 </span>            :                   DIR_CMD_PERMS, &quot;Set a default handler&quot;),
+<span class="lineNum">     131 </span>            :     AP_INIT_RAW_ARGS(&quot;DirectoryIndex&quot;, add_index, NULL, DIR_CMD_PERMS,
+<span class="lineNum">     132 </span>            :                     &quot;a list of file names&quot;),
+<span class="lineNum">     133 </span>            :     AP_INIT_FLAG(&quot;DirectorySlash&quot;, configure_slash, NULL, DIR_CMD_PERMS,
+<span class="lineNum">     134 </span>            :                  &quot;On or Off&quot;),
+<span class="lineNum">     135 </span>            :     AP_INIT_FLAG(&quot;DirectoryCheckHandler&quot;, configure_checkhandler, NULL, DIR_CMD_PERMS,
+<span class="lineNum">     136 </span>            :                  &quot;On or Off&quot;),
+<span class="lineNum">     137 </span>            :     AP_INIT_TAKE1(&quot;DirectoryIndexRedirect&quot;, configure_redirect,
+<span class="lineNum">     138 </span>            :                    NULL, DIR_CMD_PERMS, &quot;On, Off, or a 3xx status code.&quot;),
+<span class="lineNum">     139 </span>            : 
+<span class="lineNum">     140 </span>            :     {NULL}
+<a name="141"><span class="lineNum">     141 </span>            : };</a>
+<span class="lineNum">     142 </span>            : 
+<span class="lineNum">     143 </span><span class="lineCov">          6 : static void *create_dir_config(apr_pool_t *p, char *dummy)</span>
+<span class="lineNum">     144 </span>            : {
+<span class="lineNum">     145 </span><span class="lineCov">          6 :     dir_config_rec *new = apr_pcalloc(p, sizeof(dir_config_rec));</span>
+<span class="lineNum">     146 </span>            : 
+<span class="lineNum">     147 </span><span class="lineCov">          6 :     new-&gt;index_names = NULL;</span>
+<span class="lineNum">     148 </span><span class="lineCov">          6 :     new-&gt;do_slash = MODDIR_UNSET;</span>
+<span class="lineNum">     149 </span><span class="lineCov">          6 :     new-&gt;checkhandler = MODDIR_UNSET;</span>
+<span class="lineNum">     150 </span><span class="lineCov">          6 :     new-&gt;redirect_index = REDIRECT_UNSET;</span>
+<span class="lineNum">     151 </span><span class="lineCov">          6 :     return (void *) new;</span>
+<a name="152"><span class="lineNum">     152 </span>            : }</a>
+<span class="lineNum">     153 </span>            : 
+<span class="lineNum">     154 </span><span class="lineNoCov">          0 : static void *merge_dir_configs(apr_pool_t *p, void *basev, void *addv)</span>
+<span class="lineNum">     155 </span>            : {
+<span class="lineNum">     156 </span><span class="lineNoCov">          0 :     dir_config_rec *new = apr_pcalloc(p, sizeof(dir_config_rec));</span>
+<span class="lineNum">     157 </span><span class="lineNoCov">          0 :     dir_config_rec *base = (dir_config_rec *)basev;</span>
+<span class="lineNum">     158 </span><span class="lineNoCov">          0 :     dir_config_rec *add = (dir_config_rec *)addv;</span>
+<span class="lineNum">     159 </span>            : 
+<span class="lineNum">     160 </span><span class="lineNoCov">          0 :     new-&gt;index_names = add-&gt;index_names ? add-&gt;index_names : base-&gt;index_names;</span>
+<span class="lineNum">     161 </span><span class="lineNoCov">          0 :     new-&gt;do_slash =</span>
+<span class="lineNum">     162 </span><span class="lineNoCov">          0 :         (add-&gt;do_slash == MODDIR_UNSET) ? base-&gt;do_slash : add-&gt;do_slash;</span>
+<span class="lineNum">     163 </span><span class="lineNoCov">          0 :     new-&gt;checkhandler =</span>
+<span class="lineNum">     164 </span><span class="lineNoCov">          0 :         (add-&gt;checkhandler == MODDIR_UNSET) ? base-&gt;checkhandler : add-&gt;checkhandler;</span>
+<span class="lineNum">     165 </span><span class="lineNoCov">          0 :     new-&gt;redirect_index=</span>
+<span class="lineNum">     166 </span><span class="lineNoCov">          0 :         (add-&gt;redirect_index == REDIRECT_UNSET) ? base-&gt;redirect_index : add-&gt;redirect_index;</span>
+<span class="lineNum">     167 </span><span class="lineNoCov">          0 :     new-&gt;dflt = add-&gt;dflt ? add-&gt;dflt : base-&gt;dflt;</span>
+<span class="lineNum">     168 </span><span class="lineNoCov">          0 :     return new;</span>
+<a name="169"><span class="lineNum">     169 </span>            : }</a>
+<span class="lineNum">     170 </span>            : 
+<span class="lineNum">     171 </span><span class="lineNoCov">          0 : static int fixup_dflt(request_rec *r)</span>
+<span class="lineNum">     172 </span>            : {
+<span class="lineNum">     173 </span><span class="lineNoCov">          0 :     dir_config_rec *d = ap_get_module_config(r-&gt;per_dir_config, &amp;dir_module);</span>
+<span class="lineNum">     174 </span>            :     const char *name_ptr;
+<span class="lineNum">     175 </span>            :     request_rec *rr;
+<span class="lineNum">     176 </span><span class="lineNoCov">          0 :     int error_notfound = 0;</span>
+<span class="lineNum">     177 </span>            : 
+<span class="lineNum">     178 </span><span class="lineNoCov">          0 :     name_ptr = d-&gt;dflt;</span>
+<span class="lineNum">     179 </span><span class="lineNoCov">          0 :     if ((name_ptr == NULL) || !(strcasecmp(name_ptr,&quot;disabled&quot;))){</span>
+<span class="lineNum">     180 </span><span class="lineNoCov">          0 :         return DECLINED;</span>
+<span class="lineNum">     181 </span>            :     }
+<span class="lineNum">     182 </span>            :     /* XXX: if FallbackResource points to something that doesn't exist,
+<span class="lineNum">     183 </span>            :      * this may recurse until it hits the limit for internal redirects
+<span class="lineNum">     184 </span>            :      * before returning an Internal Server Error.
+<span class="lineNum">     185 </span>            :      */
+<span class="lineNum">     186 </span>            : 
+<span class="lineNum">     187 </span>            :     /* The logic of this function is basically cloned and simplified
+<span class="lineNum">     188 </span>            :      * from fixup_dir below.  See the comments there.
+<span class="lineNum">     189 </span>            :      */
+<span class="lineNum">     190 </span><span class="lineNoCov">          0 :     if (r-&gt;args != NULL) {</span>
+<span class="lineNum">     191 </span><span class="lineNoCov">          0 :         name_ptr = apr_pstrcat(r-&gt;pool, name_ptr, &quot;?&quot;, r-&gt;args, NULL);</span>
+<span class="lineNum">     192 </span>            :     }
+<span class="lineNum">     193 </span><span class="lineNoCov">          0 :     rr = ap_sub_req_lookup_uri(name_ptr, r, r-&gt;output_filters);</span>
+<span class="lineNum">     194 </span><span class="lineNoCov">          0 :     if (rr-&gt;status == HTTP_OK</span>
+<span class="lineNum">     195 </span><span class="lineNoCov">          0 :         &amp;&amp; (   (rr-&gt;handler &amp;&amp; !strcmp(rr-&gt;handler, &quot;proxy-server&quot;))</span>
+<span class="lineNum">     196 </span><span class="lineNoCov">          0 :             || rr-&gt;finfo.filetype == APR_REG)) {</span>
+<span class="lineNum">     197 </span><span class="lineNoCov">          0 :         ap_internal_fast_redirect(rr, r);</span>
+<span class="lineNum">     198 </span><span class="lineNoCov">          0 :         return OK;</span>
+<span class="lineNum">     199 </span>            :     }
+<span class="lineNum">     200 </span><span class="lineNoCov">          0 :     else if (ap_is_HTTP_REDIRECT(rr-&gt;status)) {</span>
+<span class="lineNum">     201 </span>            : 
+<span class="lineNum">     202 </span>            :         apr_pool_join(r-&gt;pool, rr-&gt;pool);
+<span class="lineNum">     203 </span><span class="lineNoCov">          0 :         r-&gt;notes = apr_table_overlay(r-&gt;pool, r-&gt;notes, rr-&gt;notes);</span>
+<span class="lineNum">     204 </span><span class="lineNoCov">          0 :         r-&gt;headers_out = apr_table_overlay(r-&gt;pool, r-&gt;headers_out,</span>
+<span class="lineNum">     205 </span><span class="lineNoCov">          0 :                                            rr-&gt;headers_out);</span>
+<span class="lineNum">     206 </span><span class="lineNoCov">          0 :         r-&gt;err_headers_out = apr_table_overlay(r-&gt;pool, r-&gt;err_headers_out,</span>
+<span class="lineNum">     207 </span><span class="lineNoCov">          0 :                                                rr-&gt;err_headers_out);</span>
+<span class="lineNum">     208 </span><span class="lineNoCov">          0 :         error_notfound = rr-&gt;status;</span>
+<span class="lineNum">     209 </span>            :     }
+<span class="lineNum">     210 </span><span class="lineNoCov">          0 :     else if (rr-&gt;status &amp;&amp; rr-&gt;status != HTTP_NOT_FOUND</span>
+<span class="lineNum">     211 </span><span class="lineNoCov">          0 :              &amp;&amp; rr-&gt;status != HTTP_OK) {</span>
+<span class="lineNum">     212 </span><span class="lineNoCov">          0 :         error_notfound = rr-&gt;status;</span>
+<span class="lineNum">     213 </span>            :     }
+<span class="lineNum">     214 </span>            : 
+<span class="lineNum">     215 </span><span class="lineNoCov">          0 :     ap_destroy_sub_req(rr);</span>
+<span class="lineNum">     216 </span><span class="lineNoCov">          0 :     if (error_notfound) {</span>
+<span class="lineNum">     217 </span><span class="lineNoCov">          0 :         return error_notfound;</span>
+<span class="lineNum">     218 </span>            :     }
+<span class="lineNum">     219 </span>            : 
+<span class="lineNum">     220 </span>            :     /* nothing for us to do, pass on through */
+<span class="lineNum">     221 </span><span class="lineNoCov">          0 :     return DECLINED;</span>
+<a name="222"><span class="lineNum">     222 </span>            : }</a>
+<span class="lineNum">     223 </span>            : 
+<span class="lineNum">     224 </span><span class="lineCov">          1 : static int fixup_dir(request_rec *r)</span>
+<span class="lineNum">     225 </span>            : {
+<span class="lineNum">     226 </span>            :     dir_config_rec *d;
+<span class="lineNum">     227 </span>            :     char *dummy_ptr[1];
+<span class="lineNum">     228 </span>            :     char **names_ptr;
+<span class="lineNum">     229 </span>            :     int num_names;
+<span class="lineNum">     230 </span><span class="lineCov">          1 :     int error_notfound = 0;</span>
+<span class="lineNum">     231 </span>            : 
+<span class="lineNum">     232 </span>            :     /* In case mod_mime wasn't present, and no handler was assigned. */
+<span class="lineNum">     233 </span><span class="lineCov">          1 :     if (!r-&gt;handler) {</span>
+<span class="lineNum">     234 </span><span class="lineCov">          1 :         r-&gt;handler = DIR_MAGIC_TYPE;</span>
+<span class="lineNum">     235 </span>            :     }
+<span class="lineNum">     236 </span>            : 
+<span class="lineNum">     237 </span>            :     /* Never tolerate path_info on dir requests */
+<span class="lineNum">     238 </span><span class="lineCov">          1 :     if (r-&gt;path_info &amp;&amp; *r-&gt;path_info) {</span>
+<span class="lineNum">     239 </span><span class="lineNoCov">          0 :         return DECLINED;</span>
+<span class="lineNum">     240 </span>            :     }
+<span class="lineNum">     241 </span>            : 
+<span class="lineNum">     242 </span><span class="lineCov">          1 :     d = (dir_config_rec *)ap_get_module_config(r-&gt;per_dir_config,</span>
+<span class="lineNum">     243 </span>            :                                                &amp;dir_module);
+<span class="lineNum">     244 </span>            : 
+<span class="lineNum">     245 </span>            :     /* Redirect requests that are not '/' terminated */
+<span class="lineNum">     246 </span><span class="lineCov">          1 :     if (r-&gt;uri[0] == '\0' || r-&gt;uri[strlen(r-&gt;uri) - 1] != '/')</span>
+<span class="lineNum">     247 </span>            :     {
+<span class="lineNum">     248 </span>            :         char *ifile;
+<span class="lineNum">     249 </span>            : 
+<span class="lineNum">     250 </span><span class="lineNoCov">          0 :         if (!d-&gt;do_slash) {</span>
+<span class="lineNum">     251 </span><span class="lineNoCov">          0 :             return DECLINED;</span>
+<span class="lineNum">     252 </span>            :         }
+<span class="lineNum">     253 </span>            : 
+<span class="lineNum">     254 </span>            :         /* Only redirect non-get requests if we have no note to warn
+<span class="lineNum">     255 </span>            :          * that this browser cannot handle redirs on non-GET requests
+<span class="lineNum">     256 </span>            :          * (such as Microsoft's WebFolders).
+<span class="lineNum">     257 </span>            :          */
+<span class="lineNum">     258 </span><span class="lineNoCov">          0 :         if ((r-&gt;method_number != M_GET)</span>
+<span class="lineNum">     259 </span><span class="lineNoCov">          0 :                 &amp;&amp; apr_table_get(r-&gt;subprocess_env, &quot;redirect-carefully&quot;)) {</span>
+<span class="lineNum">     260 </span><span class="lineNoCov">          0 :             return DECLINED;</span>
+<span class="lineNum">     261 </span>            :         }
+<span class="lineNum">     262 </span>            : 
+<span class="lineNum">     263 </span><span class="lineNoCov">          0 :         if (r-&gt;args != NULL) {</span>
+<span class="lineNum">     264 </span><span class="lineNoCov">          0 :             ifile = apr_pstrcat(r-&gt;pool, ap_escape_uri(r-&gt;pool, r-&gt;uri),</span>
+<span class="lineNum">     265 </span>            :                                 &quot;/&quot;, &quot;?&quot;, r-&gt;args, NULL);
+<span class="lineNum">     266 </span>            :         }
+<span class="lineNum">     267 </span>            :         else {
+<span class="lineNum">     268 </span><span class="lineNoCov">          0 :             ifile = apr_pstrcat(r-&gt;pool, ap_escape_uri(r-&gt;pool, r-&gt;uri),</span>
+<span class="lineNum">     269 </span>            :                                 &quot;/&quot;, NULL);
+<span class="lineNum">     270 </span>            :         }
+<span class="lineNum">     271 </span>            : 
+<span class="lineNum">     272 </span><span class="lineNoCov">          0 :         apr_table_setn(r-&gt;headers_out, &quot;Location&quot;,</span>
+<span class="lineNum">     273 </span><span class="lineNoCov">          0 :                        ap_construct_url(r-&gt;pool, ifile, r));</span>
+<span class="lineNum">     274 </span><span class="lineNoCov">          0 :         return HTTP_MOVED_PERMANENTLY;</span>
+<span class="lineNum">     275 </span>            :     }
+<span class="lineNum">     276 </span>            : 
+<span class="lineNum">     277 </span>            :     /* we're running between mod_rewrites fixup and its internal redirect handler, step aside */
+<span class="lineNum">     278 </span><span class="lineCov">          1 :     if (!strcmp(r-&gt;handler, REWRITE_REDIRECT_HANDLER_NAME)) { </span>
+<span class="lineNum">     279 </span><span class="lineNoCov">          0 :         return DECLINED;</span>
+<span class="lineNum">     280 </span>            :     }
+<span class="lineNum">     281 </span>            : 
+<span class="lineNum">     282 </span><span class="lineCov">          1 :     if (d-&gt;checkhandler == MODDIR_ON &amp;&amp; strcmp(r-&gt;handler, DIR_MAGIC_TYPE)) {</span>
+<span class="lineNum">     283 </span><span class="lineNoCov">          0 :         return DECLINED;</span>
+<span class="lineNum">     284 </span>            :     }
+<span class="lineNum">     285 </span>            : 
+<span class="lineNum">     286 </span><span class="lineCov">          1 :     if (d-&gt;index_names) {</span>
+<span class="lineNum">     287 </span><span class="lineCov">          1 :         names_ptr = (char **)d-&gt;index_names-&gt;elts;</span>
+<span class="lineNum">     288 </span><span class="lineCov">          1 :         num_names = d-&gt;index_names-&gt;nelts;</span>
+<span class="lineNum">     289 </span>            :     }
+<span class="lineNum">     290 </span>            :     else {
+<span class="lineNum">     291 </span><span class="lineNoCov">          0 :         dummy_ptr[0] = AP_DEFAULT_INDEX;</span>
+<span class="lineNum">     292 </span><span class="lineNoCov">          0 :         names_ptr = dummy_ptr;</span>
+<span class="lineNum">     293 </span><span class="lineNoCov">          0 :         num_names = 1;</span>
+<span class="lineNum">     294 </span>            :     }
+<span class="lineNum">     295 </span>            : 
+<span class="lineNum">     296 </span><span class="lineCov">          1 :     for (; num_names; ++names_ptr, --num_names) {</span>
+<span class="lineNum">     297 </span>            :         /* XXX: Is this name_ptr considered escaped yet, or not??? */
+<span class="lineNum">     298 </span><span class="lineCov">          1 :         char *name_ptr = *names_ptr;</span>
+<span class="lineNum">     299 </span>            :         request_rec *rr;
+<span class="lineNum">     300 </span>            : 
+<span class="lineNum">     301 </span>            :         /* Once upon a time args were handled _after_ the successful redirect.
+<span class="lineNum">     302 </span>            :          * But that redirect might then _refuse_ the given r-&gt;args, creating
+<span class="lineNum">     303 </span>            :          * a nasty tangle.  It seems safer to consider the r-&gt;args while we
+<span class="lineNum">     304 </span>            :          * determine if name_ptr is our viable index, and therefore set them
+<span class="lineNum">     305 </span>            :          * up correctly on redirect.
+<span class="lineNum">     306 </span>            :          */
+<span class="lineNum">     307 </span><span class="lineCov">          1 :         if (r-&gt;args != NULL) {</span>
+<span class="lineNum">     308 </span><span class="lineNoCov">          0 :             name_ptr = apr_pstrcat(r-&gt;pool, name_ptr, &quot;?&quot;, r-&gt;args, NULL);</span>
+<span class="lineNum">     309 </span>            :         }
+<span class="lineNum">     310 </span>            : 
+<span class="lineNum">     311 </span><span class="lineCov">          1 :         rr = ap_sub_req_lookup_uri(name_ptr, r, r-&gt;output_filters);</span>
+<span class="lineNum">     312 </span>            : 
+<span class="lineNum">     313 </span>            :         /* The sub request lookup is very liberal, and the core map_to_storage
+<span class="lineNum">     314 </span>            :          * handler will almost always result in HTTP_OK as /foo/index.html
+<span class="lineNum">     315 </span>            :          * may be /foo with PATH_INFO=&quot;/index.html&quot;, or even / with
+<span class="lineNum">     316 </span>            :          * PATH_INFO=&quot;/foo/index.html&quot;. To get around this we insist that the
+<span class="lineNum">     317 </span>            :          * the index be a regular filetype.
+<span class="lineNum">     318 </span>            :          *
+<span class="lineNum">     319 </span>            :          * Another reason is that the core handler also makes the assumption
+<span class="lineNum">     320 </span>            :          * that if r-&gt;finfo is still NULL by the time it gets called, the
+<span class="lineNum">     321 </span>            :          * file does not exist.
+<span class="lineNum">     322 </span>            :          */
+<span class="lineNum">     323 </span><span class="lineCov">          1 :         if (rr-&gt;status == HTTP_OK</span>
+<span class="lineNum">     324 </span><span class="lineCov">          1 :             &amp;&amp; (   (rr-&gt;handler &amp;&amp; !strcmp(rr-&gt;handler, &quot;proxy-server&quot;))</span>
+<span class="lineNum">     325 </span><span class="lineCov">          1 :                 || rr-&gt;finfo.filetype == APR_REG)) {</span>
+<span class="lineNum">     326 </span>            : 
+<span class="lineNum">     327 </span><span class="lineCov">          1 :             if (ap_is_HTTP_REDIRECT(d-&gt;redirect_index)) {</span>
+<span class="lineNum">     328 </span><span class="lineNoCov">          0 :                 apr_table_setn(r-&gt;headers_out, &quot;Location&quot;, ap_construct_url(r-&gt;pool, rr-&gt;uri, r));</span>
+<span class="lineNum">     329 </span><span class="lineNoCov">          0 :                 return d-&gt;redirect_index;</span>
+<span class="lineNum">     330 </span>            :             }
+<span class="lineNum">     331 </span>            : 
+<span class="lineNum">     332 </span><span class="lineCov">          1 :             ap_internal_fast_redirect(rr, r);</span>
+<span class="lineNum">     333 </span><span class="lineCov">          1 :             return OK;</span>
+<span class="lineNum">     334 </span>            :         }
+<span class="lineNum">     335 </span>            : 
+<span class="lineNum">     336 </span>            :         /* If the request returned a redirect, propagate it to the client */
+<span class="lineNum">     337 </span>            : 
+<span class="lineNum">     338 </span><span class="lineNoCov">          0 :         if (ap_is_HTTP_REDIRECT(rr-&gt;status)</span>
+<span class="lineNum">     339 </span><span class="lineNoCov">          0 :             || (rr-&gt;status == HTTP_NOT_ACCEPTABLE &amp;&amp; num_names == 1)</span>
+<span class="lineNum">     340 </span><span class="lineNoCov">          0 :             || (rr-&gt;status == HTTP_UNAUTHORIZED &amp;&amp; num_names == 1)) {</span>
+<span class="lineNum">     341 </span>            : 
+<span class="lineNum">     342 </span>            :             apr_pool_join(r-&gt;pool, rr-&gt;pool);
+<span class="lineNum">     343 </span><span class="lineNoCov">          0 :             error_notfound = rr-&gt;status;</span>
+<span class="lineNum">     344 </span><span class="lineNoCov">          0 :             r-&gt;notes = apr_table_overlay(r-&gt;pool, r-&gt;notes, rr-&gt;notes);</span>
+<span class="lineNum">     345 </span><span class="lineNoCov">          0 :             r-&gt;headers_out = apr_table_overlay(r-&gt;pool, r-&gt;headers_out,</span>
+<span class="lineNum">     346 </span><span class="lineNoCov">          0 :                                                rr-&gt;headers_out);</span>
+<span class="lineNum">     347 </span><span class="lineNoCov">          0 :             r-&gt;err_headers_out = apr_table_overlay(r-&gt;pool, r-&gt;err_headers_out,</span>
+<span class="lineNum">     348 </span><span class="lineNoCov">          0 :                                                    rr-&gt;err_headers_out);</span>
+<span class="lineNum">     349 </span><span class="lineNoCov">          0 :             return error_notfound;</span>
+<span class="lineNum">     350 </span>            :         }
+<span class="lineNum">     351 </span>            : 
+<span class="lineNum">     352 </span>            :         /* If the request returned something other than 404 (or 200),
+<span class="lineNum">     353 </span>            :          * it means the module encountered some sort of problem. To be
+<span class="lineNum">     354 </span>            :          * secure, we should return the error, rather than allow autoindex
+<span class="lineNum">     355 </span>            :          * to create a (possibly unsafe) directory index.
+<span class="lineNum">     356 </span>            :          *
+<span class="lineNum">     357 </span>            :          * So we store the error, and if none of the listed files
+<span class="lineNum">     358 </span>            :          * exist, we return the last error response we got, instead
+<span class="lineNum">     359 </span>            :          * of a directory listing.
+<span class="lineNum">     360 </span>            :          */
+<span class="lineNum">     361 </span><span class="lineNoCov">          0 :         if (rr-&gt;status &amp;&amp; rr-&gt;status != HTTP_NOT_FOUND</span>
+<span class="lineNum">     362 </span><span class="lineNoCov">          0 :                 &amp;&amp; rr-&gt;status != HTTP_OK) {</span>
+<span class="lineNum">     363 </span><span class="lineNoCov">          0 :             error_notfound = rr-&gt;status;</span>
+<span class="lineNum">     364 </span>            :         }
+<span class="lineNum">     365 </span>            : 
+<span class="lineNum">     366 </span><span class="lineNoCov">          0 :         ap_destroy_sub_req(rr);</span>
+<span class="lineNum">     367 </span>            :     }
+<span class="lineNum">     368 </span>            : 
+<span class="lineNum">     369 </span><span class="lineNoCov">          0 :     if (error_notfound) {</span>
+<span class="lineNum">     370 </span><span class="lineNoCov">          0 :         return error_notfound;</span>
+<span class="lineNum">     371 </span>            :     }
+<span class="lineNum">     372 </span>            : 
+<span class="lineNum">     373 </span>            :     /* record what we tried, mostly for the benefit of mod_autoindex */
+<span class="lineNum">     374 </span><span class="lineNoCov">          0 :     apr_table_set(r-&gt;notes, &quot;dir-index-names&quot;,</span>
+<span class="lineNum">     375 </span><span class="lineNoCov">          0 :                   d-&gt;index_names ?</span>
+<span class="lineNum">     376 </span><span class="lineNoCov">          0 :                   apr_array_pstrcat(r-&gt;pool, d-&gt;index_names, ','):</span>
+<span class="lineNum">     377 </span>            :                   AP_DEFAULT_INDEX);
+<span class="lineNum">     378 </span>            : 
+<span class="lineNum">     379 </span>            :     /* nothing for us to do, pass on through */
+<span class="lineNum">     380 </span><span class="lineNoCov">          0 :     return DECLINED;</span>
+<a name="381"><span class="lineNum">     381 </span>            : }</a>
+<span class="lineNum">     382 </span>            : 
+<span class="lineNum">     383 </span><span class="lineCov">          2 : static int dir_fixups(request_rec *r)</span>
+<span class="lineNum">     384 </span>            : {
+<span class="lineNum">     385 </span><span class="lineCov">          2 :     if (r-&gt;finfo.filetype == APR_DIR) {</span>
+<span class="lineNum">     386 </span>            :         /* serve up a directory */
+<span class="lineNum">     387 </span><span class="lineCov">          1 :         return fixup_dir(r);</span>
+<span class="lineNum">     388 </span>            :     }
+<span class="lineNum">     389 </span><span class="lineCov">          1 :     else if ((r-&gt;finfo.filetype == APR_NOFILE) &amp;&amp; (r-&gt;handler == NULL)) {</span>
+<span class="lineNum">     390 </span>            :         /* No handler and nothing in the filesystem - use fallback */
+<span class="lineNum">     391 </span><span class="lineNoCov">          0 :         return fixup_dflt(r);</span>
+<span class="lineNum">     392 </span>            :     }
+<span class="lineNum">     393 </span><span class="lineCov">          1 :     return DECLINED;</span>
+<a name="394"><span class="lineNum">     394 </span>            : }</a>
+<span class="lineNum">     395 </span>            : 
+<span class="lineNum">     396 </span><span class="lineCov">          6 : static void register_hooks(apr_pool_t *p)</span>
+<span class="lineNum">     397 </span>            : {
+<span class="lineNum">     398 </span><span class="lineCov">          6 :     ap_hook_fixups(dir_fixups,NULL,NULL,APR_HOOK_LAST);</span>
+<span class="lineNum">     399 </span><span class="lineCov">          6 : }</span>
+<span class="lineNum">     400 </span>            : 
+<span class="lineNum">     401 </span>            : AP_DECLARE_MODULE(dir) = {
+<span class="lineNum">     402 </span>            :     STANDARD20_MODULE_STUFF,
+<span class="lineNum">     403 </span>            :     create_dir_config,          /* create per-directory config structure */
+<span class="lineNum">     404 </span>            :     merge_dir_configs,          /* merge per-directory config structures */
+<span class="lineNum">     405 </span>            :     NULL,                       /* create per-server config structure */
+<span class="lineNum">     406 </span>            :     NULL,                       /* merge per-server config structures */
+<span class="lineNum">     407 </span>            :     dir_cmds,                   /* command apr_table_t */
+<span class="lineNum">     408 </span>            :     register_hooks              /* register hooks */
+<span class="lineNum">     409 </span>            : };
+</pre>
+      </td>
+    </tr>
+  </table>
+  <br>
+
+  <table width="100%" border=0 cellspacing=0 cellpadding=0>
+    <tr><td class="ruler"><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
+    <tr><td class="versionInfo">Generated by: <a href="http://ltp.sourceforge.net/coverage/lcov.php" target="_parent">LCOV version 1.11</a></td></tr>
+  </table>
+  <br>
+
+</body>
+</html>

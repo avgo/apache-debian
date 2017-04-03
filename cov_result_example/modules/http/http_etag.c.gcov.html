@@ -1,0 +1,296 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+
+<html lang="en">
+
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <title>LCOV - apptest.info - modules/http/http_etag.c</title>
+  <link rel="stylesheet" type="text/css" href="../../gcov.css">
+</head>
+
+<body>
+
+  <table width="100%" border=0 cellspacing=0 cellpadding=0>
+    <tr><td class="title">LCOV - code coverage report</td></tr>
+    <tr><td class="ruler"><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
+
+    <tr>
+      <td width="100%">
+        <table cellpadding=1 border=0 width="100%">
+          <tr>
+            <td width="10%" class="headerItem">Current view:</td>
+            <td width="35%" class="headerValue"><a href="../../index.html">top level</a> - <a href="index.html">modules/http</a> - http_etag.c<span style="font-size: 80%;"> (source / <a href="http_etag.c.func-sort-c.html">functions</a>)</span></td>
+            <td width="5%"></td>
+            <td width="15%"></td>
+            <td width="10%" class="headerCovTableHead">Hit</td>
+            <td width="10%" class="headerCovTableHead">Total</td>
+            <td width="15%" class="headerCovTableHead">Coverage</td>
+          </tr>
+          <tr>
+            <td class="headerItem">Test:</td>
+            <td class="headerValue">apptest.info</td>
+            <td></td>
+            <td class="headerItem">Lines:</td>
+            <td class="headerCovTableEntry">47</td>
+            <td class="headerCovTableEntry">75</td>
+            <td class="headerCovTableEntryLo">62.7 %</td>
+          </tr>
+          <tr>
+            <td class="headerItem">Date:</td>
+            <td class="headerValue">2017-01-31 22:58:06</td>
+            <td></td>
+            <td class="headerItem">Functions:</td>
+            <td class="headerCovTableEntry">3</td>
+            <td class="headerCovTableEntry">3</td>
+            <td class="headerCovTableEntryHi">100.0 %</td>
+          </tr>
+          <tr><td><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
+        </table>
+      </td>
+    </tr>
+
+    <tr><td class="ruler"><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
+  </table>
+
+  <table cellpadding=0 cellspacing=0 border=0>
+    <tr>
+      <td><br></td>
+    </tr>
+    <tr>
+      <td>
+<pre class="sourceHeading">          Line data    Source code</pre>
+<pre class="source">
+<a name="1"><span class="lineNum">       1 </span>            : /* Licensed to the Apache Software Foundation (ASF) under one or more</a>
+<span class="lineNum">       2 </span>            :  * contributor license agreements.  See the NOTICE file distributed with
+<span class="lineNum">       3 </span>            :  * this work for additional information regarding copyright ownership.
+<span class="lineNum">       4 </span>            :  * The ASF licenses this file to You under the Apache License, Version 2.0
+<span class="lineNum">       5 </span>            :  * (the &quot;License&quot;); you may not use this file except in compliance with
+<span class="lineNum">       6 </span>            :  * the License.  You may obtain a copy of the License at
+<span class="lineNum">       7 </span>            :  *
+<span class="lineNum">       8 </span>            :  *     http://www.apache.org/licenses/LICENSE-2.0
+<span class="lineNum">       9 </span>            :  *
+<span class="lineNum">      10 </span>            :  * Unless required by applicable law or agreed to in writing, software
+<span class="lineNum">      11 </span>            :  * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+<span class="lineNum">      12 </span>            :  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+<span class="lineNum">      13 </span>            :  * See the License for the specific language governing permissions and
+<span class="lineNum">      14 </span>            :  * limitations under the License.
+<span class="lineNum">      15 </span>            :  */
+<span class="lineNum">      16 </span>            : 
+<span class="lineNum">      17 </span>            : #include &quot;apr_strings.h&quot;
+<span class="lineNum">      18 </span>            : #include &quot;apr_thread_proc.h&quot;    /* for RLIMIT stuff */
+<span class="lineNum">      19 </span>            : 
+<span class="lineNum">      20 </span>            : #define APR_WANT_STRFUNC
+<span class="lineNum">      21 </span>            : #include &quot;apr_want.h&quot;
+<span class="lineNum">      22 </span>            : 
+<span class="lineNum">      23 </span>            : #include &quot;httpd.h&quot;
+<span class="lineNum">      24 </span>            : #include &quot;http_config.h&quot;
+<span class="lineNum">      25 </span>            : #include &quot;http_connection.h&quot;
+<span class="lineNum">      26 </span>            : #include &quot;http_core.h&quot;
+<span class="lineNum">      27 </span>            : #include &quot;http_protocol.h&quot;   /* For index_of_response().  Grump. */
+<span class="lineNum">      28 </span>            : #include &quot;http_request.h&quot;
+<span class="lineNum">      29 </span>            : 
+<span class="lineNum">      30 </span>            : /* Generate the human-readable hex representation of an apr_uint64_t
+<span class="lineNum">      31 </span>            :  * (basically a faster version of 'sprintf(&quot;%llx&quot;)')
+<a name="32"><span class="lineNum">      32 </span>            :  */</a>
+<span class="lineNum">      33 </span>            : #define HEX_DIGITS &quot;0123456789abcdef&quot;
+<span class="lineNum">      34 </span><span class="lineCov">          2 : static char *etag_uint64_to_hex(char *next, apr_uint64_t u)</span>
+<span class="lineNum">      35 </span>            : {
+<span class="lineNum">      36 </span><span class="lineCov">          2 :     int printing = 0;</span>
+<span class="lineNum">      37 </span><span class="lineCov">          2 :     int shift = sizeof(apr_uint64_t) * 8 - 4;</span>
+<span class="lineNum">      38 </span>            :     do {
+<span class="lineNum">      39 </span><span class="lineCov">         30 :         unsigned short next_digit = (unsigned short)</span>
+<span class="lineNum">      40 </span><span class="lineCov">         30 :                                     ((u &gt;&gt; shift) &amp; (apr_uint64_t)0xf);</span>
+<span class="lineNum">      41 </span><span class="lineCov">         30 :         if (next_digit) {</span>
+<span class="lineNum">      42 </span><span class="lineCov">         14 :             *next++ = HEX_DIGITS[next_digit];</span>
+<span class="lineNum">      43 </span><span class="lineCov">         14 :             printing = 1;</span>
+<span class="lineNum">      44 </span>            :         }
+<span class="lineNum">      45 </span><span class="lineCov">         16 :         else if (printing) {</span>
+<span class="lineNum">      46 </span><span class="lineNoCov">          0 :             *next++ = HEX_DIGITS[next_digit];</span>
+<span class="lineNum">      47 </span>            :         }
+<span class="lineNum">      48 </span><span class="lineCov">         30 :         shift -= 4;</span>
+<span class="lineNum">      49 </span><span class="lineCov">         30 :     } while (shift);</span>
+<span class="lineNum">      50 </span><span class="lineCov">          2 :     *next++ = HEX_DIGITS[u &amp; (apr_uint64_t)0xf];</span>
+<span class="lineNum">      51 </span><span class="lineCov">          2 :     return next;</span>
+<span class="lineNum">      52 </span>            : }
+<span class="lineNum">      53 </span>            : 
+<span class="lineNum">      54 </span>            : #define ETAG_WEAK &quot;W/&quot;
+<span class="lineNum">      55 </span>            : #define CHARS_PER_UINT64 (sizeof(apr_uint64_t) * 2)
+<span class="lineNum">      56 </span>            : /*
+<span class="lineNum">      57 </span>            :  * Construct an entity tag (ETag) from resource information.  If it's a real
+<span class="lineNum">      58 </span>            :  * file, build in some of the file characteristics.  If the modification time
+<span class="lineNum">      59 </span>            :  * is newer than (request-time minus 1 second), mark the ETag as weak - it
+<span class="lineNum">      60 </span>            :  * could be modified again in as short an interval.  We rationalize the
+<a name="61"><span class="lineNum">      61 </span>            :  * modification time we're given to keep it from being in the future.</a>
+<span class="lineNum">      62 </span>            :  */
+<span class="lineNum">      63 </span><span class="lineCov">          1 : AP_DECLARE(char *) ap_make_etag(request_rec *r, int force_weak)</span>
+<span class="lineNum">      64 </span>            : {
+<span class="lineNum">      65 </span>            :     char *weak;
+<span class="lineNum">      66 </span>            :     apr_size_t weak_len;
+<span class="lineNum">      67 </span>            :     char *etag;
+<span class="lineNum">      68 </span>            :     char *next;
+<span class="lineNum">      69 </span>            :     core_dir_config *cfg;
+<span class="lineNum">      70 </span>            :     etag_components_t etag_bits;
+<span class="lineNum">      71 </span>            :     etag_components_t bits_added;
+<span class="lineNum">      72 </span>            : 
+<span class="lineNum">      73 </span><span class="lineCov">          1 :     cfg = (core_dir_config *)ap_get_core_module_config(r-&gt;per_dir_config);</span>
+<span class="lineNum">      74 </span><span class="lineCov">          1 :     etag_bits = (cfg-&gt;etag_bits &amp; (~ cfg-&gt;etag_remove)) | cfg-&gt;etag_add;</span>
+<span class="lineNum">      75 </span>            : 
+<span class="lineNum">      76 </span>            :     /*
+<span class="lineNum">      77 </span>            :      * If it's a file (or we wouldn't be here) and no ETags
+<span class="lineNum">      78 </span>            :      * should be set for files, return an empty string and
+<span class="lineNum">      79 </span>            :      * note it for the header-sender to ignore.
+<span class="lineNum">      80 </span>            :      */
+<span class="lineNum">      81 </span><span class="lineCov">          1 :     if (etag_bits &amp; ETAG_NONE) {</span>
+<span class="lineNum">      82 </span><span class="lineNoCov">          0 :         apr_table_setn(r-&gt;notes, &quot;no-etag&quot;, &quot;omit&quot;);</span>
+<span class="lineNum">      83 </span><span class="lineNoCov">          0 :         return &quot;&quot;;</span>
+<span class="lineNum">      84 </span>            :     }
+<span class="lineNum">      85 </span>            : 
+<span class="lineNum">      86 </span><span class="lineCov">          1 :     if (etag_bits == ETAG_UNSET) {</span>
+<span class="lineNum">      87 </span><span class="lineCov">          1 :         etag_bits = ETAG_BACKWARD;</span>
+<span class="lineNum">      88 </span>            :     }
+<span class="lineNum">      89 </span>            :     /*
+<span class="lineNum">      90 </span>            :      * Make an ETag header out of various pieces of information. We use
+<span class="lineNum">      91 </span>            :      * the last-modified date and, if we have a real file, the
+<span class="lineNum">      92 </span>            :      * length and inode number - note that this doesn't have to match
+<span class="lineNum">      93 </span>            :      * the content-length (i.e. includes), it just has to be unique
+<span class="lineNum">      94 </span>            :      * for the file.
+<span class="lineNum">      95 </span>            :      *
+<span class="lineNum">      96 </span>            :      * If the request was made within a second of the last-modified date,
+<span class="lineNum">      97 </span>            :      * we send a weak tag instead of a strong one, since it could
+<span class="lineNum">      98 </span>            :      * be modified again later in the second, and the validation
+<span class="lineNum">      99 </span>            :      * would be incorrect.
+<span class="lineNum">     100 </span>            :      */
+<span class="lineNum">     101 </span><span class="lineCov">          1 :     if ((r-&gt;request_time - r-&gt;mtime &gt; (1 * APR_USEC_PER_SEC)) &amp;&amp;</span>
+<span class="lineNum">     102 </span>            :         !force_weak) {
+<span class="lineNum">     103 </span><span class="lineNoCov">          0 :         weak = NULL;</span>
+<span class="lineNum">     104 </span><span class="lineNoCov">          0 :         weak_len = 0;</span>
+<span class="lineNum">     105 </span>            :     }
+<span class="lineNum">     106 </span>            :     else {
+<span class="lineNum">     107 </span><span class="lineCov">          1 :         weak = ETAG_WEAK;</span>
+<span class="lineNum">     108 </span><span class="lineCov">          1 :         weak_len = sizeof(ETAG_WEAK);</span>
+<span class="lineNum">     109 </span>            :     }
+<span class="lineNum">     110 </span>            : 
+<span class="lineNum">     111 </span><span class="lineCov">          1 :     if (r-&gt;finfo.filetype != APR_NOFILE) {</span>
+<span class="lineNum">     112 </span>            :         /*
+<span class="lineNum">     113 </span>            :          * ETag gets set to [W/]&quot;inode-size-mtime&quot;, modulo any
+<span class="lineNum">     114 </span>            :          * FileETag keywords.
+<span class="lineNum">     115 </span>            :          */
+<span class="lineNum">     116 </span><span class="lineCov">          1 :         etag = apr_palloc(r-&gt;pool, weak_len + sizeof(&quot;\&quot;--\&quot;&quot;) +</span>
+<span class="lineNum">     117 </span>            :                           3 * CHARS_PER_UINT64 + 1);
+<span class="lineNum">     118 </span><span class="lineCov">          1 :         next = etag;</span>
+<span class="lineNum">     119 </span><span class="lineCov">          1 :         if (weak) {</span>
+<span class="lineNum">     120 </span><span class="lineCov">          4 :             while (*weak) {</span>
+<span class="lineNum">     121 </span><span class="lineCov">          2 :                 *next++ = *weak++;</span>
+<span class="lineNum">     122 </span>            :             }
+<span class="lineNum">     123 </span>            :         }
+<span class="lineNum">     124 </span><span class="lineCov">          1 :         *next++ = '&quot;';</span>
+<span class="lineNum">     125 </span><span class="lineCov">          1 :         bits_added = 0;</span>
+<span class="lineNum">     126 </span><span class="lineCov">          1 :         if (etag_bits &amp; ETAG_INODE) {</span>
+<span class="lineNum">     127 </span><span class="lineNoCov">          0 :             next = etag_uint64_to_hex(next, r-&gt;finfo.inode);</span>
+<span class="lineNum">     128 </span><span class="lineNoCov">          0 :             bits_added |= ETAG_INODE;</span>
+<span class="lineNum">     129 </span>            :         }
+<span class="lineNum">     130 </span><span class="lineCov">          1 :         if (etag_bits &amp; ETAG_SIZE) {</span>
+<span class="lineNum">     131 </span><span class="lineCov">          1 :             if (bits_added != 0) {</span>
+<span class="lineNum">     132 </span><span class="lineNoCov">          0 :                 *next++ = '-';</span>
+<span class="lineNum">     133 </span>            :             }
+<span class="lineNum">     134 </span><span class="lineCov">          1 :             next = etag_uint64_to_hex(next, r-&gt;finfo.size);</span>
+<span class="lineNum">     135 </span><span class="lineCov">          1 :             bits_added |= ETAG_SIZE;</span>
+<span class="lineNum">     136 </span>            :         }
+<span class="lineNum">     137 </span><span class="lineCov">          1 :         if (etag_bits &amp; ETAG_MTIME) {</span>
+<span class="lineNum">     138 </span><span class="lineCov">          1 :             if (bits_added != 0) {</span>
+<span class="lineNum">     139 </span><span class="lineCov">          1 :                 *next++ = '-';</span>
+<span class="lineNum">     140 </span>            :             }
+<span class="lineNum">     141 </span><span class="lineCov">          1 :             next = etag_uint64_to_hex(next, r-&gt;mtime);</span>
+<span class="lineNum">     142 </span>            :         }
+<span class="lineNum">     143 </span><span class="lineCov">          1 :         *next++ = '&quot;';</span>
+<span class="lineNum">     144 </span><span class="lineCov">          1 :         *next = '\0';</span>
+<span class="lineNum">     145 </span>            :     }
+<span class="lineNum">     146 </span>            :     else {
+<span class="lineNum">     147 </span>            :         /*
+<span class="lineNum">     148 </span>            :          * Not a file document, so just use the mtime: [W/]&quot;mtime&quot;
+<span class="lineNum">     149 </span>            :          */
+<span class="lineNum">     150 </span><span class="lineNoCov">          0 :         etag = apr_palloc(r-&gt;pool, weak_len + sizeof(&quot;\&quot;\&quot;&quot;) +</span>
+<span class="lineNum">     151 </span>            :                           CHARS_PER_UINT64 + 1);
+<span class="lineNum">     152 </span><span class="lineNoCov">          0 :         next = etag;</span>
+<span class="lineNum">     153 </span><span class="lineNoCov">          0 :         if (weak) {</span>
+<span class="lineNum">     154 </span><span class="lineNoCov">          0 :             while (*weak) {</span>
+<span class="lineNum">     155 </span><span class="lineNoCov">          0 :                 *next++ = *weak++;</span>
+<span class="lineNum">     156 </span>            :             }
+<span class="lineNum">     157 </span>            :         }
+<span class="lineNum">     158 </span><span class="lineNoCov">          0 :         *next++ = '&quot;';</span>
+<span class="lineNum">     159 </span><span class="lineNoCov">          0 :         next = etag_uint64_to_hex(next, r-&gt;mtime);</span>
+<span class="lineNum">     160 </span><span class="lineNoCov">          0 :         *next++ = '&quot;';</span>
+<span class="lineNum">     161 </span><span class="lineNoCov">          0 :         *next = '\0';</span>
+<span class="lineNum">     162 </span>            :     }
+<span class="lineNum">     163 </span>            : 
+<span class="lineNum">     164 </span><span class="lineCov">          1 :     return etag;</span>
+<a name="165"><span class="lineNum">     165 </span>            : }</a>
+<span class="lineNum">     166 </span>            : 
+<span class="lineNum">     167 </span><span class="lineCov">          1 : AP_DECLARE(void) ap_set_etag(request_rec *r)</span>
+<span class="lineNum">     168 </span>            : {
+<span class="lineNum">     169 </span>            :     char *etag;
+<span class="lineNum">     170 </span>            :     char *variant_etag, *vlv;
+<span class="lineNum">     171 </span>            :     int vlv_weak;
+<span class="lineNum">     172 </span>            : 
+<span class="lineNum">     173 </span><span class="lineCov">          1 :     if (!r-&gt;vlist_validator) {</span>
+<span class="lineNum">     174 </span><span class="lineCov">          1 :         etag = ap_make_etag(r, 0);</span>
+<span class="lineNum">     175 </span>            : 
+<span class="lineNum">     176 </span>            :         /* If we get a blank etag back, don't set the header. */
+<span class="lineNum">     177 </span><span class="lineCov">          1 :         if (!etag[0]) {</span>
+<span class="lineNum">     178 </span><span class="lineNoCov">          0 :             return;</span>
+<span class="lineNum">     179 </span>            :         }
+<span class="lineNum">     180 </span>            :     }
+<span class="lineNum">     181 </span>            :     else {
+<span class="lineNum">     182 </span>            :         /* If we have a variant list validator (vlv) due to the
+<span class="lineNum">     183 </span>            :          * response being negotiated, then we create a structured
+<span class="lineNum">     184 </span>            :          * entity tag which merges the variant etag with the variant
+<span class="lineNum">     185 </span>            :          * list validator (vlv).  This merging makes revalidation
+<span class="lineNum">     186 </span>            :          * somewhat safer, ensures that caches which can deal with
+<span class="lineNum">     187 </span>            :          * Vary will (eventually) be updated if the set of variants is
+<span class="lineNum">     188 </span>            :          * changed, and is also a protocol requirement for transparent
+<span class="lineNum">     189 </span>            :          * content negotiation.
+<span class="lineNum">     190 </span>            :          */
+<span class="lineNum">     191 </span>            : 
+<span class="lineNum">     192 </span>            :         /* if the variant list validator is weak, we make the whole
+<span class="lineNum">     193 </span>            :          * structured etag weak.  If we would not, then clients could
+<span class="lineNum">     194 </span>            :          * have problems merging range responses if we have different
+<span class="lineNum">     195 </span>            :          * variants with the same non-globally-unique strong etag.
+<span class="lineNum">     196 </span>            :          */
+<span class="lineNum">     197 </span>            : 
+<span class="lineNum">     198 </span><span class="lineNoCov">          0 :         vlv = r-&gt;vlist_validator;</span>
+<span class="lineNum">     199 </span><span class="lineNoCov">          0 :         vlv_weak = (vlv[0] == 'W');</span>
+<span class="lineNum">     200 </span>            : 
+<span class="lineNum">     201 </span><span class="lineNoCov">          0 :         variant_etag = ap_make_etag(r, vlv_weak);</span>
+<span class="lineNum">     202 </span>            : 
+<span class="lineNum">     203 </span>            :         /* If we get a blank etag back, don't append vlv and stop now. */
+<span class="lineNum">     204 </span><span class="lineNoCov">          0 :         if (!variant_etag[0]) {</span>
+<span class="lineNum">     205 </span><span class="lineNoCov">          0 :             return;</span>
+<span class="lineNum">     206 </span>            :         }
+<span class="lineNum">     207 </span>            : 
+<span class="lineNum">     208 </span>            :         /* merge variant_etag and vlv into a structured etag */
+<span class="lineNum">     209 </span><span class="lineNoCov">          0 :         variant_etag[strlen(variant_etag) - 1] = '\0';</span>
+<span class="lineNum">     210 </span><span class="lineNoCov">          0 :         if (vlv_weak) {</span>
+<span class="lineNum">     211 </span><span class="lineNoCov">          0 :             vlv += 3;</span>
+<span class="lineNum">     212 </span>            :         }
+<span class="lineNum">     213 </span>            :         else {
+<span class="lineNum">     214 </span><span class="lineNoCov">          0 :             vlv++;</span>
+<span class="lineNum">     215 </span>            :         }
+<span class="lineNum">     216 </span><span class="lineNoCov">          0 :         etag = apr_pstrcat(r-&gt;pool, variant_etag, &quot;;&quot;, vlv, NULL);</span>
+<span class="lineNum">     217 </span>            :     }
+<span class="lineNum">     218 </span>            : 
+<span class="lineNum">     219 </span><span class="lineCov">          1 :     apr_table_setn(r-&gt;headers_out, &quot;ETag&quot;, etag);</span>
+<span class="lineNum">     220 </span>            : }
+</pre>
+      </td>
+    </tr>
+  </table>
+  <br>
+
+  <table width="100%" border=0 cellspacing=0 cellpadding=0>
+    <tr><td class="ruler"><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
+    <tr><td class="versionInfo">Generated by: <a href="http://ltp.sourceforge.net/coverage/lcov.php" target="_parent">LCOV version 1.11</a></td></tr>
+  </table>
+  <br>
+
+</body>
+</html>

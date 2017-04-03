@@ -1,0 +1,1877 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+
+<html lang="en">
+
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <title>LCOV - apptest.info - server/protocol.c</title>
+  <link rel="stylesheet" type="text/css" href="../gcov.css">
+</head>
+
+<body>
+
+  <table width="100%" border=0 cellspacing=0 cellpadding=0>
+    <tr><td class="title">LCOV - code coverage report</td></tr>
+    <tr><td class="ruler"><img src="../glass.png" width=3 height=3 alt=""></td></tr>
+
+    <tr>
+      <td width="100%">
+        <table cellpadding=1 border=0 width="100%">
+          <tr>
+            <td width="10%" class="headerItem">Current view:</td>
+            <td width="35%" class="headerValue"><a href="../index.html">top level</a> - <a href="index.html">server</a> - protocol.c<span style="font-size: 80%;"> (source / <a href="protocol.c.func-sort-c.html">functions</a>)</span></td>
+            <td width="5%"></td>
+            <td width="15%"></td>
+            <td width="10%" class="headerCovTableHead">Hit</td>
+            <td width="10%" class="headerCovTableHead">Total</td>
+            <td width="15%" class="headerCovTableHead">Coverage</td>
+          </tr>
+          <tr>
+            <td class="headerItem">Test:</td>
+            <td class="headerValue">apptest.info</td>
+            <td></td>
+            <td class="headerItem">Lines:</td>
+            <td class="headerCovTableEntry">265</td>
+            <td class="headerCovTableEntry">713</td>
+            <td class="headerCovTableEntryLo">37.2 %</td>
+          </tr>
+          <tr>
+            <td class="headerItem">Date:</td>
+            <td class="headerValue">2017-01-31 22:58:06</td>
+            <td></td>
+            <td class="headerItem">Functions:</td>
+            <td class="headerCovTableEntry">20</td>
+            <td class="headerCovTableEntry">56</td>
+            <td class="headerCovTableEntryLo">35.7 %</td>
+          </tr>
+          <tr><td><img src="../glass.png" width=3 height=3 alt=""></td></tr>
+        </table>
+      </td>
+    </tr>
+
+    <tr><td class="ruler"><img src="../glass.png" width=3 height=3 alt=""></td></tr>
+  </table>
+
+  <table cellpadding=0 cellspacing=0 border=0>
+    <tr>
+      <td><br></td>
+    </tr>
+    <tr>
+      <td>
+<pre class="sourceHeading">          Line data    Source code</pre>
+<pre class="source">
+<a name="1"><span class="lineNum">       1 </span>            : /* Licensed to the Apache Software Foundation (ASF) under one or more</a>
+<span class="lineNum">       2 </span>            :  * contributor license agreements.  See the NOTICE file distributed with
+<span class="lineNum">       3 </span>            :  * this work for additional information regarding copyright ownership.
+<span class="lineNum">       4 </span>            :  * The ASF licenses this file to You under the Apache License, Version 2.0
+<span class="lineNum">       5 </span>            :  * (the &quot;License&quot;); you may not use this file except in compliance with
+<span class="lineNum">       6 </span>            :  * the License.  You may obtain a copy of the License at
+<span class="lineNum">       7 </span>            :  *
+<span class="lineNum">       8 </span>            :  *     http://www.apache.org/licenses/LICENSE-2.0
+<span class="lineNum">       9 </span>            :  *
+<span class="lineNum">      10 </span>            :  * Unless required by applicable law or agreed to in writing, software
+<span class="lineNum">      11 </span>            :  * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+<span class="lineNum">      12 </span>            :  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+<span class="lineNum">      13 </span>            :  * See the License for the specific language governing permissions and
+<span class="lineNum">      14 </span>            :  * limitations under the License.
+<span class="lineNum">      15 </span>            :  */
+<span class="lineNum">      16 </span>            : 
+<span class="lineNum">      17 </span>            : /*
+<span class="lineNum">      18 </span>            :  * protocol.c --- routines which directly communicate with the client.
+<span class="lineNum">      19 </span>            :  *
+<span class="lineNum">      20 </span>            :  * Code originally by Rob McCool; much redone by Robert S. Thau
+<span class="lineNum">      21 </span>            :  * and the Apache Software Foundation.
+<span class="lineNum">      22 </span>            :  */
+<span class="lineNum">      23 </span>            : 
+<span class="lineNum">      24 </span>            : #include &quot;apr.h&quot;
+<span class="lineNum">      25 </span>            : #include &quot;apr_strings.h&quot;
+<span class="lineNum">      26 </span>            : #include &quot;apr_buckets.h&quot;
+<span class="lineNum">      27 </span>            : #include &quot;apr_lib.h&quot;
+<span class="lineNum">      28 </span>            : #include &quot;apr_signal.h&quot;
+<span class="lineNum">      29 </span>            : #include &quot;apr_strmatch.h&quot;
+<span class="lineNum">      30 </span>            : 
+<span class="lineNum">      31 </span>            : #define APR_WANT_STDIO          /* for sscanf */
+<span class="lineNum">      32 </span>            : #define APR_WANT_STRFUNC
+<span class="lineNum">      33 </span>            : #define APR_WANT_MEMFUNC
+<span class="lineNum">      34 </span>            : #include &quot;apr_want.h&quot;
+<span class="lineNum">      35 </span>            : 
+<span class="lineNum">      36 </span>            : #include &quot;util_filter.h&quot;
+<span class="lineNum">      37 </span>            : #include &quot;ap_config.h&quot;
+<span class="lineNum">      38 </span>            : #include &quot;httpd.h&quot;
+<span class="lineNum">      39 </span>            : #include &quot;http_config.h&quot;
+<span class="lineNum">      40 </span>            : #include &quot;http_core.h&quot;
+<span class="lineNum">      41 </span>            : #include &quot;http_protocol.h&quot;
+<span class="lineNum">      42 </span>            : #include &quot;http_main.h&quot;
+<span class="lineNum">      43 </span>            : #include &quot;http_request.h&quot;
+<span class="lineNum">      44 </span>            : #include &quot;http_vhost.h&quot;
+<span class="lineNum">      45 </span>            : #include &quot;http_log.h&quot;           /* For errors detected in basic auth common
+<span class="lineNum">      46 </span>            :                                  * support code... */
+<span class="lineNum">      47 </span>            : #include &quot;mod_core.h&quot;
+<span class="lineNum">      48 </span>            : #include &quot;util_charset.h&quot;
+<span class="lineNum">      49 </span>            : #include &quot;util_ebcdic.h&quot;
+<span class="lineNum">      50 </span>            : #include &quot;scoreboard.h&quot;
+<span class="lineNum">      51 </span>            : 
+<span class="lineNum">      52 </span>            : #if APR_HAVE_STDARG_H
+<span class="lineNum">      53 </span>            : #include &lt;stdarg.h&gt;
+<span class="lineNum">      54 </span>            : #endif
+<span class="lineNum">      55 </span>            : #if APR_HAVE_UNISTD_H
+<span class="lineNum">      56 </span>            : #include &lt;unistd.h&gt;
+<span class="lineNum">      57 </span>            : #endif
+<span class="lineNum">      58 </span>            : 
+<span class="lineNum">      59 </span>            : /* we know core's module_index is 0 */
+<span class="lineNum">      60 </span>            : #undef APLOG_MODULE_INDEX
+<span class="lineNum">      61 </span>            : #define APLOG_MODULE_INDEX AP_CORE_MODULE_INDEX
+<span class="lineNum">      62 </span>            : 
+<span class="lineNum">      63 </span>            : APR_HOOK_STRUCT(
+<span class="lineNum">      64 </span>            :     APR_HOOK_LINK(pre_read_request)
+<span class="lineNum">      65 </span>            :     APR_HOOK_LINK(post_read_request)
+<span class="lineNum">      66 </span>            :     APR_HOOK_LINK(log_transaction)
+<span class="lineNum">      67 </span>            :     APR_HOOK_LINK(http_scheme)
+<span class="lineNum">      68 </span>            :     APR_HOOK_LINK(default_port)
+<span class="lineNum">      69 </span>            :     APR_HOOK_LINK(note_auth_failure)
+<span class="lineNum">      70 </span>            : )
+<span class="lineNum">      71 </span>            : 
+<span class="lineNum">      72 </span>            : AP_DECLARE_DATA ap_filter_rec_t *ap_old_write_func = NULL;
+<span class="lineNum">      73 </span>            : 
+<span class="lineNum">      74 </span>            : 
+<span class="lineNum">      75 </span>            : /* Patterns to match in ap_make_content_type() */
+<span class="lineNum">      76 </span>            : static const char *needcset[] = {
+<span class="lineNum">      77 </span>            :     &quot;text/plain&quot;,
+<span class="lineNum">      78 </span>            :     &quot;text/html&quot;,
+<span class="lineNum">      79 </span>            :     NULL
+<span class="lineNum">      80 </span>            : };
+<span class="lineNum">      81 </span>            : static const apr_strmatch_pattern **needcset_patterns;
+<a name="82"><span class="lineNum">      82 </span>            : static const apr_strmatch_pattern *charset_pattern;</a>
+<span class="lineNum">      83 </span>            : 
+<span class="lineNum">      84 </span><span class="lineCov">          3 : AP_DECLARE(void) ap_setup_make_content_type(apr_pool_t *pool)</span>
+<span class="lineNum">      85 </span>            : {
+<span class="lineNum">      86 </span>            :     int i;
+<span class="lineNum">      87 </span><span class="lineCov">          9 :     for (i = 0; needcset[i]; i++) {</span>
+<span class="lineNum">      88 </span><span class="lineCov">          6 :         continue;</span>
+<span class="lineNum">      89 </span>            :     }
+<span class="lineNum">      90 </span><span class="lineCov">          3 :     needcset_patterns = (const apr_strmatch_pattern **)</span>
+<span class="lineNum">      91 </span><span class="lineCov">          3 :         apr_palloc(pool, (i + 1) * sizeof(apr_strmatch_pattern *));</span>
+<span class="lineNum">      92 </span><span class="lineCov">          9 :     for (i = 0; needcset[i]; i++) {</span>
+<span class="lineNum">      93 </span><span class="lineCov">          6 :         needcset_patterns[i] = apr_strmatch_precompile(pool, needcset[i], 0);</span>
+<span class="lineNum">      94 </span>            :     }
+<span class="lineNum">      95 </span><span class="lineCov">          3 :     needcset_patterns[i] = NULL;</span>
+<span class="lineNum">      96 </span><span class="lineCov">          3 :     charset_pattern = apr_strmatch_precompile(pool, &quot;charset=&quot;, 0);</span>
+<span class="lineNum">      97 </span><span class="lineCov">          3 : }</span>
+<span class="lineNum">      98 </span>            : 
+<span class="lineNum">      99 </span>            : /*
+<span class="lineNum">     100 </span>            :  * Builds the content-type that should be sent to the client from the
+<span class="lineNum">     101 </span>            :  * content-type specified.  The following rules are followed:
+<span class="lineNum">     102 </span>            :  *    - if type is NULL or &quot;&quot;, return NULL (do not set content-type).
+<span class="lineNum">     103 </span>            :  *    - if charset adding is disabled, stop processing and return type.
+<span class="lineNum">     104 </span>            :  *    - then, if there are no parameters on type, add the default charset
+<a name="105"><span class="lineNum">     105 </span>            :  *    - return type</a>
+<span class="lineNum">     106 </span>            :  */
+<span class="lineNum">     107 </span><span class="lineCov">          1 : AP_DECLARE(const char *)ap_make_content_type(request_rec *r, const char *type)</span>
+<span class="lineNum">     108 </span>            : {
+<span class="lineNum">     109 </span>            :     const apr_strmatch_pattern **pcset;
+<span class="lineNum">     110 </span><span class="lineCov">          1 :     core_dir_config *conf =</span>
+<span class="lineNum">     111 </span><span class="lineCov">          1 :         (core_dir_config *)ap_get_core_module_config(r-&gt;per_dir_config);</span>
+<span class="lineNum">     112 </span>            :     core_request_config *request_conf;
+<span class="lineNum">     113 </span>            :     apr_size_t type_len;
+<span class="lineNum">     114 </span>            : 
+<span class="lineNum">     115 </span><span class="lineCov">          1 :     if (!type || *type == '\0') {</span>
+<span class="lineNum">     116 </span><span class="lineCov">          1 :         return NULL;</span>
+<span class="lineNum">     117 </span>            :     }
+<span class="lineNum">     118 </span>            : 
+<span class="lineNum">     119 </span><span class="lineNoCov">          0 :     if (conf-&gt;add_default_charset != ADD_DEFAULT_CHARSET_ON) {</span>
+<span class="lineNum">     120 </span><span class="lineNoCov">          0 :         return type;</span>
+<span class="lineNum">     121 </span>            :     }
+<span class="lineNum">     122 </span>            : 
+<span class="lineNum">     123 </span><span class="lineNoCov">          0 :     request_conf = ap_get_core_module_config(r-&gt;request_config);</span>
+<span class="lineNum">     124 </span><span class="lineNoCov">          0 :     if (request_conf-&gt;suppress_charset) {</span>
+<span class="lineNum">     125 </span><span class="lineNoCov">          0 :         return type;</span>
+<span class="lineNum">     126 </span>            :     }
+<span class="lineNum">     127 </span>            : 
+<span class="lineNum">     128 </span><span class="lineNoCov">          0 :     type_len = strlen(type);</span>
+<span class="lineNum">     129 </span>            : 
+<span class="lineNum">     130 </span><span class="lineNoCov">          0 :     if (apr_strmatch(charset_pattern, type, type_len) != NULL) {</span>
+<span class="lineNum">     131 </span>            :         /* already has parameter, do nothing */
+<span class="lineNum">     132 </span>            :         /* XXX we don't check the validity */
+<span class="lineNum">     133 </span>            :         ;
+<span class="lineNum">     134 </span>            :     }
+<span class="lineNum">     135 </span>            :     else {
+<span class="lineNum">     136 </span>            :         /* see if it makes sense to add the charset. At present,
+<span class="lineNum">     137 </span>            :          * we only add it if the Content-type is one of needcset[]
+<span class="lineNum">     138 </span>            :          */
+<span class="lineNum">     139 </span><span class="lineNoCov">          0 :         for (pcset = needcset_patterns; *pcset ; pcset++) {</span>
+<span class="lineNum">     140 </span><span class="lineNoCov">          0 :             if (apr_strmatch(*pcset, type, type_len) != NULL) {</span>
+<span class="lineNum">     141 </span>            :                 struct iovec concat[3];
+<span class="lineNum">     142 </span><span class="lineNoCov">          0 :                 concat[0].iov_base = (void *)type;</span>
+<span class="lineNum">     143 </span><span class="lineNoCov">          0 :                 concat[0].iov_len = type_len;</span>
+<span class="lineNum">     144 </span><span class="lineNoCov">          0 :                 concat[1].iov_base = (void *)&quot;; charset=&quot;;</span>
+<span class="lineNum">     145 </span><span class="lineNoCov">          0 :                 concat[1].iov_len = sizeof(&quot;; charset=&quot;) - 1;</span>
+<span class="lineNum">     146 </span><span class="lineNoCov">          0 :                 concat[2].iov_base = (void *)(conf-&gt;add_default_charset_name);</span>
+<span class="lineNum">     147 </span><span class="lineNoCov">          0 :                 concat[2].iov_len = strlen(conf-&gt;add_default_charset_name);</span>
+<span class="lineNum">     148 </span><span class="lineNoCov">          0 :                 type = apr_pstrcatv(r-&gt;pool, concat, 3, NULL);</span>
+<span class="lineNum">     149 </span><span class="lineNoCov">          0 :                 break;</span>
+<span class="lineNum">     150 </span>            :             }
+<span class="lineNum">     151 </span>            :         }
+<span class="lineNum">     152 </span>            :     }
+<span class="lineNum">     153 </span>            : 
+<span class="lineNum">     154 </span><span class="lineNoCov">          0 :     return type;</span>
+<a name="155"><span class="lineNum">     155 </span>            : }</a>
+<span class="lineNum">     156 </span>            : 
+<span class="lineNum">     157 </span><span class="lineCov">          2 : AP_DECLARE(void) ap_set_content_length(request_rec *r, apr_off_t clength)</span>
+<span class="lineNum">     158 </span>            : {
+<span class="lineNum">     159 </span><span class="lineCov">          2 :     r-&gt;clength = clength;</span>
+<span class="lineNum">     160 </span><span class="lineCov">          2 :     apr_table_setn(r-&gt;headers_out, &quot;Content-Length&quot;,</span>
+<span class="lineNum">     161 </span><span class="lineCov">          2 :                    apr_off_t_toa(r-&gt;pool, clength));</span>
+<span class="lineNum">     162 </span><span class="lineCov">          2 : }</span>
+<span class="lineNum">     163 </span>            : 
+<span class="lineNum">     164 </span>            : /*
+<span class="lineNum">     165 </span>            :  * Return the latest rational time from a request/mtime (modification time)
+<span class="lineNum">     166 </span>            :  * pair.  We return the mtime unless it's in the future, in which case we
+<span class="lineNum">     167 </span>            :  * return the current time.  We use the request time as a reference in order
+<span class="lineNum">     168 </span>            :  * to limit the number of calls to time().  We don't check for futurosity
+<a name="169"><span class="lineNum">     169 </span>            :  * unless the mtime is at least as new as the reference.</a>
+<span class="lineNum">     170 </span>            :  */
+<span class="lineNum">     171 </span><span class="lineCov">          1 : AP_DECLARE(apr_time_t) ap_rationalize_mtime(request_rec *r, apr_time_t mtime)</span>
+<span class="lineNum">     172 </span>            : {
+<span class="lineNum">     173 </span>            :     apr_time_t now;
+<span class="lineNum">     174 </span>            : 
+<span class="lineNum">     175 </span>            :     /* For all static responses, it's almost certain that the file was
+<span class="lineNum">     176 </span>            :      * last modified before the beginning of the request.  So there's
+<span class="lineNum">     177 </span>            :      * no reason to call time(NULL) again.  But if the response has been
+<span class="lineNum">     178 </span>            :      * created on demand, then it might be newer than the time the request
+<span class="lineNum">     179 </span>            :      * started.  In this event we really have to call time(NULL) again
+<span class="lineNum">     180 </span>            :      * so that we can give the clients the most accurate Last-Modified.  If we
+<span class="lineNum">     181 </span>            :      * were given a time in the future, we return the current time - the
+<span class="lineNum">     182 </span>            :      * Last-Modified can't be in the future.
+<span class="lineNum">     183 </span>            :      */
+<span class="lineNum">     184 </span><span class="lineCov">          1 :     now = (mtime &lt; r-&gt;request_time) ? r-&gt;request_time : apr_time_now();</span>
+<span class="lineNum">     185 </span><span class="lineCov">          1 :     return (mtime &gt; now) ? now : mtime;</span>
+<span class="lineNum">     186 </span>            : }
+<span class="lineNum">     187 </span>            : 
+<span class="lineNum">     188 </span>            : /* Get a line of protocol input, including any continuation lines
+<span class="lineNum">     189 </span>            :  * caused by MIME folding (or broken clients) if fold != 0, and place it
+<span class="lineNum">     190 </span>            :  * in the buffer s, of size n bytes, without the ending newline.
+<span class="lineNum">     191 </span>            :  *
+<span class="lineNum">     192 </span>            :  * If s is NULL, ap_rgetline_core will allocate necessary memory from r-&gt;pool.
+<span class="lineNum">     193 </span>            :  *
+<span class="lineNum">     194 </span>            :  * Returns APR_SUCCESS if there are no problems and sets *read to be
+<span class="lineNum">     195 </span>            :  * the full length of s.
+<span class="lineNum">     196 </span>            :  *
+<span class="lineNum">     197 </span>            :  * APR_ENOSPC is returned if there is not enough buffer space.
+<span class="lineNum">     198 </span>            :  * Other errors may be returned on other errors.
+<span class="lineNum">     199 </span>            :  *
+<span class="lineNum">     200 </span>            :  * The LF is *not* returned in the buffer.  Therefore, a *read of 0
+<span class="lineNum">     201 </span>            :  * indicates that an empty line was read.
+<span class="lineNum">     202 </span>            :  *
+<span class="lineNum">     203 </span>            :  * Notes: Because the buffer uses 1 char for NUL, the most we can return is
+<span class="lineNum">     204 </span>            :  *        (n - 1) actual characters.
+<span class="lineNum">     205 </span>            :  *
+<span class="lineNum">     206 </span>            :  *        If no LF is detected on the last line due to a dropped connection
+<a name="207"><span class="lineNum">     207 </span>            :  *        or a full buffer, that's considered an error.</a>
+<span class="lineNum">     208 </span>            :  */
+<span class="lineNum">     209 </span><span class="lineCov">          6 : AP_DECLARE(apr_status_t) ap_rgetline_core(char **s, apr_size_t n,</span>
+<span class="lineNum">     210 </span>            :                                           apr_size_t *read, request_rec *r,
+<span class="lineNum">     211 </span>            :                                           int fold, apr_bucket_brigade *bb)
+<span class="lineNum">     212 </span>            : {
+<span class="lineNum">     213 </span>            :     apr_status_t rv;
+<span class="lineNum">     214 </span>            :     apr_bucket *e;
+<span class="lineNum">     215 </span><span class="lineCov">          6 :     apr_size_t bytes_handled = 0, current_alloc = 0;</span>
+<span class="lineNum">     216 </span><span class="lineCov">          6 :     char *pos, *last_char = *s;</span>
+<span class="lineNum">     217 </span><span class="lineCov">          6 :     int do_alloc = (*s == NULL), saw_eos = 0;</span>
+<span class="lineNum">     218 </span>            : 
+<span class="lineNum">     219 </span>            :     /*
+<span class="lineNum">     220 </span>            :      * Initialize last_char as otherwise a random value will be compared
+<span class="lineNum">     221 </span>            :      * against APR_ASCII_LF at the end of the loop if bb only contains
+<span class="lineNum">     222 </span>            :      * zero-length buckets.
+<span class="lineNum">     223 </span>            :      */
+<span class="lineNum">     224 </span><span class="lineCov">          6 :     if (last_char)</span>
+<span class="lineNum">     225 </span><span class="lineNoCov">          0 :         *last_char = '\0';</span>
+<span class="lineNum">     226 </span>            : 
+<span class="lineNum">     227 </span>            :     for (;;) {
+<span class="lineNum">     228 </span><span class="lineCov">          6 :         apr_brigade_cleanup(bb);</span>
+<span class="lineNum">     229 </span><span class="lineCov">          6 :         rv = ap_get_brigade(r-&gt;input_filters, bb, AP_MODE_GETLINE,</span>
+<span class="lineNum">     230 </span>            :                             APR_BLOCK_READ, 0);
+<span class="lineNum">     231 </span><span class="lineCov">          6 :         if (rv != APR_SUCCESS) {</span>
+<span class="lineNum">     232 </span><span class="lineNoCov">          0 :             return rv;</span>
+<span class="lineNum">     233 </span>            :         }
+<span class="lineNum">     234 </span>            : 
+<span class="lineNum">     235 </span>            :         /* Something horribly wrong happened.  Someone didn't block! */
+<span class="lineNum">     236 </span><span class="lineCov">          6 :         if (APR_BRIGADE_EMPTY(bb)) {</span>
+<span class="lineNum">     237 </span><span class="lineCov">          1 :             return APR_EGENERAL;</span>
+<span class="lineNum">     238 </span>            :         }
+<span class="lineNum">     239 </span>            : 
+<span class="lineNum">     240 </span><span class="lineCov">         15 :         for (e = APR_BRIGADE_FIRST(bb);</span>
+<span class="lineNum">     241 </span><span class="lineCov">         10 :              e != APR_BRIGADE_SENTINEL(bb);</span>
+<span class="lineNum">     242 </span><span class="lineCov">          5 :              e = APR_BUCKET_NEXT(e))</span>
+<span class="lineNum">     243 </span>            :         {
+<span class="lineNum">     244 </span>            :             const char *str;
+<span class="lineNum">     245 </span>            :             apr_size_t len;
+<span class="lineNum">     246 </span>            : 
+<span class="lineNum">     247 </span>            :             /* If we see an EOS, don't bother doing anything more. */
+<span class="lineNum">     248 </span><span class="lineCov">          5 :             if (APR_BUCKET_IS_EOS(e)) {</span>
+<span class="lineNum">     249 </span><span class="lineNoCov">          0 :                 saw_eos = 1;</span>
+<span class="lineNum">     250 </span><span class="lineNoCov">          0 :                 break;</span>
+<span class="lineNum">     251 </span>            :             }
+<span class="lineNum">     252 </span>            : 
+<span class="lineNum">     253 </span><span class="lineCov">          5 :             rv = apr_bucket_read(e, &amp;str, &amp;len, APR_BLOCK_READ);</span>
+<span class="lineNum">     254 </span><span class="lineCov">          5 :             if (rv != APR_SUCCESS) {</span>
+<span class="lineNum">     255 </span><span class="lineNoCov">          0 :                 return rv;</span>
+<span class="lineNum">     256 </span>            :             }
+<span class="lineNum">     257 </span>            : 
+<span class="lineNum">     258 </span><span class="lineCov">          5 :             if (len == 0) {</span>
+<span class="lineNum">     259 </span>            :                 /* no use attempting a zero-byte alloc (hurts when
+<span class="lineNum">     260 </span>            :                  * using --with-efence --enable-pool-debug) or
+<span class="lineNum">     261 </span>            :                  * doing any of the other logic either
+<span class="lineNum">     262 </span>            :                  */
+<span class="lineNum">     263 </span><span class="lineNoCov">          0 :                 continue;</span>
+<span class="lineNum">     264 </span>            :             }
+<span class="lineNum">     265 </span>            : 
+<span class="lineNum">     266 </span>            :             /* Would this overrun our buffer?  If so, we'll die. */
+<span class="lineNum">     267 </span><span class="lineCov">          5 :             if (n &lt; bytes_handled + len) {</span>
+<span class="lineNum">     268 </span><span class="lineNoCov">          0 :                 *read = bytes_handled;</span>
+<span class="lineNum">     269 </span><span class="lineNoCov">          0 :                 if (*s) {</span>
+<span class="lineNum">     270 </span>            :                     /* ensure this string is NUL terminated */
+<span class="lineNum">     271 </span><span class="lineNoCov">          0 :                     if (bytes_handled &gt; 0) {</span>
+<span class="lineNum">     272 </span><span class="lineNoCov">          0 :                         (*s)[bytes_handled-1] = '\0';</span>
+<span class="lineNum">     273 </span>            :                     }
+<span class="lineNum">     274 </span>            :                     else {
+<span class="lineNum">     275 </span><span class="lineNoCov">          0 :                         (*s)[0] = '\0';</span>
+<span class="lineNum">     276 </span>            :                     }
+<span class="lineNum">     277 </span>            :                 }
+<span class="lineNum">     278 </span><span class="lineNoCov">          0 :                 return APR_ENOSPC;</span>
+<span class="lineNum">     279 </span>            :             }
+<span class="lineNum">     280 </span>            : 
+<span class="lineNum">     281 </span>            :             /* Do we have to handle the allocation ourselves? */
+<span class="lineNum">     282 </span><span class="lineCov">          5 :             if (do_alloc) {</span>
+<span class="lineNum">     283 </span>            :                 /* We'll assume the common case where one bucket is enough. */
+<span class="lineNum">     284 </span><span class="lineCov">          5 :                 if (!*s) {</span>
+<span class="lineNum">     285 </span><span class="lineCov">          5 :                     current_alloc = len;</span>
+<span class="lineNum">     286 </span><span class="lineCov">          5 :                     *s = apr_palloc(r-&gt;pool, current_alloc);</span>
+<span class="lineNum">     287 </span>            :                 }
+<span class="lineNum">     288 </span><span class="lineNoCov">          0 :                 else if (bytes_handled + len &gt; current_alloc) {</span>
+<span class="lineNum">     289 </span>            :                     /* Increase the buffer size */
+<span class="lineNum">     290 </span><span class="lineNoCov">          0 :                     apr_size_t new_size = current_alloc * 2;</span>
+<span class="lineNum">     291 </span>            :                     char *new_buffer;
+<span class="lineNum">     292 </span>            : 
+<span class="lineNum">     293 </span><span class="lineNoCov">          0 :                     if (bytes_handled + len &gt; new_size) {</span>
+<span class="lineNum">     294 </span><span class="lineNoCov">          0 :                         new_size = (bytes_handled + len) * 2;</span>
+<span class="lineNum">     295 </span>            :                     }
+<span class="lineNum">     296 </span>            : 
+<span class="lineNum">     297 </span><span class="lineNoCov">          0 :                     new_buffer = apr_palloc(r-&gt;pool, new_size);</span>
+<span class="lineNum">     298 </span>            : 
+<span class="lineNum">     299 </span>            :                     /* Copy what we already had. */
+<span class="lineNum">     300 </span><span class="lineNoCov">          0 :                     memcpy(new_buffer, *s, bytes_handled);</span>
+<span class="lineNum">     301 </span><span class="lineNoCov">          0 :                     current_alloc = new_size;</span>
+<span class="lineNum">     302 </span><span class="lineNoCov">          0 :                     *s = new_buffer;</span>
+<span class="lineNum">     303 </span>            :                 }
+<span class="lineNum">     304 </span>            :             }
+<span class="lineNum">     305 </span>            : 
+<span class="lineNum">     306 </span>            :             /* Just copy the rest of the data to the end of the old buffer. */
+<span class="lineNum">     307 </span><span class="lineCov">          5 :             pos = *s + bytes_handled;</span>
+<span class="lineNum">     308 </span><span class="lineCov">          5 :             memcpy(pos, str, len);</span>
+<span class="lineNum">     309 </span><span class="lineCov">          5 :             last_char = pos + len - 1;</span>
+<span class="lineNum">     310 </span>            : 
+<span class="lineNum">     311 </span>            :             /* We've now processed that new data - update accordingly. */
+<span class="lineNum">     312 </span><span class="lineCov">          5 :             bytes_handled += len;</span>
+<span class="lineNum">     313 </span>            :         }
+<span class="lineNum">     314 </span>            : 
+<span class="lineNum">     315 </span>            :         /* If we got a full line of input, stop reading */
+<span class="lineNum">     316 </span><span class="lineCov">          5 :         if (last_char &amp;&amp; (*last_char == APR_ASCII_LF)) {</span>
+<span class="lineNum">     317 </span><span class="lineCov">          5 :             break;</span>
+<span class="lineNum">     318 </span>            :         }
+<span class="lineNum">     319 </span><span class="lineNoCov">          0 :     }</span>
+<span class="lineNum">     320 </span>            : 
+<span class="lineNum">     321 </span>            :     /* Now NUL-terminate the string at the end of the line;
+<span class="lineNum">     322 </span>            :      * if the last-but-one character is a CR, terminate there */
+<span class="lineNum">     323 </span><span class="lineCov">          5 :     if (last_char &gt; *s &amp;&amp; last_char[-1] == APR_ASCII_CR) {</span>
+<span class="lineNum">     324 </span><span class="lineCov">          5 :         last_char--;</span>
+<span class="lineNum">     325 </span>            :     }
+<span class="lineNum">     326 </span><span class="lineCov">          5 :     *last_char = '\0';</span>
+<span class="lineNum">     327 </span><span class="lineCov">          5 :     bytes_handled = last_char - *s;</span>
+<span class="lineNum">     328 </span>            : 
+<span class="lineNum">     329 </span>            :     /* If we're folding, we have more work to do.
+<span class="lineNum">     330 </span>            :      *
+<span class="lineNum">     331 </span>            :      * Note that if an EOS was seen, we know we can't have another line.
+<span class="lineNum">     332 </span>            :      */
+<span class="lineNum">     333 </span><span class="lineCov">          5 :     if (fold &amp;&amp; bytes_handled &amp;&amp; !saw_eos) {</span>
+<span class="lineNum">     334 </span>            :         for (;;) {
+<span class="lineNum">     335 </span>            :             const char *str;
+<span class="lineNum">     336 </span>            :             apr_size_t len;
+<span class="lineNum">     337 </span>            :             char c;
+<span class="lineNum">     338 </span>            : 
+<span class="lineNum">     339 </span>            :             /* Clear the temp brigade for this filter read. */
+<span class="lineNum">     340 </span><span class="lineNoCov">          0 :             apr_brigade_cleanup(bb);</span>
+<span class="lineNum">     341 </span>            : 
+<span class="lineNum">     342 </span>            :             /* We only care about the first byte. */
+<span class="lineNum">     343 </span><span class="lineNoCov">          0 :             rv = ap_get_brigade(r-&gt;input_filters, bb, AP_MODE_SPECULATIVE,</span>
+<span class="lineNum">     344 </span>            :                                 APR_BLOCK_READ, 1);
+<span class="lineNum">     345 </span><span class="lineNoCov">          0 :             if (rv != APR_SUCCESS) {</span>
+<span class="lineNum">     346 </span><span class="lineNoCov">          0 :                 return rv;</span>
+<span class="lineNum">     347 </span>            :             }
+<span class="lineNum">     348 </span>            : 
+<span class="lineNum">     349 </span><span class="lineNoCov">          0 :             if (APR_BRIGADE_EMPTY(bb)) {</span>
+<span class="lineNum">     350 </span><span class="lineNoCov">          0 :                 break;</span>
+<span class="lineNum">     351 </span>            :             }
+<span class="lineNum">     352 </span>            : 
+<span class="lineNum">     353 </span><span class="lineNoCov">          0 :             e = APR_BRIGADE_FIRST(bb);</span>
+<span class="lineNum">     354 </span>            : 
+<span class="lineNum">     355 </span>            :             /* If we see an EOS, don't bother doing anything more. */
+<span class="lineNum">     356 </span><span class="lineNoCov">          0 :             if (APR_BUCKET_IS_EOS(e)) {</span>
+<span class="lineNum">     357 </span><span class="lineNoCov">          0 :                 break;</span>
+<span class="lineNum">     358 </span>            :             }
+<span class="lineNum">     359 </span>            : 
+<span class="lineNum">     360 </span><span class="lineNoCov">          0 :             rv = apr_bucket_read(e, &amp;str, &amp;len, APR_BLOCK_READ);</span>
+<span class="lineNum">     361 </span><span class="lineNoCov">          0 :             if (rv != APR_SUCCESS) {</span>
+<span class="lineNum">     362 </span><span class="lineNoCov">          0 :                 apr_brigade_cleanup(bb);</span>
+<span class="lineNum">     363 </span><span class="lineNoCov">          0 :                 return rv;</span>
+<span class="lineNum">     364 </span>            :             }
+<span class="lineNum">     365 </span>            : 
+<span class="lineNum">     366 </span>            :             /* Found one, so call ourselves again to get the next line.
+<span class="lineNum">     367 </span>            :              *
+<span class="lineNum">     368 </span>            :              * FIXME: If the folding line is completely blank, should we
+<span class="lineNum">     369 </span>            :              * stop folding?  Does that require also looking at the next
+<span class="lineNum">     370 </span>            :              * char?
+<span class="lineNum">     371 </span>            :              */
+<span class="lineNum">     372 </span>            :             /* When we call destroy, the buckets are deleted, so save that
+<span class="lineNum">     373 </span>            :              * one character we need.  This simplifies our execution paths
+<span class="lineNum">     374 </span>            :              * at the cost of one character read.
+<span class="lineNum">     375 </span>            :              */
+<span class="lineNum">     376 </span><span class="lineNoCov">          0 :             c = *str;</span>
+<span class="lineNum">     377 </span><span class="lineNoCov">          0 :             if (c == APR_ASCII_BLANK || c == APR_ASCII_TAB) {</span>
+<span class="lineNum">     378 </span>            :                 /* Do we have enough space? We may be full now. */
+<span class="lineNum">     379 </span><span class="lineNoCov">          0 :                 if (bytes_handled &gt;= n) {</span>
+<span class="lineNum">     380 </span><span class="lineNoCov">          0 :                     *read = n;</span>
+<span class="lineNum">     381 </span>            :                     /* ensure this string is terminated */
+<span class="lineNum">     382 </span><span class="lineNoCov">          0 :                     (*s)[n-1] = '\0';</span>
+<span class="lineNum">     383 </span><span class="lineNoCov">          0 :                     return APR_ENOSPC;</span>
+<span class="lineNum">     384 </span>            :                 }
+<span class="lineNum">     385 </span>            :                 else {
+<span class="lineNum">     386 </span>            :                     apr_size_t next_size, next_len;
+<span class="lineNum">     387 </span>            :                     char *tmp;
+<span class="lineNum">     388 </span>            : 
+<span class="lineNum">     389 </span>            :                     /* If we're doing the allocations for them, we have to
+<span class="lineNum">     390 </span>            :                      * give ourselves a NULL and copy it on return.
+<span class="lineNum">     391 </span>            :                      */
+<span class="lineNum">     392 </span><span class="lineNoCov">          0 :                     if (do_alloc) {</span>
+<span class="lineNum">     393 </span><span class="lineNoCov">          0 :                         tmp = NULL;</span>
+<span class="lineNum">     394 </span>            :                     } else {
+<span class="lineNum">     395 </span>            :                         /* We're null terminated. */
+<span class="lineNum">     396 </span><span class="lineNoCov">          0 :                         tmp = last_char;</span>
+<span class="lineNum">     397 </span>            :                     }
+<span class="lineNum">     398 </span>            : 
+<span class="lineNum">     399 </span><span class="lineNoCov">          0 :                     next_size = n - bytes_handled;</span>
+<span class="lineNum">     400 </span>            : 
+<span class="lineNum">     401 </span><span class="lineNoCov">          0 :                     rv = ap_rgetline_core(&amp;tmp, next_size,</span>
+<span class="lineNum">     402 </span>            :                                           &amp;next_len, r, 0, bb);
+<span class="lineNum">     403 </span><span class="lineNoCov">          0 :                     if (rv != APR_SUCCESS) {</span>
+<span class="lineNum">     404 </span><span class="lineNoCov">          0 :                         return rv;</span>
+<span class="lineNum">     405 </span>            :                     }
+<span class="lineNum">     406 </span>            : 
+<span class="lineNum">     407 </span><span class="lineNoCov">          0 :                     if (do_alloc &amp;&amp; next_len &gt; 0) {</span>
+<span class="lineNum">     408 </span>            :                         char *new_buffer;
+<span class="lineNum">     409 </span><span class="lineNoCov">          0 :                         apr_size_t new_size = bytes_handled + next_len + 1;</span>
+<span class="lineNum">     410 </span>            : 
+<span class="lineNum">     411 </span>            :                         /* we need to alloc an extra byte for a null */
+<span class="lineNum">     412 </span><span class="lineNoCov">          0 :                         new_buffer = apr_palloc(r-&gt;pool, new_size);</span>
+<span class="lineNum">     413 </span>            : 
+<span class="lineNum">     414 </span>            :                         /* Copy what we already had. */
+<span class="lineNum">     415 </span><span class="lineNoCov">          0 :                         memcpy(new_buffer, *s, bytes_handled);</span>
+<span class="lineNum">     416 </span>            : 
+<span class="lineNum">     417 </span>            :                         /* copy the new line, including the trailing null */
+<span class="lineNum">     418 </span><span class="lineNoCov">          0 :                         memcpy(new_buffer + bytes_handled, tmp, next_len + 1);</span>
+<span class="lineNum">     419 </span><span class="lineNoCov">          0 :                         *s = new_buffer;</span>
+<span class="lineNum">     420 </span>            :                     }
+<span class="lineNum">     421 </span>            : 
+<span class="lineNum">     422 </span><span class="lineNoCov">          0 :                     last_char += next_len;</span>
+<span class="lineNum">     423 </span><span class="lineNoCov">          0 :                     bytes_handled += next_len;</span>
+<span class="lineNum">     424 </span>            :                 }
+<span class="lineNum">     425 </span>            :             }
+<span class="lineNum">     426 </span>            :             else { /* next character is not tab or space */
+<span class="lineNum">     427 </span>            :                 break;
+<span class="lineNum">     428 </span>            :             }
+<span class="lineNum">     429 </span><span class="lineNoCov">          0 :         }</span>
+<span class="lineNum">     430 </span>            :     }
+<span class="lineNum">     431 </span><span class="lineCov">          5 :     *read = bytes_handled;</span>
+<span class="lineNum">     432 </span>            : 
+<span class="lineNum">     433 </span>            :     /* PR#43039: We shouldn't accept NULL bytes within the line */
+<span class="lineNum">     434 </span><span class="lineCov">          5 :     if (strlen(*s) &lt; bytes_handled) {</span>
+<span class="lineNum">     435 </span><span class="lineNoCov">          0 :         return APR_EINVAL;</span>
+<span class="lineNum">     436 </span>            :     }
+<span class="lineNum">     437 </span>            : 
+<span class="lineNum">     438 </span><span class="lineCov">          5 :     return APR_SUCCESS;</span>
+<span class="lineNum">     439 </span>            : }
+<span class="lineNum">     440 </span>            : 
+<span class="lineNum">     441 </span>            : #if APR_CHARSET_EBCDIC
+<span class="lineNum">     442 </span>            : AP_DECLARE(apr_status_t) ap_rgetline(char **s, apr_size_t n,
+<span class="lineNum">     443 </span>            :                                      apr_size_t *read, request_rec *r,
+<span class="lineNum">     444 </span>            :                                      int fold, apr_bucket_brigade *bb)
+<span class="lineNum">     445 </span>            : {
+<span class="lineNum">     446 </span>            :     /* on ASCII boxes, ap_rgetline is a macro which simply invokes
+<span class="lineNum">     447 </span>            :      * ap_rgetline_core with the same parms
+<span class="lineNum">     448 </span>            :      *
+<span class="lineNum">     449 </span>            :      * on EBCDIC boxes, each complete http protocol input line needs to be
+<span class="lineNum">     450 </span>            :      * translated into the code page used by the compiler.  Since
+<span class="lineNum">     451 </span>            :      * ap_rgetline_core uses recursion, we do the translation in a wrapper
+<span class="lineNum">     452 </span>            :      * function to ensure that each input character gets translated only once.
+<span class="lineNum">     453 </span>            :      */
+<span class="lineNum">     454 </span>            :     apr_status_t rv;
+<span class="lineNum">     455 </span>            : 
+<span class="lineNum">     456 </span>            :     rv = ap_rgetline_core(s, n, read, r, fold, bb);
+<span class="lineNum">     457 </span>            :     if (rv == APR_SUCCESS) {
+<span class="lineNum">     458 </span>            :         ap_xlate_proto_from_ascii(*s, *read);
+<span class="lineNum">     459 </span>            :     }
+<span class="lineNum">     460 </span>            :     return rv;
+<span class="lineNum">     461 </span>            : }
+<a name="462"><span class="lineNum">     462 </span>            : #endif</a>
+<span class="lineNum">     463 </span>            : 
+<span class="lineNum">     464 </span><span class="lineNoCov">          0 : AP_DECLARE(int) ap_getline(char *s, int n, request_rec *r, int fold)</span>
+<span class="lineNum">     465 </span>            : {
+<span class="lineNum">     466 </span><span class="lineNoCov">          0 :     char *tmp_s = s;</span>
+<span class="lineNum">     467 </span>            :     apr_status_t rv;
+<span class="lineNum">     468 </span>            :     apr_size_t len;
+<span class="lineNum">     469 </span>            :     apr_bucket_brigade *tmp_bb;
+<span class="lineNum">     470 </span>            : 
+<span class="lineNum">     471 </span><span class="lineNoCov">          0 :     tmp_bb = apr_brigade_create(r-&gt;pool, r-&gt;connection-&gt;bucket_alloc);</span>
+<span class="lineNum">     472 </span><span class="lineNoCov">          0 :     rv = ap_rgetline(&amp;tmp_s, n, &amp;len, r, fold, tmp_bb);</span>
+<span class="lineNum">     473 </span><span class="lineNoCov">          0 :     apr_brigade_destroy(tmp_bb);</span>
+<span class="lineNum">     474 </span>            : 
+<span class="lineNum">     475 </span>            :     /* Map the out-of-space condition to the old API. */
+<span class="lineNum">     476 </span><span class="lineNoCov">          0 :     if (rv == APR_ENOSPC) {</span>
+<span class="lineNum">     477 </span><span class="lineNoCov">          0 :         return n;</span>
+<span class="lineNum">     478 </span>            :     }
+<span class="lineNum">     479 </span>            : 
+<span class="lineNum">     480 </span>            :     /* Anything else is just bad. */
+<span class="lineNum">     481 </span><span class="lineNoCov">          0 :     if (rv != APR_SUCCESS) {</span>
+<span class="lineNum">     482 </span><span class="lineNoCov">          0 :         return -1;</span>
+<span class="lineNum">     483 </span>            :     }
+<span class="lineNum">     484 </span>            : 
+<span class="lineNum">     485 </span><span class="lineNoCov">          0 :     return (int)len;</span>
+<span class="lineNum">     486 </span>            : }
+<span class="lineNum">     487 </span>            : 
+<span class="lineNum">     488 </span>            : /* parse_uri: break apart the uri
+<span class="lineNum">     489 </span>            :  * Side Effects:
+<span class="lineNum">     490 </span>            :  * - sets r-&gt;args to rest after '?' (or NULL if no '?')
+<span class="lineNum">     491 </span>            :  * - sets r-&gt;uri to request uri (without r-&gt;args part)
+<a name="492"><span class="lineNum">     492 </span>            :  * - sets r-&gt;hostname (if not set already) from request (scheme://host:port)</a>
+<span class="lineNum">     493 </span>            :  */
+<span class="lineNum">     494 </span><span class="lineCov">          2 : AP_CORE_DECLARE(void) ap_parse_uri(request_rec *r, const char *uri)</span>
+<span class="lineNum">     495 </span>            : {
+<span class="lineNum">     496 </span><span class="lineCov">          2 :     int status = HTTP_OK;</span>
+<span class="lineNum">     497 </span>            : 
+<span class="lineNum">     498 </span><span class="lineCov">          2 :     r-&gt;unparsed_uri = apr_pstrdup(r-&gt;pool, uri);</span>
+<span class="lineNum">     499 </span>            : 
+<span class="lineNum">     500 </span>            :     /* http://issues.apache.org/bugzilla/show_bug.cgi?id=31875
+<span class="lineNum">     501 </span>            :      * http://issues.apache.org/bugzilla/show_bug.cgi?id=28450
+<span class="lineNum">     502 </span>            :      *
+<span class="lineNum">     503 </span>            :      * This is not in fact a URI, it's a path.  That matters in the
+<span class="lineNum">     504 </span>            :      * case of a leading double-slash.  We need to resolve the issue
+<span class="lineNum">     505 </span>            :      * by normalising that out before treating it as a URI.
+<span class="lineNum">     506 </span>            :      */
+<span class="lineNum">     507 </span><span class="lineCov">          4 :     while ((uri[0] == '/') &amp;&amp; (uri[1] == '/')) {</span>
+<span class="lineNum">     508 </span><span class="lineNoCov">          0 :         ++uri ;</span>
+<span class="lineNum">     509 </span>            :     }
+<span class="lineNum">     510 </span><span class="lineCov">          2 :     if (r-&gt;method_number == M_CONNECT) {</span>
+<span class="lineNum">     511 </span><span class="lineNoCov">          0 :         status = apr_uri_parse_hostinfo(r-&gt;pool, uri, &amp;r-&gt;parsed_uri);</span>
+<span class="lineNum">     512 </span>            :     }
+<span class="lineNum">     513 </span>            :     else {
+<span class="lineNum">     514 </span><span class="lineCov">          2 :         status = apr_uri_parse(r-&gt;pool, uri, &amp;r-&gt;parsed_uri);</span>
+<span class="lineNum">     515 </span>            :     }
+<span class="lineNum">     516 </span>            : 
+<span class="lineNum">     517 </span><span class="lineCov">          2 :     if (status == APR_SUCCESS) {</span>
+<span class="lineNum">     518 </span>            :         /* if it has a scheme we may need to do absoluteURI vhost stuff */
+<span class="lineNum">     519 </span><span class="lineCov">          2 :         if (r-&gt;parsed_uri.scheme</span>
+<span class="lineNum">     520 </span><span class="lineNoCov">          0 :             &amp;&amp; !strcasecmp(r-&gt;parsed_uri.scheme, ap_http_scheme(r))) {</span>
+<span class="lineNum">     521 </span><span class="lineNoCov">          0 :             r-&gt;hostname = r-&gt;parsed_uri.hostname;</span>
+<span class="lineNum">     522 </span>            :         }
+<span class="lineNum">     523 </span><span class="lineCov">          2 :         else if (r-&gt;method_number == M_CONNECT) {</span>
+<span class="lineNum">     524 </span><span class="lineNoCov">          0 :             r-&gt;hostname = r-&gt;parsed_uri.hostname;</span>
+<span class="lineNum">     525 </span>            :         }
+<span class="lineNum">     526 </span>            : 
+<span class="lineNum">     527 </span><span class="lineCov">          2 :         r-&gt;args = r-&gt;parsed_uri.query;</span>
+<span class="lineNum">     528 </span><span class="lineCov">          4 :         r-&gt;uri = r-&gt;parsed_uri.path ? r-&gt;parsed_uri.path</span>
+<span class="lineNum">     529 </span><span class="lineCov">          2 :                  : apr_pstrdup(r-&gt;pool, &quot;/&quot;);</span>
+<span class="lineNum">     530 </span>            : 
+<span class="lineNum">     531 </span>            : #if defined(OS2) || defined(WIN32)
+<span class="lineNum">     532 </span>            :         /* Handle path translations for OS/2 and plug security hole.
+<span class="lineNum">     533 </span>            :          * This will prevent &quot;http://www.wherever.com/..\..\/&quot; from
+<span class="lineNum">     534 </span>            :          * returning a directory for the root drive.
+<span class="lineNum">     535 </span>            :          */
+<span class="lineNum">     536 </span>            :         {
+<span class="lineNum">     537 </span>            :             char *x;
+<span class="lineNum">     538 </span>            : 
+<span class="lineNum">     539 </span>            :             for (x = r-&gt;uri; (x = strchr(x, '\\')) != NULL; )
+<span class="lineNum">     540 </span>            :                 *x = '/';
+<span class="lineNum">     541 </span>            :         }
+<span class="lineNum">     542 </span>            : #endif /* OS2 || WIN32 */
+<span class="lineNum">     543 </span>            :     }
+<span class="lineNum">     544 </span>            :     else {
+<span class="lineNum">     545 </span><span class="lineNoCov">          0 :         r-&gt;args = NULL;</span>
+<span class="lineNum">     546 </span><span class="lineNoCov">          0 :         r-&gt;hostname = NULL;</span>
+<span class="lineNum">     547 </span><span class="lineNoCov">          0 :         r-&gt;status = HTTP_BAD_REQUEST;             /* set error status */</span>
+<span class="lineNum">     548 </span><span class="lineNoCov">          0 :         r-&gt;uri = apr_pstrdup(r-&gt;pool, uri);</span>
+<span class="lineNum">     549 </span>            :     }
+<a name="550"><span class="lineNum">     550 </span><span class="lineCov">          2 : }</span></a>
+<span class="lineNum">     551 </span>            : 
+<span class="lineNum">     552 </span><span class="lineCov">          2 : static int read_request_line(request_rec *r, apr_bucket_brigade *bb)</span>
+<span class="lineNum">     553 </span>            : {
+<span class="lineNum">     554 </span>            :     const char *ll;
+<span class="lineNum">     555 </span>            :     const char *uri;
+<span class="lineNum">     556 </span>            :     const char *pro;
+<span class="lineNum">     557 </span>            : 
+<span class="lineNum">     558 </span><span class="lineCov">          2 :     int major = 1, minor = 0;   /* Assume HTTP/1.0 if non-&quot;HTTP&quot; protocol */</span>
+<span class="lineNum">     559 </span>            :     char http[5];
+<span class="lineNum">     560 </span>            :     apr_size_t len;
+<span class="lineNum">     561 </span><span class="lineCov">          2 :     int num_blank_lines = 0;</span>
+<span class="lineNum">     562 </span><span class="lineCov">          2 :     int max_blank_lines = r-&gt;server-&gt;limit_req_fields;</span>
+<span class="lineNum">     563 </span>            : 
+<span class="lineNum">     564 </span><span class="lineCov">          2 :     if (max_blank_lines &lt;= 0) {</span>
+<span class="lineNum">     565 </span><span class="lineNoCov">          0 :         max_blank_lines = DEFAULT_LIMIT_REQUEST_FIELDS;</span>
+<span class="lineNum">     566 </span>            :     }
+<span class="lineNum">     567 </span>            : 
+<span class="lineNum">     568 </span>            :     /* Read past empty lines until we get a real request line,
+<span class="lineNum">     569 </span>            :      * a read error, the connection closes (EOF), or we timeout.
+<span class="lineNum">     570 </span>            :      *
+<span class="lineNum">     571 </span>            :      * We skip empty lines because browsers have to tack a CRLF on to the end
+<span class="lineNum">     572 </span>            :      * of POSTs to support old CERN webservers.  But note that we may not
+<span class="lineNum">     573 </span>            :      * have flushed any previous response completely to the client yet.
+<span class="lineNum">     574 </span>            :      * We delay the flush as long as possible so that we can improve
+<span class="lineNum">     575 </span>            :      * performance for clients that are pipelining requests.  If a request
+<span class="lineNum">     576 </span>            :      * is pipelined then we won't block during the (implicit) read() below.
+<span class="lineNum">     577 </span>            :      * If the requests aren't pipelined, then the client is still waiting
+<span class="lineNum">     578 </span>            :      * for the final buffer flush from us, and we will block in the implicit
+<span class="lineNum">     579 </span>            :      * read().  B_SAFEREAD ensures that the BUFF layer flushes if it will
+<span class="lineNum">     580 </span>            :      * have to block during a read.
+<span class="lineNum">     581 </span>            :      */
+<span class="lineNum">     582 </span>            : 
+<span class="lineNum">     583 </span>            :     do {
+<span class="lineNum">     584 </span>            :         apr_status_t rv;
+<span class="lineNum">     585 </span>            : 
+<span class="lineNum">     586 </span>            :         /* ensure ap_rgetline allocates memory each time thru the loop
+<span class="lineNum">     587 </span>            :          * if there are empty lines
+<span class="lineNum">     588 </span>            :          */
+<span class="lineNum">     589 </span><span class="lineCov">          2 :         r-&gt;the_request = NULL;</span>
+<span class="lineNum">     590 </span><span class="lineCov">          2 :         rv = ap_rgetline(&amp;(r-&gt;the_request), (apr_size_t)(r-&gt;server-&gt;limit_req_line + 2),</span>
+<span class="lineNum">     591 </span>            :                          &amp;len, r, 0, bb);
+<span class="lineNum">     592 </span>            : 
+<span class="lineNum">     593 </span><span class="lineCov">          2 :         if (rv != APR_SUCCESS) {</span>
+<span class="lineNum">     594 </span><span class="lineCov">          1 :             r-&gt;request_time = apr_time_now();</span>
+<span class="lineNum">     595 </span>            : 
+<span class="lineNum">     596 </span>            :             /* ap_rgetline returns APR_ENOSPC if it fills up the
+<span class="lineNum">     597 </span>            :              * buffer before finding the end-of-line.  This is only going to
+<span class="lineNum">     598 </span>            :              * happen if it exceeds the configured limit for a request-line.
+<span class="lineNum">     599 </span>            :              */
+<span class="lineNum">     600 </span><span class="lineCov">          1 :             if (APR_STATUS_IS_ENOSPC(rv)) {</span>
+<span class="lineNum">     601 </span><span class="lineNoCov">          0 :                 r-&gt;status    = HTTP_REQUEST_URI_TOO_LARGE;</span>
+<span class="lineNum">     602 </span><span class="lineNoCov">          0 :                 r-&gt;proto_num = HTTP_VERSION(1,0);</span>
+<span class="lineNum">     603 </span><span class="lineNoCov">          0 :                 r-&gt;protocol  = apr_pstrdup(r-&gt;pool, &quot;HTTP/1.0&quot;);</span>
+<span class="lineNum">     604 </span>            :             }
+<span class="lineNum">     605 </span><span class="lineCov">          1 :             else if (APR_STATUS_IS_TIMEUP(rv)) {</span>
+<span class="lineNum">     606 </span><span class="lineNoCov">          0 :                 r-&gt;status = HTTP_REQUEST_TIME_OUT;</span>
+<span class="lineNum">     607 </span>            :             }
+<span class="lineNum">     608 </span><span class="lineCov">          1 :             else if (APR_STATUS_IS_EINVAL(rv)) {</span>
+<span class="lineNum">     609 </span><span class="lineNoCov">          0 :                 r-&gt;status = HTTP_BAD_REQUEST;</span>
+<span class="lineNum">     610 </span>            :             }
+<span class="lineNum">     611 </span><span class="lineCov">          1 :             return 0;</span>
+<span class="lineNum">     612 </span>            :         }
+<span class="lineNum">     613 </span><span class="lineCov">          1 :     } while ((len &lt;= 0) &amp;&amp; (++num_blank_lines &lt; max_blank_lines));</span>
+<span class="lineNum">     614 </span>            : 
+<span class="lineNum">     615 </span><span class="lineCov">          1 :     if (APLOGrtrace5(r)) {</span>
+<span class="lineNum">     616 </span><span class="lineNoCov">          0 :         ap_log_rerror(APLOG_MARK, APLOG_TRACE5, 0, r,</span>
+<span class="lineNum">     617 </span>            :                       &quot;Request received from client: %s&quot;,
+<span class="lineNum">     618 </span>            :                       ap_escape_logitem(r-&gt;pool, r-&gt;the_request));
+<span class="lineNum">     619 </span>            :     }
+<span class="lineNum">     620 </span>            : 
+<span class="lineNum">     621 </span><span class="lineCov">          1 :     r-&gt;request_time = apr_time_now();</span>
+<span class="lineNum">     622 </span><span class="lineCov">          1 :     ll = r-&gt;the_request;</span>
+<span class="lineNum">     623 </span><span class="lineCov">          1 :     r-&gt;method = ap_getword_white(r-&gt;pool, &amp;ll);</span>
+<span class="lineNum">     624 </span>            : 
+<span class="lineNum">     625 </span><span class="lineCov">          1 :     uri = ap_getword_white(r-&gt;pool, &amp;ll);</span>
+<span class="lineNum">     626 </span>            : 
+<span class="lineNum">     627 </span>            :     /* Provide quick information about the request method as soon as known */
+<span class="lineNum">     628 </span>            : 
+<span class="lineNum">     629 </span><span class="lineCov">          1 :     r-&gt;method_number = ap_method_number_of(r-&gt;method);</span>
+<span class="lineNum">     630 </span><span class="lineCov">          1 :     if (r-&gt;method_number == M_GET &amp;&amp; r-&gt;method[0] == 'H') {</span>
+<span class="lineNum">     631 </span><span class="lineNoCov">          0 :         r-&gt;header_only = 1;</span>
+<span class="lineNum">     632 </span>            :     }
+<span class="lineNum">     633 </span>            : 
+<span class="lineNum">     634 </span><span class="lineCov">          1 :     ap_parse_uri(r, uri);</span>
+<span class="lineNum">     635 </span>            : 
+<span class="lineNum">     636 </span><span class="lineCov">          1 :     if (ll[0]) {</span>
+<span class="lineNum">     637 </span><span class="lineCov">          1 :         r-&gt;assbackwards = 0;</span>
+<span class="lineNum">     638 </span><span class="lineCov">          1 :         pro = ll;</span>
+<span class="lineNum">     639 </span><span class="lineCov">          1 :         len = strlen(ll);</span>
+<span class="lineNum">     640 </span>            :     } else {
+<span class="lineNum">     641 </span><span class="lineNoCov">          0 :         r-&gt;assbackwards = 1;</span>
+<span class="lineNum">     642 </span><span class="lineNoCov">          0 :         pro = &quot;HTTP/0.9&quot;;</span>
+<span class="lineNum">     643 </span><span class="lineNoCov">          0 :         len = 8;</span>
+<span class="lineNum">     644 </span>            :     }
+<span class="lineNum">     645 </span><span class="lineCov">          1 :     r-&gt;protocol = apr_pstrmemdup(r-&gt;pool, pro, len);</span>
+<span class="lineNum">     646 </span>            : 
+<span class="lineNum">     647 </span>            :     /* Avoid sscanf in the common case */
+<span class="lineNum">     648 </span><span class="lineCov">          1 :     if (len == 8</span>
+<span class="lineNum">     649 </span><span class="lineCov">          1 :         &amp;&amp; pro[0] == 'H' &amp;&amp; pro[1] == 'T' &amp;&amp; pro[2] == 'T' &amp;&amp; pro[3] == 'P'</span>
+<span class="lineNum">     650 </span><span class="lineCov">          1 :         &amp;&amp; pro[4] == '/' &amp;&amp; apr_isdigit(pro[5]) &amp;&amp; pro[6] == '.'</span>
+<span class="lineNum">     651 </span><span class="lineCov">          1 :         &amp;&amp; apr_isdigit(pro[7])) {</span>
+<span class="lineNum">     652 </span><span class="lineCov">          1 :         r-&gt;proto_num = HTTP_VERSION(pro[5] - '0', pro[7] - '0');</span>
+<span class="lineNum">     653 </span>            :     }
+<span class="lineNum">     654 </span><span class="lineNoCov">          0 :     else if (3 == sscanf(r-&gt;protocol, &quot;%4s/%u.%u&quot;, http, &amp;major, &amp;minor)</span>
+<span class="lineNum">     655 </span><span class="lineNoCov">          0 :              &amp;&amp; (strcasecmp(&quot;http&quot;, http) == 0)</span>
+<span class="lineNum">     656 </span><span class="lineNoCov">          0 :              &amp;&amp; (minor &lt; HTTP_VERSION(1, 0)) ) /* don't allow HTTP/0.1000 */</span>
+<span class="lineNum">     657 </span><span class="lineNoCov">          0 :         r-&gt;proto_num = HTTP_VERSION(major, minor);</span>
+<span class="lineNum">     658 </span>            :     else
+<span class="lineNum">     659 </span><span class="lineNoCov">          0 :         r-&gt;proto_num = HTTP_VERSION(1, 0);</span>
+<span class="lineNum">     660 </span>            : 
+<span class="lineNum">     661 </span><span class="lineCov">          1 :     return 1;</span>
+<a name="662"><span class="lineNum">     662 </span>            : }</a>
+<span class="lineNum">     663 </span>            : 
+<span class="lineNum">     664 </span><span class="lineCov">          3 : static int table_do_fn_check_lengths(void *r_, const char *key,</span>
+<span class="lineNum">     665 </span>            :                                      const char *value)
+<span class="lineNum">     666 </span>            : {
+<span class="lineNum">     667 </span><span class="lineCov">          3 :     request_rec *r = r_;</span>
+<span class="lineNum">     668 </span><span class="lineCov">          3 :     if (value == NULL || r-&gt;server-&gt;limit_req_fieldsize &gt;= strlen(value) )</span>
+<span class="lineNum">     669 </span><span class="lineCov">          3 :         return 1;</span>
+<span class="lineNum">     670 </span>            : 
+<span class="lineNum">     671 </span><span class="lineNoCov">          0 :     r-&gt;status = HTTP_BAD_REQUEST;</span>
+<span class="lineNum">     672 </span><span class="lineNoCov">          0 :     apr_table_setn(r-&gt;notes, &quot;error-notes&quot;,</span>
+<span class="lineNum">     673 </span><span class="lineNoCov">          0 :                    apr_pstrcat(r-&gt;pool, &quot;Size of a request header field &quot;</span>
+<span class="lineNum">     674 </span>            :                                &quot;after merging exceeds server limit.&lt;br /&gt;&quot;
+<span class="lineNum">     675 </span>            :                                &quot;\n&lt;pre&gt;\n&quot;,
+<span class="lineNum">     676 </span>            :                                ap_escape_html(r-&gt;pool, key),
+<span class="lineNum">     677 </span>            :                                &quot;&lt;/pre&gt;\n&quot;, NULL));
+<span class="lineNum">     678 </span><span class="lineNoCov">          0 :     ap_log_rerror(APLOG_MARK, APLOG_INFO, 0, r, APLOGNO(00560) &quot;Request header &quot;</span>
+<span class="lineNum">     679 </span>            :                   &quot;exceeds LimitRequestFieldSize after merging: %s&quot;, key);
+<span class="lineNum">     680 </span><span class="lineNoCov">          0 :     return 0;</span>
+<span class="lineNum">     681 </span>            : }
+<span class="lineNum">     682 </span>            : 
+<a name="683"><span class="lineNum">     683 </span>            : /* get the length of the field name for logging, but no more than 80 bytes */</a>
+<span class="lineNum">     684 </span>            : #define LOG_NAME_MAX_LEN 80
+<span class="lineNum">     685 </span><span class="lineNoCov">          0 : static int field_name_len(const char *field)</span>
+<span class="lineNum">     686 </span>            : {
+<span class="lineNum">     687 </span><span class="lineNoCov">          0 :     const char *end = ap_strchr_c(field, ':');</span>
+<span class="lineNum">     688 </span><span class="lineNoCov">          0 :     if (end == NULL || end - field &gt; LOG_NAME_MAX_LEN)</span>
+<span class="lineNum">     689 </span><span class="lineNoCov">          0 :         return LOG_NAME_MAX_LEN;</span>
+<span class="lineNum">     690 </span><span class="lineNoCov">          0 :     return end - field;</span>
+<a name="691"><span class="lineNum">     691 </span>            : }</a>
+<span class="lineNum">     692 </span>            : 
+<span class="lineNum">     693 </span><span class="lineCov">          1 : AP_DECLARE(void) ap_get_mime_headers_core(request_rec *r, apr_bucket_brigade *bb)</span>
+<span class="lineNum">     694 </span>            : {
+<span class="lineNum">     695 </span><span class="lineCov">          1 :     char *last_field = NULL;</span>
+<span class="lineNum">     696 </span><span class="lineCov">          1 :     apr_size_t last_len = 0;</span>
+<span class="lineNum">     697 </span><span class="lineCov">          1 :     apr_size_t alloc_len = 0;</span>
+<span class="lineNum">     698 </span>            :     char *field;
+<span class="lineNum">     699 </span>            :     char *value;
+<span class="lineNum">     700 </span>            :     apr_size_t len;
+<span class="lineNum">     701 </span><span class="lineCov">          1 :     int fields_read = 0;</span>
+<span class="lineNum">     702 </span>            :     char *tmp_field;
+<span class="lineNum">     703 </span>            : 
+<span class="lineNum">     704 </span>            :     /*
+<span class="lineNum">     705 </span>            :      * Read header lines until we get the empty separator line, a read error,
+<span class="lineNum">     706 </span>            :      * the connection closes (EOF), reach the server limit, or we timeout.
+<span class="lineNum">     707 </span>            :      */
+<span class="lineNum">     708 </span>            :     while(1) {
+<span class="lineNum">     709 </span>            :         apr_status_t rv;
+<span class="lineNum">     710 </span><span class="lineCov">          4 :         int folded = 0;</span>
+<span class="lineNum">     711 </span>            : 
+<span class="lineNum">     712 </span><span class="lineCov">          4 :         field = NULL;</span>
+<span class="lineNum">     713 </span><span class="lineCov">          4 :         rv = ap_rgetline(&amp;field, r-&gt;server-&gt;limit_req_fieldsize + 2,</span>
+<span class="lineNum">     714 </span>            :                          &amp;len, r, 0, bb);
+<span class="lineNum">     715 </span>            : 
+<span class="lineNum">     716 </span><span class="lineCov">          4 :         if (rv != APR_SUCCESS) {</span>
+<span class="lineNum">     717 </span><span class="lineNoCov">          0 :             if (APR_STATUS_IS_TIMEUP(rv)) {</span>
+<span class="lineNum">     718 </span><span class="lineNoCov">          0 :                 r-&gt;status = HTTP_REQUEST_TIME_OUT;</span>
+<span class="lineNum">     719 </span>            :             }
+<span class="lineNum">     720 </span>            :             else {
+<span class="lineNum">     721 </span><span class="lineNoCov">          0 :                 ap_log_rerror(APLOG_MARK, APLOG_DEBUG, rv, r, </span>
+<span class="lineNum">     722 </span>            :                               &quot;Failed to read request header line %s&quot;, field);
+<span class="lineNum">     723 </span><span class="lineNoCov">          0 :                 r-&gt;status = HTTP_BAD_REQUEST;</span>
+<span class="lineNum">     724 </span>            :             }
+<span class="lineNum">     725 </span>            : 
+<span class="lineNum">     726 </span>            :             /* ap_rgetline returns APR_ENOSPC if it fills up the buffer before
+<span class="lineNum">     727 </span>            :              * finding the end-of-line.  This is only going to happen if it
+<span class="lineNum">     728 </span>            :              * exceeds the configured limit for a field size.
+<span class="lineNum">     729 </span>            :              */
+<span class="lineNum">     730 </span><span class="lineNoCov">          0 :             if (rv == APR_ENOSPC) {</span>
+<span class="lineNum">     731 </span>            :                 const char *field_escaped;
+<span class="lineNum">     732 </span><span class="lineNoCov">          0 :                 if (field) {</span>
+<span class="lineNum">     733 </span>            :                     /* ensure ap_escape_html will terminate correctly */
+<span class="lineNum">     734 </span><span class="lineNoCov">          0 :                     field[len - 1] = '\0';</span>
+<span class="lineNum">     735 </span><span class="lineNoCov">          0 :                     field_escaped = ap_escape_html(r-&gt;pool, field);</span>
+<span class="lineNum">     736 </span>            :                 }
+<span class="lineNum">     737 </span>            :                 else {
+<span class="lineNum">     738 </span><span class="lineNoCov">          0 :                     field_escaped = field = &quot;&quot;;</span>
+<span class="lineNum">     739 </span>            :                 }
+<span class="lineNum">     740 </span>            : 
+<span class="lineNum">     741 </span><span class="lineNoCov">          0 :                 apr_table_setn(r-&gt;notes, &quot;error-notes&quot;,</span>
+<span class="lineNum">     742 </span><span class="lineNoCov">          0 :                                apr_psprintf(r-&gt;pool,</span>
+<span class="lineNum">     743 </span>            :                                            &quot;Size of a request header field &quot;
+<span class="lineNum">     744 </span>            :                                            &quot;exceeds server limit.&lt;br /&gt;\n&quot;
+<span class="lineNum">     745 </span>            :                                            &quot;&lt;pre&gt;\n%.*s\n&lt;/pre&gt;\n&quot;, 
+<span class="lineNum">     746 </span>            :                                            field_name_len(field_escaped),
+<span class="lineNum">     747 </span>            :                                            field_escaped));
+<span class="lineNum">     748 </span><span class="lineNoCov">          0 :                 ap_log_rerror(APLOG_MARK, APLOG_INFO, 0, r, APLOGNO(00561)</span>
+<span class="lineNum">     749 </span>            :                               &quot;Request header exceeds LimitRequestFieldSize%s&quot;
+<span class="lineNum">     750 </span>            :                               &quot;%.*s&quot;,
+<span class="lineNum">     751 </span>            :                               *field ? &quot;: &quot; : &quot;&quot;,
+<span class="lineNum">     752 </span>            :                               field_name_len(field), field);
+<span class="lineNum">     753 </span>            :             }
+<span class="lineNum">     754 </span><span class="lineNoCov">          0 :             return;</span>
+<span class="lineNum">     755 </span>            :         }
+<span class="lineNum">     756 </span>            : 
+<span class="lineNum">     757 </span><span class="lineCov">          4 :         if (last_field != NULL) {</span>
+<span class="lineNum">     758 </span><span class="lineCov">          3 :             if ((len &gt; 0) &amp;&amp; ((*field == '\t') || *field == ' ')) {</span>
+<span class="lineNum">     759 </span>            :                 /* This line is a continuation of the preceding line(s),
+<span class="lineNum">     760 </span>            :                  * so append it to the line that we've set aside.
+<span class="lineNum">     761 </span>            :                  * Note: this uses a power-of-two allocator to avoid
+<span class="lineNum">     762 </span>            :                  * doing O(n) allocs and using O(n^2) space for
+<span class="lineNum">     763 </span>            :                  * continuations that span many many lines.
+<span class="lineNum">     764 </span>            :                  */
+<span class="lineNum">     765 </span><span class="lineNoCov">          0 :                 apr_size_t fold_len = last_len + len + 1; /* trailing null */</span>
+<span class="lineNum">     766 </span>            : 
+<span class="lineNum">     767 </span><span class="lineNoCov">          0 :                 if (fold_len &gt;= (apr_size_t)(r-&gt;server-&gt;limit_req_fieldsize)) {</span>
+<span class="lineNum">     768 </span><span class="lineNoCov">          0 :                     r-&gt;status = HTTP_BAD_REQUEST;</span>
+<span class="lineNum">     769 </span>            :                     /* report what we have accumulated so far before the
+<span class="lineNum">     770 </span>            :                      * overflow (last_field) as the field with the problem
+<span class="lineNum">     771 </span>            :                      */
+<span class="lineNum">     772 </span><span class="lineNoCov">          0 :                     apr_table_setn(r-&gt;notes, &quot;error-notes&quot;,</span>
+<span class="lineNum">     773 </span><span class="lineNoCov">          0 :                                    apr_psprintf(r-&gt;pool,</span>
+<span class="lineNum">     774 </span>            :                                                &quot;Size of a request header field &quot;
+<span class="lineNum">     775 </span>            :                                                &quot;after folding &quot;
+<span class="lineNum">     776 </span>            :                                                &quot;exceeds server limit.&lt;br /&gt;\n&quot;
+<span class="lineNum">     777 </span>            :                                                &quot;&lt;pre&gt;\n%.*s\n&lt;/pre&gt;\n&quot;, 
+<span class="lineNum">     778 </span>            :                                                field_name_len(last_field), 
+<span class="lineNum">     779 </span>            :                                                ap_escape_html(r-&gt;pool, last_field)));
+<span class="lineNum">     780 </span><span class="lineNoCov">          0 :                     ap_log_rerror(APLOG_MARK, APLOG_INFO, 0, r, APLOGNO(00562)</span>
+<span class="lineNum">     781 </span>            :                                   &quot;Request header exceeds LimitRequestFieldSize &quot;
+<span class="lineNum">     782 </span>            :                                   &quot;after folding: %.*s&quot;,
+<span class="lineNum">     783 </span>            :                                   field_name_len(last_field), last_field);
+<span class="lineNum">     784 </span><span class="lineNoCov">          0 :                     return;</span>
+<span class="lineNum">     785 </span>            :                 }
+<span class="lineNum">     786 </span>            : 
+<span class="lineNum">     787 </span><span class="lineNoCov">          0 :                 if (fold_len &gt; alloc_len) {</span>
+<span class="lineNum">     788 </span>            :                     char *fold_buf;
+<span class="lineNum">     789 </span><span class="lineNoCov">          0 :                     alloc_len += alloc_len;</span>
+<span class="lineNum">     790 </span><span class="lineNoCov">          0 :                     if (fold_len &gt; alloc_len) {</span>
+<span class="lineNum">     791 </span><span class="lineNoCov">          0 :                         alloc_len = fold_len;</span>
+<span class="lineNum">     792 </span>            :                     }
+<span class="lineNum">     793 </span><span class="lineNoCov">          0 :                     fold_buf = (char *)apr_palloc(r-&gt;pool, alloc_len);</span>
+<span class="lineNum">     794 </span><span class="lineNoCov">          0 :                     memcpy(fold_buf, last_field, last_len);</span>
+<span class="lineNum">     795 </span><span class="lineNoCov">          0 :                     last_field = fold_buf;</span>
+<span class="lineNum">     796 </span>            :                 }
+<span class="lineNum">     797 </span><span class="lineNoCov">          0 :                 memcpy(last_field + last_len, field, len +1); /* +1 for nul */</span>
+<span class="lineNum">     798 </span><span class="lineNoCov">          0 :                 last_len += len;</span>
+<span class="lineNum">     799 </span><span class="lineNoCov">          0 :                 folded = 1;</span>
+<span class="lineNum">     800 </span>            :             }
+<span class="lineNum">     801 </span>            :             else /* not a continuation line */ {
+<span class="lineNum">     802 </span>            : 
+<span class="lineNum">     803 </span><span class="lineCov">          3 :                 if (r-&gt;server-&gt;limit_req_fields</span>
+<span class="lineNum">     804 </span><span class="lineCov">          3 :                     &amp;&amp; (++fields_read &gt; r-&gt;server-&gt;limit_req_fields)) {</span>
+<span class="lineNum">     805 </span><span class="lineNoCov">          0 :                     r-&gt;status = HTTP_BAD_REQUEST;</span>
+<span class="lineNum">     806 </span><span class="lineNoCov">          0 :                     apr_table_setn(r-&gt;notes, &quot;error-notes&quot;,</span>
+<span class="lineNum">     807 </span>            :                                    &quot;The number of request header fields &quot;
+<span class="lineNum">     808 </span>            :                                    &quot;exceeds this server's limit.&quot;);
+<span class="lineNum">     809 </span><span class="lineNoCov">          0 :                     ap_log_rerror(APLOG_MARK, APLOG_INFO, 0, r, APLOGNO(00563)</span>
+<span class="lineNum">     810 </span>            :                                   &quot;Number of request headers exceeds &quot;
+<span class="lineNum">     811 </span>            :                                   &quot;LimitRequestFields&quot;);
+<span class="lineNum">     812 </span><span class="lineNoCov">          0 :                     return;</span>
+<span class="lineNum">     813 </span>            :                 }
+<span class="lineNum">     814 </span>            : 
+<span class="lineNum">     815 </span><span class="lineCov">          3 :                 if (!(value = strchr(last_field, ':'))) { /* Find ':' or    */</span>
+<span class="lineNum">     816 </span><span class="lineNoCov">          0 :                     r-&gt;status = HTTP_BAD_REQUEST;      /* abort bad request */</span>
+<span class="lineNum">     817 </span><span class="lineNoCov">          0 :                     apr_table_setn(r-&gt;notes, &quot;error-notes&quot;,</span>
+<span class="lineNum">     818 </span><span class="lineNoCov">          0 :                                    apr_psprintf(r-&gt;pool,</span>
+<span class="lineNum">     819 </span>            :                                                &quot;Request header field is &quot;
+<span class="lineNum">     820 </span>            :                                                &quot;missing ':' separator.&lt;br /&gt;\n&quot;
+<span class="lineNum">     821 </span>            :                                                &quot;&lt;pre&gt;\n%.*s&lt;/pre&gt;\n&quot;, 
+<span class="lineNum">     822 </span>            :                                                (int)LOG_NAME_MAX_LEN,
+<span class="lineNum">     823 </span>            :                                                ap_escape_html(r-&gt;pool,
+<span class="lineNum">     824 </span>            :                                                               last_field)));
+<span class="lineNum">     825 </span><span class="lineNoCov">          0 :                     ap_log_rerror(APLOG_MARK, APLOG_INFO, 0, r, APLOGNO(00564)</span>
+<span class="lineNum">     826 </span>            :                                   &quot;Request header field is missing ':' &quot;
+<span class="lineNum">     827 </span>            :                                   &quot;separator: %.*s&quot;, (int)LOG_NAME_MAX_LEN,
+<span class="lineNum">     828 </span>            :                                   last_field);
+<span class="lineNum">     829 </span><span class="lineNoCov">          0 :                     return;</span>
+<span class="lineNum">     830 </span>            :                 }
+<span class="lineNum">     831 </span>            : 
+<span class="lineNum">     832 </span><span class="lineCov">          3 :                 tmp_field = value - 1; /* last character of field-name */</span>
+<span class="lineNum">     833 </span>            : 
+<span class="lineNum">     834 </span><span class="lineCov">          3 :                 *value++ = '\0'; /* NUL-terminate at colon */</span>
+<span class="lineNum">     835 </span>            : 
+<span class="lineNum">     836 </span><span class="lineCov">          9 :                 while (*value == ' ' || *value == '\t') {</span>
+<span class="lineNum">     837 </span><span class="lineCov">          3 :                     ++value;            /* Skip to start of value   */</span>
+<span class="lineNum">     838 </span>            :                 }
+<span class="lineNum">     839 </span>            : 
+<span class="lineNum">     840 </span>            :                 /* Strip LWS after field-name: */
+<span class="lineNum">     841 </span><span class="lineCov">          6 :                 while (tmp_field &gt; last_field</span>
+<span class="lineNum">     842 </span><span class="lineCov">          3 :                        &amp;&amp; (*tmp_field == ' ' || *tmp_field == '\t')) {</span>
+<span class="lineNum">     843 </span><span class="lineNoCov">          0 :                     *tmp_field-- = '\0';</span>
+<span class="lineNum">     844 </span>            :                 }
+<span class="lineNum">     845 </span>            : 
+<span class="lineNum">     846 </span>            :                 /* Strip LWS after field-value: */
+<span class="lineNum">     847 </span><span class="lineCov">          3 :                 tmp_field = last_field + last_len - 1;</span>
+<span class="lineNum">     848 </span><span class="lineCov">          6 :                 while (tmp_field &gt; value</span>
+<span class="lineNum">     849 </span><span class="lineCov">          3 :                        &amp;&amp; (*tmp_field == ' ' || *tmp_field == '\t')) {</span>
+<span class="lineNum">     850 </span><span class="lineNoCov">          0 :                     *tmp_field-- = '\0';</span>
+<span class="lineNum">     851 </span>            :                 }
+<span class="lineNum">     852 </span>            : 
+<span class="lineNum">     853 </span><span class="lineCov">          3 :                 apr_table_addn(r-&gt;headers_in, last_field, value);</span>
+<span class="lineNum">     854 </span>            : 
+<span class="lineNum">     855 </span>            :                 /* reset the alloc_len so that we'll allocate a new
+<span class="lineNum">     856 </span>            :                  * buffer if we have to do any more folding: we can't
+<span class="lineNum">     857 </span>            :                  * use the previous buffer because its contents are
+<span class="lineNum">     858 </span>            :                  * now part of r-&gt;headers_in
+<span class="lineNum">     859 </span>            :                  */
+<span class="lineNum">     860 </span><span class="lineCov">          3 :                 alloc_len = 0;</span>
+<span class="lineNum">     861 </span>            : 
+<span class="lineNum">     862 </span>            :             } /* end if current line is not a continuation starting with tab */
+<span class="lineNum">     863 </span>            :         }
+<span class="lineNum">     864 </span>            : 
+<span class="lineNum">     865 </span>            :         /* Found a blank line, stop. */
+<span class="lineNum">     866 </span><span class="lineCov">          4 :         if (len == 0) {</span>
+<span class="lineNum">     867 </span><span class="lineCov">          1 :             break;</span>
+<span class="lineNum">     868 </span>            :         }
+<span class="lineNum">     869 </span>            : 
+<span class="lineNum">     870 </span>            :         /* Keep track of this line so that we can parse it on
+<span class="lineNum">     871 </span>            :          * the next loop iteration.  (In the folded case, last_field
+<span class="lineNum">     872 </span>            :          * has been updated already.)
+<span class="lineNum">     873 </span>            :          */
+<span class="lineNum">     874 </span><span class="lineCov">          3 :         if (!folded) {</span>
+<span class="lineNum">     875 </span><span class="lineCov">          3 :             last_field = field;</span>
+<span class="lineNum">     876 </span><span class="lineCov">          3 :             last_len = len;</span>
+<span class="lineNum">     877 </span>            :         }
+<span class="lineNum">     878 </span><span class="lineCov">          3 :     }</span>
+<span class="lineNum">     879 </span>            : 
+<span class="lineNum">     880 </span>            :     /* Combine multiple message-header fields with the same
+<span class="lineNum">     881 </span>            :      * field-name, following RFC 2616, 4.2.
+<span class="lineNum">     882 </span>            :      */
+<span class="lineNum">     883 </span><span class="lineCov">          1 :     apr_table_compress(r-&gt;headers_in, APR_OVERLAP_TABLES_MERGE);</span>
+<span class="lineNum">     884 </span>            : 
+<span class="lineNum">     885 </span>            :     /* enforce LimitRequestFieldSize for merged headers */
+<span class="lineNum">     886 </span><span class="lineCov">          1 :     apr_table_do(table_do_fn_check_lengths, r, r-&gt;headers_in, NULL);</span>
+<a name="887"><span class="lineNum">     887 </span>            : }</a>
+<span class="lineNum">     888 </span>            : 
+<span class="lineNum">     889 </span><span class="lineNoCov">          0 : AP_DECLARE(void) ap_get_mime_headers(request_rec *r)</span>
+<span class="lineNum">     890 </span>            : {
+<span class="lineNum">     891 </span>            :     apr_bucket_brigade *tmp_bb;
+<span class="lineNum">     892 </span><span class="lineNoCov">          0 :     tmp_bb = apr_brigade_create(r-&gt;pool, r-&gt;connection-&gt;bucket_alloc);</span>
+<span class="lineNum">     893 </span><span class="lineNoCov">          0 :     ap_get_mime_headers_core(r, tmp_bb);</span>
+<span class="lineNum">     894 </span><span class="lineNoCov">          0 :     apr_brigade_destroy(tmp_bb);</span>
+<a name="895"><span class="lineNum">     895 </span><span class="lineNoCov">          0 : }</span></a>
+<span class="lineNum">     896 </span>            : 
+<span class="lineNum">     897 </span><span class="lineCov">          2 : request_rec *ap_read_request(conn_rec *conn)</span>
+<span class="lineNum">     898 </span>            : {
+<span class="lineNum">     899 </span>            :     request_rec *r;
+<span class="lineNum">     900 </span>            :     apr_pool_t *p;
+<span class="lineNum">     901 </span>            :     const char *expect;
+<span class="lineNum">     902 </span><span class="lineCov">          2 :     int access_status = HTTP_OK;</span>
+<span class="lineNum">     903 </span>            :     apr_bucket_brigade *tmp_bb;
+<span class="lineNum">     904 </span>            :     apr_socket_t *csd;
+<span class="lineNum">     905 </span>            :     apr_interval_time_t cur_timeout;
+<span class="lineNum">     906 </span>            : 
+<span class="lineNum">     907 </span>            : 
+<span class="lineNum">     908 </span><span class="lineCov">          2 :     apr_pool_create(&amp;p, conn-&gt;pool);</span>
+<span class="lineNum">     909 </span><span class="lineCov">          2 :     apr_pool_tag(p, &quot;request&quot;);</span>
+<span class="lineNum">     910 </span><span class="lineCov">          2 :     r = apr_pcalloc(p, sizeof(request_rec));</span>
+<span class="lineNum">     911 </span>            :     AP_READ_REQUEST_ENTRY((intptr_t)r, (uintptr_t)conn);
+<span class="lineNum">     912 </span><span class="lineCov">          2 :     r-&gt;pool            = p;</span>
+<span class="lineNum">     913 </span><span class="lineCov">          2 :     r-&gt;connection      = conn;</span>
+<span class="lineNum">     914 </span><span class="lineCov">          2 :     r-&gt;server          = conn-&gt;base_server;</span>
+<span class="lineNum">     915 </span>            : 
+<span class="lineNum">     916 </span><span class="lineCov">          2 :     r-&gt;user            = NULL;</span>
+<span class="lineNum">     917 </span><span class="lineCov">          2 :     r-&gt;ap_auth_type    = NULL;</span>
+<span class="lineNum">     918 </span>            : 
+<span class="lineNum">     919 </span><span class="lineCov">          2 :     r-&gt;allowed_methods = ap_make_method_list(p, 2);</span>
+<span class="lineNum">     920 </span>            : 
+<span class="lineNum">     921 </span><span class="lineCov">          2 :     r-&gt;headers_in      = apr_table_make(r-&gt;pool, 25);</span>
+<span class="lineNum">     922 </span><span class="lineCov">          2 :     r-&gt;trailers_in     = apr_table_make(r-&gt;pool, 5);</span>
+<span class="lineNum">     923 </span><span class="lineCov">          2 :     r-&gt;subprocess_env  = apr_table_make(r-&gt;pool, 25);</span>
+<span class="lineNum">     924 </span><span class="lineCov">          2 :     r-&gt;headers_out     = apr_table_make(r-&gt;pool, 12);</span>
+<span class="lineNum">     925 </span><span class="lineCov">          2 :     r-&gt;err_headers_out = apr_table_make(r-&gt;pool, 5);</span>
+<span class="lineNum">     926 </span><span class="lineCov">          2 :     r-&gt;trailers_out    = apr_table_make(r-&gt;pool, 5);</span>
+<span class="lineNum">     927 </span><span class="lineCov">          2 :     r-&gt;notes           = apr_table_make(r-&gt;pool, 5);</span>
+<span class="lineNum">     928 </span>            : 
+<span class="lineNum">     929 </span><span class="lineCov">          2 :     r-&gt;request_config  = ap_create_request_config(r-&gt;pool);</span>
+<span class="lineNum">     930 </span>            :     /* Must be set before we run create request hook */
+<span class="lineNum">     931 </span>            : 
+<span class="lineNum">     932 </span><span class="lineCov">          2 :     r-&gt;proto_output_filters = conn-&gt;output_filters;</span>
+<span class="lineNum">     933 </span><span class="lineCov">          2 :     r-&gt;output_filters  = r-&gt;proto_output_filters;</span>
+<span class="lineNum">     934 </span><span class="lineCov">          2 :     r-&gt;proto_input_filters = conn-&gt;input_filters;</span>
+<span class="lineNum">     935 </span><span class="lineCov">          2 :     r-&gt;input_filters   = r-&gt;proto_input_filters;</span>
+<span class="lineNum">     936 </span><span class="lineCov">          2 :     ap_run_create_request(r);</span>
+<span class="lineNum">     937 </span><span class="lineCov">          2 :     r-&gt;per_dir_config  = r-&gt;server-&gt;lookup_defaults;</span>
+<span class="lineNum">     938 </span>            : 
+<span class="lineNum">     939 </span><span class="lineCov">          2 :     r-&gt;sent_bodyct     = 0;                      /* bytect isn't for body */</span>
+<span class="lineNum">     940 </span>            : 
+<span class="lineNum">     941 </span><span class="lineCov">          2 :     r-&gt;read_length     = 0;</span>
+<span class="lineNum">     942 </span><span class="lineCov">          2 :     r-&gt;read_body       = REQUEST_NO_BODY;</span>
+<span class="lineNum">     943 </span>            : 
+<span class="lineNum">     944 </span><span class="lineCov">          2 :     r-&gt;status          = HTTP_OK;  /* Until further notice */</span>
+<span class="lineNum">     945 </span><span class="lineCov">          2 :     r-&gt;the_request     = NULL;</span>
+<span class="lineNum">     946 </span>            : 
+<span class="lineNum">     947 </span>            :     /* Begin by presuming any module can make its own path_info assumptions,
+<span class="lineNum">     948 </span>            :      * until some module interjects and changes the value.
+<span class="lineNum">     949 </span>            :      */
+<span class="lineNum">     950 </span><span class="lineCov">          2 :     r-&gt;used_path_info = AP_REQ_DEFAULT_PATH_INFO;</span>
+<span class="lineNum">     951 </span>            : 
+<span class="lineNum">     952 </span><span class="lineCov">          2 :     r-&gt;useragent_addr = conn-&gt;client_addr;</span>
+<span class="lineNum">     953 </span><span class="lineCov">          2 :     r-&gt;useragent_ip = conn-&gt;client_ip;</span>
+<span class="lineNum">     954 </span>            : 
+<span class="lineNum">     955 </span><span class="lineCov">          2 :     tmp_bb = apr_brigade_create(r-&gt;pool, r-&gt;connection-&gt;bucket_alloc);</span>
+<span class="lineNum">     956 </span>            : 
+<span class="lineNum">     957 </span><span class="lineCov">          2 :     ap_run_pre_read_request(r, conn);</span>
+<span class="lineNum">     958 </span>            : 
+<span class="lineNum">     959 </span>            :     /* Get the request... */
+<span class="lineNum">     960 </span><span class="lineCov">          2 :     if (!read_request_line(r, tmp_bb)) {</span>
+<span class="lineNum">     961 </span><span class="lineCov">          1 :         if (r-&gt;status == HTTP_REQUEST_URI_TOO_LARGE</span>
+<span class="lineNum">     962 </span><span class="lineCov">          1 :             || r-&gt;status == HTTP_BAD_REQUEST) {</span>
+<span class="lineNum">     963 </span><span class="lineNoCov">          0 :             if (r-&gt;status == HTTP_REQUEST_URI_TOO_LARGE) {</span>
+<span class="lineNum">     964 </span><span class="lineNoCov">          0 :                 ap_log_rerror(APLOG_MARK, APLOG_INFO, 0, r, APLOGNO(00565)</span>
+<span class="lineNum">     965 </span>            :                               &quot;request failed: client's request-line exceeds LimitRequestLine (longer than %d)&quot;,
+<span class="lineNum">     966 </span>            :                               r-&gt;server-&gt;limit_req_line);
+<span class="lineNum">     967 </span>            :             }
+<span class="lineNum">     968 </span><span class="lineNoCov">          0 :             else if (r-&gt;method == NULL) {</span>
+<span class="lineNum">     969 </span><span class="lineNoCov">          0 :                 ap_log_rerror(APLOG_MARK, APLOG_INFO, 0, r, APLOGNO(00566)</span>
+<span class="lineNum">     970 </span>            :                               &quot;request failed: invalid characters in URI&quot;);
+<span class="lineNum">     971 </span>            :             }
+<span class="lineNum">     972 </span><span class="lineNoCov">          0 :             ap_send_error_response(r, 0);</span>
+<span class="lineNum">     973 </span><span class="lineNoCov">          0 :             ap_update_child_status(conn-&gt;sbh, SERVER_BUSY_LOG, r);</span>
+<span class="lineNum">     974 </span><span class="lineNoCov">          0 :             ap_run_log_transaction(r);</span>
+<span class="lineNum">     975 </span><span class="lineNoCov">          0 :             apr_brigade_destroy(tmp_bb);</span>
+<span class="lineNum">     976 </span><span class="lineNoCov">          0 :             goto traceout;</span>
+<span class="lineNum">     977 </span>            :         }
+<span class="lineNum">     978 </span><span class="lineCov">          1 :         else if (r-&gt;status == HTTP_REQUEST_TIME_OUT) {</span>
+<span class="lineNum">     979 </span><span class="lineNoCov">          0 :             ap_update_child_status(conn-&gt;sbh, SERVER_BUSY_LOG, r);</span>
+<span class="lineNum">     980 </span><span class="lineNoCov">          0 :             if (!r-&gt;connection-&gt;keepalives) {</span>
+<span class="lineNum">     981 </span><span class="lineNoCov">          0 :                 ap_run_log_transaction(r);</span>
+<span class="lineNum">     982 </span>            :             }
+<span class="lineNum">     983 </span><span class="lineNoCov">          0 :             apr_brigade_destroy(tmp_bb);</span>
+<span class="lineNum">     984 </span><span class="lineNoCov">          0 :             goto traceout;</span>
+<span class="lineNum">     985 </span>            :         }
+<span class="lineNum">     986 </span>            : 
+<span class="lineNum">     987 </span><span class="lineCov">          1 :         apr_brigade_destroy(tmp_bb);</span>
+<span class="lineNum">     988 </span><span class="lineCov">          1 :         r = NULL;</span>
+<span class="lineNum">     989 </span><span class="lineCov">          1 :         goto traceout;</span>
+<span class="lineNum">     990 </span>            :     }
+<span class="lineNum">     991 </span>            : 
+<span class="lineNum">     992 </span>            :     /* We may have been in keep_alive_timeout mode, so toggle back
+<span class="lineNum">     993 </span>            :      * to the normal timeout mode as we fetch the header lines,
+<span class="lineNum">     994 </span>            :      * as necessary.
+<span class="lineNum">     995 </span>            :      */
+<span class="lineNum">     996 </span><span class="lineCov">          1 :     csd = ap_get_conn_socket(conn);</span>
+<span class="lineNum">     997 </span><span class="lineCov">          1 :     apr_socket_timeout_get(csd, &amp;cur_timeout);</span>
+<span class="lineNum">     998 </span><span class="lineCov">          1 :     if (cur_timeout != conn-&gt;base_server-&gt;timeout) {</span>
+<span class="lineNum">     999 </span><span class="lineNoCov">          0 :         apr_socket_timeout_set(csd, conn-&gt;base_server-&gt;timeout);</span>
+<span class="lineNum">    1000 </span><span class="lineNoCov">          0 :         cur_timeout = conn-&gt;base_server-&gt;timeout;</span>
+<span class="lineNum">    1001 </span>            :     }
+<span class="lineNum">    1002 </span>            : 
+<span class="lineNum">    1003 </span><span class="lineCov">          1 :     if (!r-&gt;assbackwards) {</span>
+<span class="lineNum">    1004 </span>            :         const char *tenc;
+<span class="lineNum">    1005 </span>            : 
+<span class="lineNum">    1006 </span><span class="lineCov">          1 :         ap_get_mime_headers_core(r, tmp_bb);</span>
+<span class="lineNum">    1007 </span><span class="lineCov">          1 :         if (r-&gt;status != HTTP_OK) {</span>
+<span class="lineNum">    1008 </span><span class="lineNoCov">          0 :             ap_log_rerror(APLOG_MARK, APLOG_INFO, 0, r, APLOGNO(00567)</span>
+<span class="lineNum">    1009 </span>            :                           &quot;request failed: error reading the headers&quot;);
+<span class="lineNum">    1010 </span><span class="lineNoCov">          0 :             ap_send_error_response(r, 0);</span>
+<span class="lineNum">    1011 </span><span class="lineNoCov">          0 :             ap_update_child_status(conn-&gt;sbh, SERVER_BUSY_LOG, r);</span>
+<span class="lineNum">    1012 </span><span class="lineNoCov">          0 :             ap_run_log_transaction(r);</span>
+<span class="lineNum">    1013 </span><span class="lineNoCov">          0 :             apr_brigade_destroy(tmp_bb);</span>
+<span class="lineNum">    1014 </span><span class="lineNoCov">          0 :             goto traceout;</span>
+<span class="lineNum">    1015 </span>            :         }
+<span class="lineNum">    1016 </span>            : 
+<span class="lineNum">    1017 </span><span class="lineCov">          1 :         tenc = apr_table_get(r-&gt;headers_in, &quot;Transfer-Encoding&quot;);</span>
+<span class="lineNum">    1018 </span><span class="lineCov">          1 :         if (tenc) {</span>
+<span class="lineNum">    1019 </span>            :             /* http://tools.ietf.org/html/draft-ietf-httpbis-p1-messaging-23
+<span class="lineNum">    1020 </span>            :              * Section 3.3.3.3: &quot;If a Transfer-Encoding header field is
+<span class="lineNum">    1021 </span>            :              * present in a request and the chunked transfer coding is not
+<span class="lineNum">    1022 </span>            :              * the final encoding ...; the server MUST respond with the 400
+<span class="lineNum">    1023 </span>            :              * (Bad Request) status code and then close the connection&quot;.
+<span class="lineNum">    1024 </span>            :              */
+<span class="lineNum">    1025 </span><span class="lineNoCov">          0 :             if (!(strcasecmp(tenc, &quot;chunked&quot;) == 0 /* fast path */</span>
+<span class="lineNum">    1026 </span><span class="lineNoCov">          0 :                     || ap_find_last_token(r-&gt;pool, tenc, &quot;chunked&quot;))) {</span>
+<span class="lineNum">    1027 </span><span class="lineNoCov">          0 :                 ap_log_rerror(APLOG_MARK, APLOG_INFO, 0, r, APLOGNO(02539)</span>
+<span class="lineNum">    1028 </span>            :                               &quot;client sent unknown Transfer-Encoding &quot;
+<span class="lineNum">    1029 </span>            :                               &quot;(%s): %s&quot;, tenc, r-&gt;uri);
+<span class="lineNum">    1030 </span><span class="lineNoCov">          0 :                 r-&gt;status = HTTP_BAD_REQUEST;</span>
+<span class="lineNum">    1031 </span><span class="lineNoCov">          0 :                 conn-&gt;keepalive = AP_CONN_CLOSE;</span>
+<span class="lineNum">    1032 </span><span class="lineNoCov">          0 :                 ap_send_error_response(r, 0);</span>
+<span class="lineNum">    1033 </span><span class="lineNoCov">          0 :                 ap_update_child_status(conn-&gt;sbh, SERVER_BUSY_LOG, r);</span>
+<span class="lineNum">    1034 </span><span class="lineNoCov">          0 :                 ap_run_log_transaction(r);</span>
+<span class="lineNum">    1035 </span><span class="lineNoCov">          0 :                 apr_brigade_destroy(tmp_bb);</span>
+<span class="lineNum">    1036 </span><span class="lineNoCov">          0 :                 goto traceout;</span>
+<span class="lineNum">    1037 </span>            :             }
+<span class="lineNum">    1038 </span>            : 
+<span class="lineNum">    1039 </span>            :             /* http://tools.ietf.org/html/draft-ietf-httpbis-p1-messaging-23
+<span class="lineNum">    1040 </span>            :              * Section 3.3.3.3: &quot;If a message is received with both a
+<span class="lineNum">    1041 </span>            :              * Transfer-Encoding and a Content-Length header field, the
+<span class="lineNum">    1042 </span>            :              * Transfer-Encoding overrides the Content-Length. ... A sender
+<span class="lineNum">    1043 </span>            :              * MUST remove the received Content-Length field&quot;.
+<span class="lineNum">    1044 </span>            :              */
+<span class="lineNum">    1045 </span><span class="lineNoCov">          0 :             apr_table_unset(r-&gt;headers_in, &quot;Content-Length&quot;);</span>
+<span class="lineNum">    1046 </span>            :         }
+<span class="lineNum">    1047 </span>            :     }
+<span class="lineNum">    1048 </span>            :     else {
+<span class="lineNum">    1049 </span><span class="lineNoCov">          0 :         if (r-&gt;header_only) {</span>
+<span class="lineNum">    1050 </span>            :             /*
+<span class="lineNum">    1051 </span>            :              * Client asked for headers only with HTTP/0.9, which doesn't send
+<span class="lineNum">    1052 </span>            :              * headers! Have to dink things just to make sure the error message
+<span class="lineNum">    1053 </span>            :              * comes through...
+<span class="lineNum">    1054 </span>            :              */
+<span class="lineNum">    1055 </span><span class="lineNoCov">          0 :             ap_log_rerror(APLOG_MARK, APLOG_INFO, 0, r, APLOGNO(00568)</span>
+<span class="lineNum">    1056 </span>            :                           &quot;client sent invalid HTTP/0.9 request: HEAD %s&quot;,
+<span class="lineNum">    1057 </span>            :                           r-&gt;uri);
+<span class="lineNum">    1058 </span><span class="lineNoCov">          0 :             r-&gt;header_only = 0;</span>
+<span class="lineNum">    1059 </span><span class="lineNoCov">          0 :             r-&gt;status = HTTP_BAD_REQUEST;</span>
+<span class="lineNum">    1060 </span><span class="lineNoCov">          0 :             ap_send_error_response(r, 0);</span>
+<span class="lineNum">    1061 </span><span class="lineNoCov">          0 :             ap_update_child_status(conn-&gt;sbh, SERVER_BUSY_LOG, r);</span>
+<span class="lineNum">    1062 </span><span class="lineNoCov">          0 :             ap_run_log_transaction(r);</span>
+<span class="lineNum">    1063 </span><span class="lineNoCov">          0 :             apr_brigade_destroy(tmp_bb);</span>
+<span class="lineNum">    1064 </span><span class="lineNoCov">          0 :             goto traceout;</span>
+<span class="lineNum">    1065 </span>            :         }
+<span class="lineNum">    1066 </span>            :     }
+<span class="lineNum">    1067 </span>            : 
+<span class="lineNum">    1068 </span><span class="lineCov">          1 :     apr_brigade_destroy(tmp_bb);</span>
+<span class="lineNum">    1069 </span>            : 
+<span class="lineNum">    1070 </span>            :     /* update what we think the virtual host is based on the headers we've
+<span class="lineNum">    1071 </span>            :      * now read. may update status.
+<span class="lineNum">    1072 </span>            :      */
+<span class="lineNum">    1073 </span><span class="lineCov">          1 :     ap_update_vhost_from_headers(r);</span>
+<span class="lineNum">    1074 </span>            : 
+<span class="lineNum">    1075 </span>            :     /* Toggle to the Host:-based vhost's timeout mode to fetch the
+<span class="lineNum">    1076 </span>            :      * request body and send the response body, if needed.
+<span class="lineNum">    1077 </span>            :      */
+<span class="lineNum">    1078 </span><span class="lineCov">          1 :     if (cur_timeout != r-&gt;server-&gt;timeout) {</span>
+<span class="lineNum">    1079 </span><span class="lineNoCov">          0 :         apr_socket_timeout_set(csd, r-&gt;server-&gt;timeout);</span>
+<span class="lineNum">    1080 </span><span class="lineNoCov">          0 :         cur_timeout = r-&gt;server-&gt;timeout;</span>
+<span class="lineNum">    1081 </span>            :     }
+<span class="lineNum">    1082 </span>            : 
+<span class="lineNum">    1083 </span>            :     /* we may have switched to another server */
+<span class="lineNum">    1084 </span><span class="lineCov">          1 :     r-&gt;per_dir_config = r-&gt;server-&gt;lookup_defaults;</span>
+<span class="lineNum">    1085 </span>            : 
+<span class="lineNum">    1086 </span><span class="lineCov">          1 :     if ((!r-&gt;hostname &amp;&amp; (r-&gt;proto_num &gt;= HTTP_VERSION(1, 1)))</span>
+<span class="lineNum">    1087 </span><span class="lineCov">          1 :         || ((r-&gt;proto_num == HTTP_VERSION(1, 1))</span>
+<span class="lineNum">    1088 </span><span class="lineCov">          1 :             &amp;&amp; !apr_table_get(r-&gt;headers_in, &quot;Host&quot;))) {</span>
+<span class="lineNum">    1089 </span>            :         /*
+<span class="lineNum">    1090 </span>            :          * Client sent us an HTTP/1.1 or later request without telling us the
+<span class="lineNum">    1091 </span>            :          * hostname, either with a full URL or a Host: header. We therefore
+<span class="lineNum">    1092 </span>            :          * need to (as per the 1.1 spec) send an error.  As a special case,
+<span class="lineNum">    1093 </span>            :          * HTTP/1.1 mentions twice (S9, S14.23) that a request MUST contain
+<span class="lineNum">    1094 </span>            :          * a Host: header, and the server MUST respond with 400 if it doesn't.
+<span class="lineNum">    1095 </span>            :          */
+<span class="lineNum">    1096 </span><span class="lineNoCov">          0 :         access_status = HTTP_BAD_REQUEST;</span>
+<span class="lineNum">    1097 </span><span class="lineNoCov">          0 :         ap_log_rerror(APLOG_MARK, APLOG_INFO, 0, r, APLOGNO(00569)</span>
+<span class="lineNum">    1098 </span>            :                       &quot;client sent HTTP/1.1 request without hostname &quot;
+<span class="lineNum">    1099 </span>            :                       &quot;(see RFC2616 section 14.23): %s&quot;, r-&gt;uri);
+<span class="lineNum">    1100 </span>            :     }
+<span class="lineNum">    1101 </span>            : 
+<span class="lineNum">    1102 </span>            :     /*
+<span class="lineNum">    1103 </span>            :      * Add the HTTP_IN filter here to ensure that ap_discard_request_body
+<span class="lineNum">    1104 </span>            :      * called by ap_die and by ap_send_error_response works correctly on
+<span class="lineNum">    1105 </span>            :      * status codes that do not cause the connection to be dropped and
+<span class="lineNum">    1106 </span>            :      * in situations where the connection should be kept alive.
+<span class="lineNum">    1107 </span>            :      */
+<span class="lineNum">    1108 </span>            : 
+<span class="lineNum">    1109 </span><span class="lineCov">          1 :     ap_add_input_filter_handle(ap_http_input_filter_handle,</span>
+<span class="lineNum">    1110 </span>            :                                NULL, r, r-&gt;connection);
+<span class="lineNum">    1111 </span>            : 
+<span class="lineNum">    1112 </span><span class="lineCov">          1 :     if (access_status != HTTP_OK</span>
+<span class="lineNum">    1113 </span><span class="lineCov">          1 :         || (access_status = ap_run_post_read_request(r))) {</span>
+<span class="lineNum">    1114 </span><span class="lineNoCov">          0 :         ap_die(access_status, r);</span>
+<span class="lineNum">    1115 </span><span class="lineNoCov">          0 :         ap_update_child_status(conn-&gt;sbh, SERVER_BUSY_LOG, r);</span>
+<span class="lineNum">    1116 </span><span class="lineNoCov">          0 :         ap_run_log_transaction(r);</span>
+<span class="lineNum">    1117 </span><span class="lineNoCov">          0 :         r = NULL;</span>
+<span class="lineNum">    1118 </span><span class="lineNoCov">          0 :         goto traceout;</span>
+<span class="lineNum">    1119 </span>            :     }
+<span class="lineNum">    1120 </span>            : 
+<span class="lineNum">    1121 </span><span class="lineCov">          1 :     if (((expect = apr_table_get(r-&gt;headers_in, &quot;Expect&quot;)) != NULL)</span>
+<span class="lineNum">    1122 </span><span class="lineNoCov">          0 :         &amp;&amp; (expect[0] != '\0')) {</span>
+<span class="lineNum">    1123 </span>            :         /*
+<span class="lineNum">    1124 </span>            :          * The Expect header field was added to HTTP/1.1 after RFC 2068
+<span class="lineNum">    1125 </span>            :          * as a means to signal when a 100 response is desired and,
+<span class="lineNum">    1126 </span>            :          * unfortunately, to signal a poor man's mandatory extension that
+<span class="lineNum">    1127 </span>            :          * the server must understand or return 417 Expectation Failed.
+<span class="lineNum">    1128 </span>            :          */
+<span class="lineNum">    1129 </span><span class="lineNoCov">          0 :         if (strcasecmp(expect, &quot;100-continue&quot;) == 0) {</span>
+<span class="lineNum">    1130 </span><span class="lineNoCov">          0 :             r-&gt;expecting_100 = 1;</span>
+<span class="lineNum">    1131 </span>            :         }
+<span class="lineNum">    1132 </span>            :         else {
+<span class="lineNum">    1133 </span><span class="lineNoCov">          0 :             r-&gt;status = HTTP_EXPECTATION_FAILED;</span>
+<span class="lineNum">    1134 </span><span class="lineNoCov">          0 :             ap_log_rerror(APLOG_MARK, APLOG_INFO, 0, r, APLOGNO(00570)</span>
+<span class="lineNum">    1135 </span>            :                           &quot;client sent an unrecognized expectation value of &quot;
+<span class="lineNum">    1136 </span>            :                           &quot;Expect: %s&quot;, expect);
+<span class="lineNum">    1137 </span><span class="lineNoCov">          0 :             ap_send_error_response(r, 0);</span>
+<span class="lineNum">    1138 </span><span class="lineNoCov">          0 :             ap_update_child_status(conn-&gt;sbh, SERVER_BUSY_LOG, r);</span>
+<span class="lineNum">    1139 </span><span class="lineNoCov">          0 :             ap_run_log_transaction(r);</span>
+<span class="lineNum">    1140 </span><span class="lineNoCov">          0 :             goto traceout;</span>
+<span class="lineNum">    1141 </span>            :         }
+<span class="lineNum">    1142 </span>            :     }
+<span class="lineNum">    1143 </span>            : 
+<span class="lineNum">    1144 </span>            :     AP_READ_REQUEST_SUCCESS((uintptr_t)r, (char *)r-&gt;method, (char *)r-&gt;uri, (char *)r-&gt;server-&gt;defn_name, r-&gt;status);
+<span class="lineNum">    1145 </span><span class="lineCov">          1 :     return r;</span>
+<span class="lineNum">    1146 </span>            :     traceout:
+<span class="lineNum">    1147 </span>            :     AP_READ_REQUEST_FAILURE((uintptr_t)r);
+<span class="lineNum">    1148 </span><span class="lineCov">          1 :     return r;</span>
+<span class="lineNum">    1149 </span>            : }
+<span class="lineNum">    1150 </span>            : 
+<span class="lineNum">    1151 </span>            : /* if a request with a body creates a subrequest, remove original request's
+<span class="lineNum">    1152 </span>            :  * input headers which pertain to the body which has already been read.
+<span class="lineNum">    1153 </span>            :  * out-of-line helper function for ap_set_sub_req_protocol.
+<a name="1154"><span class="lineNum">    1154 </span>            :  */</a>
+<span class="lineNum">    1155 </span>            : 
+<span class="lineNum">    1156 </span><span class="lineNoCov">          0 : static void strip_headers_request_body(request_rec *rnew)</span>
+<span class="lineNum">    1157 </span>            : {
+<span class="lineNum">    1158 </span><span class="lineNoCov">          0 :     apr_table_unset(rnew-&gt;headers_in, &quot;Content-Encoding&quot;);</span>
+<span class="lineNum">    1159 </span><span class="lineNoCov">          0 :     apr_table_unset(rnew-&gt;headers_in, &quot;Content-Language&quot;);</span>
+<span class="lineNum">    1160 </span><span class="lineNoCov">          0 :     apr_table_unset(rnew-&gt;headers_in, &quot;Content-Length&quot;);</span>
+<span class="lineNum">    1161 </span><span class="lineNoCov">          0 :     apr_table_unset(rnew-&gt;headers_in, &quot;Content-Location&quot;);</span>
+<span class="lineNum">    1162 </span><span class="lineNoCov">          0 :     apr_table_unset(rnew-&gt;headers_in, &quot;Content-MD5&quot;);</span>
+<span class="lineNum">    1163 </span><span class="lineNoCov">          0 :     apr_table_unset(rnew-&gt;headers_in, &quot;Content-Range&quot;);</span>
+<span class="lineNum">    1164 </span><span class="lineNoCov">          0 :     apr_table_unset(rnew-&gt;headers_in, &quot;Content-Type&quot;);</span>
+<span class="lineNum">    1165 </span><span class="lineNoCov">          0 :     apr_table_unset(rnew-&gt;headers_in, &quot;Expires&quot;);</span>
+<span class="lineNum">    1166 </span><span class="lineNoCov">          0 :     apr_table_unset(rnew-&gt;headers_in, &quot;Last-Modified&quot;);</span>
+<span class="lineNum">    1167 </span><span class="lineNoCov">          0 :     apr_table_unset(rnew-&gt;headers_in, &quot;Transfer-Encoding&quot;);</span>
+<span class="lineNum">    1168 </span><span class="lineNoCov">          0 : }</span>
+<span class="lineNum">    1169 </span>            : 
+<span class="lineNum">    1170 </span>            : /*
+<span class="lineNum">    1171 </span>            :  * A couple of other functions which initialize some of the fields of
+<span class="lineNum">    1172 </span>            :  * a request structure, as appropriate for adjuncts of one kind or another
+<span class="lineNum">    1173 </span>            :  * to a request in progress.  Best here, rather than elsewhere, since
+<span class="lineNum">    1174 </span>            :  * *someone* has to set the protocol-specific fields...
+<a name="1175"><span class="lineNum">    1175 </span>            :  */</a>
+<span class="lineNum">    1176 </span>            : 
+<span class="lineNum">    1177 </span><span class="lineCov">          1 : AP_DECLARE(void) ap_set_sub_req_protocol(request_rec *rnew,</span>
+<span class="lineNum">    1178 </span>            :                                          const request_rec *r)
+<span class="lineNum">    1179 </span>            : {
+<span class="lineNum">    1180 </span><span class="lineCov">          1 :     rnew-&gt;the_request     = r-&gt;the_request;  /* Keep original request-line */</span>
+<span class="lineNum">    1181 </span>            : 
+<span class="lineNum">    1182 </span><span class="lineCov">          1 :     rnew-&gt;assbackwards    = 1;   /* Don't send headers from this. */</span>
+<span class="lineNum">    1183 </span><span class="lineCov">          1 :     rnew-&gt;no_local_copy   = 1;   /* Don't try to send HTTP_NOT_MODIFIED for a</span>
+<span class="lineNum">    1184 </span>            :                                   * fragment. */
+<span class="lineNum">    1185 </span><span class="lineCov">          1 :     rnew-&gt;method          = &quot;GET&quot;;</span>
+<span class="lineNum">    1186 </span><span class="lineCov">          1 :     rnew-&gt;method_number   = M_GET;</span>
+<span class="lineNum">    1187 </span><span class="lineCov">          1 :     rnew-&gt;protocol        = &quot;INCLUDED&quot;;</span>
+<span class="lineNum">    1188 </span>            : 
+<span class="lineNum">    1189 </span><span class="lineCov">          1 :     rnew-&gt;status          = HTTP_OK;</span>
+<span class="lineNum">    1190 </span>            : 
+<span class="lineNum">    1191 </span><span class="lineCov">          1 :     rnew-&gt;headers_in      = apr_table_copy(rnew-&gt;pool, r-&gt;headers_in);</span>
+<span class="lineNum">    1192 </span><span class="lineCov">          1 :     rnew-&gt;trailers_in     = apr_table_copy(rnew-&gt;pool, r-&gt;trailers_in);</span>
+<span class="lineNum">    1193 </span>            : 
+<span class="lineNum">    1194 </span>            :     /* did the original request have a body?  (e.g. POST w/SSI tags)
+<span class="lineNum">    1195 </span>            :      * if so, make sure the subrequest doesn't inherit body headers
+<span class="lineNum">    1196 </span>            :      */
+<span class="lineNum">    1197 </span><span class="lineCov">          1 :     if (!r-&gt;kept_body &amp;&amp; (apr_table_get(r-&gt;headers_in, &quot;Content-Length&quot;)</span>
+<span class="lineNum">    1198 </span><span class="lineCov">          1 :         || apr_table_get(r-&gt;headers_in, &quot;Transfer-Encoding&quot;))) {</span>
+<span class="lineNum">    1199 </span><span class="lineNoCov">          0 :         strip_headers_request_body(rnew);</span>
+<span class="lineNum">    1200 </span>            :     }
+<span class="lineNum">    1201 </span><span class="lineCov">          1 :     rnew-&gt;subprocess_env  = apr_table_copy(rnew-&gt;pool, r-&gt;subprocess_env);</span>
+<span class="lineNum">    1202 </span><span class="lineCov">          1 :     rnew-&gt;headers_out     = apr_table_make(rnew-&gt;pool, 5);</span>
+<span class="lineNum">    1203 </span><span class="lineCov">          1 :     rnew-&gt;err_headers_out = apr_table_make(rnew-&gt;pool, 5);</span>
+<span class="lineNum">    1204 </span><span class="lineCov">          1 :     rnew-&gt;trailers_out    = apr_table_make(rnew-&gt;pool, 5);</span>
+<span class="lineNum">    1205 </span><span class="lineCov">          1 :     rnew-&gt;notes           = apr_table_make(rnew-&gt;pool, 5);</span>
+<span class="lineNum">    1206 </span>            : 
+<span class="lineNum">    1207 </span><span class="lineCov">          1 :     rnew-&gt;expecting_100   = r-&gt;expecting_100;</span>
+<span class="lineNum">    1208 </span><span class="lineCov">          1 :     rnew-&gt;read_length     = r-&gt;read_length;</span>
+<span class="lineNum">    1209 </span><span class="lineCov">          1 :     rnew-&gt;read_body       = REQUEST_NO_BODY;</span>
+<span class="lineNum">    1210 </span>            : 
+<span class="lineNum">    1211 </span><span class="lineCov">          1 :     rnew-&gt;main = (request_rec *) r;</span>
+<a name="1212"><span class="lineNum">    1212 </span><span class="lineCov">          1 : }</span></a>
+<span class="lineNum">    1213 </span>            : 
+<span class="lineNum">    1214 </span><span class="lineNoCov">          0 : static void end_output_stream(request_rec *r)</span>
+<span class="lineNum">    1215 </span>            : {
+<span class="lineNum">    1216 </span><span class="lineNoCov">          0 :     conn_rec *c = r-&gt;connection;</span>
+<span class="lineNum">    1217 </span>            :     apr_bucket_brigade *bb;
+<span class="lineNum">    1218 </span>            :     apr_bucket *b;
+<span class="lineNum">    1219 </span>            : 
+<span class="lineNum">    1220 </span><span class="lineNoCov">          0 :     bb = apr_brigade_create(r-&gt;pool, c-&gt;bucket_alloc);</span>
+<span class="lineNum">    1221 </span><span class="lineNoCov">          0 :     b = apr_bucket_eos_create(c-&gt;bucket_alloc);</span>
+<span class="lineNum">    1222 </span><span class="lineNoCov">          0 :     APR_BRIGADE_INSERT_TAIL(bb, b);</span>
+<span class="lineNum">    1223 </span><span class="lineNoCov">          0 :     ap_pass_brigade(r-&gt;output_filters, bb);</span>
+<a name="1224"><span class="lineNum">    1224 </span><span class="lineNoCov">          0 : }</span></a>
+<span class="lineNum">    1225 </span>            : 
+<span class="lineNum">    1226 </span><span class="lineNoCov">          0 : AP_DECLARE(void) ap_finalize_sub_req_protocol(request_rec *sub)</span>
+<span class="lineNum">    1227 </span>            : {
+<span class="lineNum">    1228 </span>            :     /* tell the filter chain there is no more content coming */
+<span class="lineNum">    1229 </span><span class="lineNoCov">          0 :     if (!sub-&gt;eos_sent) {</span>
+<span class="lineNum">    1230 </span><span class="lineNoCov">          0 :         end_output_stream(sub);</span>
+<span class="lineNum">    1231 </span>            :     }
+<span class="lineNum">    1232 </span><span class="lineNoCov">          0 : }</span>
+<span class="lineNum">    1233 </span>            : 
+<span class="lineNum">    1234 </span>            : /* finalize_request_protocol is called at completion of sending the
+<span class="lineNum">    1235 </span>            :  * response.  Its sole purpose is to send the terminating protocol
+<span class="lineNum">    1236 </span>            :  * information for any wrappers around the response message body
+<a name="1237"><span class="lineNum">    1237 </span>            :  * (i.e., transfer encodings).  It should have been named finalize_response.</a>
+<span class="lineNum">    1238 </span>            :  */
+<span class="lineNum">    1239 </span><span class="lineCov">          1 : AP_DECLARE(void) ap_finalize_request_protocol(request_rec *r)</span>
+<span class="lineNum">    1240 </span>            : {
+<span class="lineNum">    1241 </span><span class="lineCov">          1 :     (void) ap_discard_request_body(r);</span>
+<span class="lineNum">    1242 </span>            : 
+<span class="lineNum">    1243 </span>            :     /* tell the filter chain there is no more content coming */
+<span class="lineNum">    1244 </span><span class="lineCov">          1 :     if (!r-&gt;eos_sent) {</span>
+<span class="lineNum">    1245 </span><span class="lineNoCov">          0 :         end_output_stream(r);</span>
+<span class="lineNum">    1246 </span>            :     }
+<span class="lineNum">    1247 </span><span class="lineCov">          1 : }</span>
+<span class="lineNum">    1248 </span>            : 
+<span class="lineNum">    1249 </span>            : /*
+<a name="1250"><span class="lineNum">    1250 </span>            :  * Support for the Basic authentication protocol, and a bit for Digest.</a>
+<span class="lineNum">    1251 </span>            :  */
+<span class="lineNum">    1252 </span><span class="lineNoCov">          0 : AP_DECLARE(void) ap_note_auth_failure(request_rec *r)</span>
+<span class="lineNum">    1253 </span>            : {
+<span class="lineNum">    1254 </span><span class="lineNoCov">          0 :     const char *type = ap_auth_type(r);</span>
+<span class="lineNum">    1255 </span><span class="lineNoCov">          0 :     if (type) {</span>
+<span class="lineNum">    1256 </span><span class="lineNoCov">          0 :         ap_run_note_auth_failure(r, type);</span>
+<span class="lineNum">    1257 </span>            :     }
+<span class="lineNum">    1258 </span>            :     else {
+<span class="lineNum">    1259 </span><span class="lineNoCov">          0 :         ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, APLOGNO(00571)</span>
+<span class="lineNum">    1260 </span>            :                       &quot;need AuthType to note auth failure: %s&quot;, r-&gt;uri);
+<span class="lineNum">    1261 </span>            :     }
+<a name="1262"><span class="lineNum">    1262 </span><span class="lineNoCov">          0 : }</span></a>
+<span class="lineNum">    1263 </span>            : 
+<span class="lineNum">    1264 </span><span class="lineNoCov">          0 : AP_DECLARE(void) ap_note_basic_auth_failure(request_rec *r)</span>
+<span class="lineNum">    1265 </span>            : {
+<span class="lineNum">    1266 </span><span class="lineNoCov">          0 :     ap_note_auth_failure(r);</span>
+<a name="1267"><span class="lineNum">    1267 </span><span class="lineNoCov">          0 : }</span></a>
+<span class="lineNum">    1268 </span>            : 
+<span class="lineNum">    1269 </span><span class="lineNoCov">          0 : AP_DECLARE(void) ap_note_digest_auth_failure(request_rec *r)</span>
+<span class="lineNum">    1270 </span>            : {
+<span class="lineNum">    1271 </span><span class="lineNoCov">          0 :     ap_note_auth_failure(r);</span>
+<a name="1272"><span class="lineNum">    1272 </span><span class="lineNoCov">          0 : }</span></a>
+<span class="lineNum">    1273 </span>            : 
+<span class="lineNum">    1274 </span><span class="lineNoCov">          0 : AP_DECLARE(int) ap_get_basic_auth_pw(request_rec *r, const char **pw)</span>
+<span class="lineNum">    1275 </span>            : {
+<span class="lineNum">    1276 </span><span class="lineNoCov">          0 :     const char *auth_line = apr_table_get(r-&gt;headers_in,</span>
+<span class="lineNum">    1277 </span><span class="lineNoCov">          0 :                                           (PROXYREQ_PROXY == r-&gt;proxyreq)</span>
+<span class="lineNum">    1278 </span>            :                                               ? &quot;Proxy-Authorization&quot;
+<span class="lineNum">    1279 </span>            :                                               : &quot;Authorization&quot;);
+<span class="lineNum">    1280 </span>            :     const char *t;
+<span class="lineNum">    1281 </span>            : 
+<span class="lineNum">    1282 </span><span class="lineNoCov">          0 :     if (!(t = ap_auth_type(r)) || strcasecmp(t, &quot;Basic&quot;))</span>
+<span class="lineNum">    1283 </span><span class="lineNoCov">          0 :         return DECLINED;</span>
+<span class="lineNum">    1284 </span>            : 
+<span class="lineNum">    1285 </span><span class="lineNoCov">          0 :     if (!ap_auth_name(r)) {</span>
+<span class="lineNum">    1286 </span><span class="lineNoCov">          0 :         ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, APLOGNO(00572) </span>
+<span class="lineNum">    1287 </span>            :                       &quot;need AuthName: %s&quot;, r-&gt;uri);
+<span class="lineNum">    1288 </span><span class="lineNoCov">          0 :         return HTTP_INTERNAL_SERVER_ERROR;</span>
+<span class="lineNum">    1289 </span>            :     }
+<span class="lineNum">    1290 </span>            : 
+<span class="lineNum">    1291 </span><span class="lineNoCov">          0 :     if (!auth_line) {</span>
+<span class="lineNum">    1292 </span><span class="lineNoCov">          0 :         ap_note_auth_failure(r);</span>
+<span class="lineNum">    1293 </span><span class="lineNoCov">          0 :         return HTTP_UNAUTHORIZED;</span>
+<span class="lineNum">    1294 </span>            :     }
+<span class="lineNum">    1295 </span>            : 
+<span class="lineNum">    1296 </span><span class="lineNoCov">          0 :     if (strcasecmp(ap_getword(r-&gt;pool, &amp;auth_line, ' '), &quot;Basic&quot;)) {</span>
+<span class="lineNum">    1297 </span>            :         /* Client tried to authenticate using wrong auth scheme */
+<span class="lineNum">    1298 </span><span class="lineNoCov">          0 :         ap_log_rerror(APLOG_MARK, APLOG_INFO, 0, r, APLOGNO(00573)</span>
+<span class="lineNum">    1299 </span>            :                       &quot;client used wrong authentication scheme: %s&quot;, r-&gt;uri);
+<span class="lineNum">    1300 </span><span class="lineNoCov">          0 :         ap_note_auth_failure(r);</span>
+<span class="lineNum">    1301 </span><span class="lineNoCov">          0 :         return HTTP_UNAUTHORIZED;</span>
+<span class="lineNum">    1302 </span>            :     }
+<span class="lineNum">    1303 </span>            : 
+<span class="lineNum">    1304 </span><span class="lineNoCov">          0 :     while (*auth_line == ' ' || *auth_line == '\t') {</span>
+<span class="lineNum">    1305 </span><span class="lineNoCov">          0 :         auth_line++;</span>
+<span class="lineNum">    1306 </span>            :     }
+<span class="lineNum">    1307 </span>            : 
+<span class="lineNum">    1308 </span><span class="lineNoCov">          0 :     t = ap_pbase64decode(r-&gt;pool, auth_line);</span>
+<span class="lineNum">    1309 </span><span class="lineNoCov">          0 :     r-&gt;user = ap_getword_nulls (r-&gt;pool, &amp;t, ':');</span>
+<span class="lineNum">    1310 </span><span class="lineNoCov">          0 :     r-&gt;ap_auth_type = &quot;Basic&quot;;</span>
+<span class="lineNum">    1311 </span>            : 
+<span class="lineNum">    1312 </span><span class="lineNoCov">          0 :     *pw = t;</span>
+<span class="lineNum">    1313 </span>            : 
+<span class="lineNum">    1314 </span><span class="lineNoCov">          0 :     return OK;</span>
+<span class="lineNum">    1315 </span>            : }
+<span class="lineNum">    1316 </span>            : 
+<span class="lineNum">    1317 </span>            : struct content_length_ctx {
+<span class="lineNum">    1318 </span>            :     int data_sent;  /* true if the C-L filter has already sent at
+<span class="lineNum">    1319 </span>            :                      * least one bucket on to the next output filter
+<span class="lineNum">    1320 </span>            :                      * for this request
+<span class="lineNum">    1321 </span>            :                      */
+<span class="lineNum">    1322 </span>            :     apr_bucket_brigade *tmpbb;
+<span class="lineNum">    1323 </span>            : };
+<span class="lineNum">    1324 </span>            : 
+<span class="lineNum">    1325 </span>            : /* This filter computes the content length, but it also computes the number
+<span class="lineNum">    1326 </span>            :  * of bytes sent to the client.  This means that this filter will always run
+<a name="1327"><span class="lineNum">    1327 </span>            :  * through all of the buckets in all brigades</a>
+<span class="lineNum">    1328 </span>            :  */
+<span class="lineNum">    1329 </span><span class="lineCov">          1 : AP_CORE_DECLARE_NONSTD(apr_status_t) ap_content_length_filter(</span>
+<span class="lineNum">    1330 </span>            :     ap_filter_t *f,
+<span class="lineNum">    1331 </span>            :     apr_bucket_brigade *b)
+<span class="lineNum">    1332 </span>            : {
+<span class="lineNum">    1333 </span><span class="lineCov">          1 :     request_rec *r = f-&gt;r;</span>
+<span class="lineNum">    1334 </span>            :     struct content_length_ctx *ctx;
+<span class="lineNum">    1335 </span>            :     apr_bucket *e;
+<span class="lineNum">    1336 </span><span class="lineCov">          1 :     int eos = 0;</span>
+<span class="lineNum">    1337 </span><span class="lineCov">          1 :     apr_read_type_e eblock = APR_NONBLOCK_READ;</span>
+<span class="lineNum">    1338 </span>            : 
+<span class="lineNum">    1339 </span><span class="lineCov">          1 :     ctx = f-&gt;ctx;</span>
+<span class="lineNum">    1340 </span><span class="lineCov">          1 :     if (!ctx) {</span>
+<span class="lineNum">    1341 </span><span class="lineCov">          1 :         f-&gt;ctx = ctx = apr_palloc(r-&gt;pool, sizeof(*ctx));</span>
+<span class="lineNum">    1342 </span><span class="lineCov">          1 :         ctx-&gt;data_sent = 0;</span>
+<span class="lineNum">    1343 </span><span class="lineCov">          1 :         ctx-&gt;tmpbb = apr_brigade_create(r-&gt;pool, r-&gt;connection-&gt;bucket_alloc);</span>
+<span class="lineNum">    1344 </span>            :     }
+<span class="lineNum">    1345 </span>            : 
+<span class="lineNum">    1346 </span>            :     /* Loop through this set of buckets to compute their length
+<span class="lineNum">    1347 </span>            :      */
+<span class="lineNum">    1348 </span><span class="lineCov">          1 :     e = APR_BRIGADE_FIRST(b);</span>
+<span class="lineNum">    1349 </span><span class="lineCov">          3 :     while (e != APR_BRIGADE_SENTINEL(b)) {</span>
+<span class="lineNum">    1350 </span><span class="lineCov">          2 :         if (APR_BUCKET_IS_EOS(e)) {</span>
+<span class="lineNum">    1351 </span><span class="lineCov">          1 :             eos = 1;</span>
+<span class="lineNum">    1352 </span><span class="lineCov">          1 :             break;</span>
+<span class="lineNum">    1353 </span>            :         }
+<span class="lineNum">    1354 </span><span class="lineCov">          1 :         if (e-&gt;length == (apr_size_t)-1) {</span>
+<span class="lineNum">    1355 </span>            :             apr_size_t len;
+<span class="lineNum">    1356 </span>            :             const char *ignored;
+<span class="lineNum">    1357 </span>            :             apr_status_t rv;
+<span class="lineNum">    1358 </span>            : 
+<span class="lineNum">    1359 </span>            :             /* This is probably a pipe bucket.  Send everything
+<span class="lineNum">    1360 </span>            :              * prior to this, and then read the data for this bucket.
+<span class="lineNum">    1361 </span>            :              */
+<span class="lineNum">    1362 </span><span class="lineNoCov">          0 :             rv = apr_bucket_read(e, &amp;ignored, &amp;len, eblock);</span>
+<span class="lineNum">    1363 </span><span class="lineNoCov">          0 :             if (rv == APR_SUCCESS) {</span>
+<span class="lineNum">    1364 </span>            :                 /* Attempt a nonblocking read next time through */
+<span class="lineNum">    1365 </span><span class="lineNoCov">          0 :                 eblock = APR_NONBLOCK_READ;</span>
+<span class="lineNum">    1366 </span><span class="lineNoCov">          0 :                 r-&gt;bytes_sent += len;</span>
+<span class="lineNum">    1367 </span>            :             }
+<span class="lineNum">    1368 </span><span class="lineNoCov">          0 :             else if (APR_STATUS_IS_EAGAIN(rv)) {</span>
+<span class="lineNum">    1369 </span>            :                 /* Output everything prior to this bucket, and then
+<span class="lineNum">    1370 </span>            :                  * do a blocking read on the next batch.
+<span class="lineNum">    1371 </span>            :                  */
+<span class="lineNum">    1372 </span><span class="lineNoCov">          0 :                 if (e != APR_BRIGADE_FIRST(b)) {</span>
+<span class="lineNum">    1373 </span>            :                     apr_bucket *flush;
+<span class="lineNum">    1374 </span><span class="lineNoCov">          0 :                     apr_brigade_split_ex(b, e, ctx-&gt;tmpbb);</span>
+<span class="lineNum">    1375 </span><span class="lineNoCov">          0 :                     flush = apr_bucket_flush_create(r-&gt;connection-&gt;bucket_alloc);</span>
+<span class="lineNum">    1376 </span>            : 
+<span class="lineNum">    1377 </span><span class="lineNoCov">          0 :                     APR_BRIGADE_INSERT_TAIL(b, flush);</span>
+<span class="lineNum">    1378 </span><span class="lineNoCov">          0 :                     rv = ap_pass_brigade(f-&gt;next, b);</span>
+<span class="lineNum">    1379 </span><span class="lineNoCov">          0 :                     if (rv != APR_SUCCESS || f-&gt;c-&gt;aborted) {</span>
+<span class="lineNum">    1380 </span><span class="lineNoCov">          0 :                         return rv;</span>
+<span class="lineNum">    1381 </span>            :                     }
+<span class="lineNum">    1382 </span><span class="lineNoCov">          0 :                     apr_brigade_cleanup(b);</span>
+<span class="lineNum">    1383 </span><span class="lineNoCov">          0 :                     APR_BRIGADE_CONCAT(b, ctx-&gt;tmpbb);</span>
+<span class="lineNum">    1384 </span><span class="lineNoCov">          0 :                     e = APR_BRIGADE_FIRST(b);</span>
+<span class="lineNum">    1385 </span>            : 
+<span class="lineNum">    1386 </span><span class="lineNoCov">          0 :                     ctx-&gt;data_sent = 1;</span>
+<span class="lineNum">    1387 </span>            :                 }
+<span class="lineNum">    1388 </span><span class="lineNoCov">          0 :                 eblock = APR_BLOCK_READ;</span>
+<span class="lineNum">    1389 </span><span class="lineNoCov">          0 :                 continue;</span>
+<span class="lineNum">    1390 </span>            :             }
+<span class="lineNum">    1391 </span>            :             else {
+<span class="lineNum">    1392 </span><span class="lineNoCov">          0 :                 ap_log_rerror(APLOG_MARK, APLOG_ERR, rv, r, APLOGNO(00574)</span>
+<span class="lineNum">    1393 </span>            :                               &quot;ap_content_length_filter: &quot;
+<span class="lineNum">    1394 </span>            :                               &quot;apr_bucket_read() failed&quot;);
+<span class="lineNum">    1395 </span><span class="lineNoCov">          0 :                 return rv;</span>
+<span class="lineNum">    1396 </span>            :             }
+<span class="lineNum">    1397 </span>            :         }
+<span class="lineNum">    1398 </span>            :         else {
+<span class="lineNum">    1399 </span><span class="lineCov">          1 :             r-&gt;bytes_sent += e-&gt;length;</span>
+<span class="lineNum">    1400 </span>            :         }
+<span class="lineNum">    1401 </span><span class="lineCov">          1 :         e = APR_BUCKET_NEXT(e);</span>
+<span class="lineNum">    1402 </span>            :     }
+<span class="lineNum">    1403 </span>            : 
+<span class="lineNum">    1404 </span>            :     /* If we've now seen the entire response and it's otherwise
+<span class="lineNum">    1405 </span>            :      * okay to set the C-L in the response header, then do so now.
+<span class="lineNum">    1406 </span>            :      *
+<span class="lineNum">    1407 </span>            :      * We can only set a C-L in the response header if we haven't already
+<span class="lineNum">    1408 </span>            :      * sent any buckets on to the next output filter for this request.
+<span class="lineNum">    1409 </span>            :      */
+<span class="lineNum">    1410 </span><span class="lineCov">          2 :     if (ctx-&gt;data_sent == 0 &amp;&amp; eos &amp;&amp;</span>
+<span class="lineNum">    1411 </span>            :         /* don't whack the C-L if it has already been set for a HEAD
+<span class="lineNum">    1412 </span>            :          * by something like proxy.  the brigade only has an EOS bucket
+<span class="lineNum">    1413 </span>            :          * in this case, making r-&gt;bytes_sent zero.
+<span class="lineNum">    1414 </span>            :          *
+<span class="lineNum">    1415 </span>            :          * if r-&gt;bytes_sent &gt; 0 we have a (temporary) body whose length may
+<span class="lineNum">    1416 </span>            :          * have been changed by a filter.  the C-L header might not have been
+<span class="lineNum">    1417 </span>            :          * updated so we do it here.  long term it would be cleaner to have
+<span class="lineNum">    1418 </span>            :          * such filters update or remove the C-L header, and just use it
+<span class="lineNum">    1419 </span>            :          * if present.
+<span class="lineNum">    1420 </span>            :          */
+<span class="lineNum">    1421 </span><span class="lineCov">          1 :         !(r-&gt;header_only &amp;&amp; r-&gt;bytes_sent == 0 &amp;&amp;</span>
+<span class="lineNum">    1422 </span><span class="lineNoCov">          0 :             apr_table_get(r-&gt;headers_out, &quot;Content-Length&quot;))) {</span>
+<span class="lineNum">    1423 </span><span class="lineCov">          1 :         ap_set_content_length(r, r-&gt;bytes_sent);</span>
+<span class="lineNum">    1424 </span>            :     }
+<span class="lineNum">    1425 </span>            : 
+<span class="lineNum">    1426 </span><span class="lineCov">          1 :     ctx-&gt;data_sent = 1;</span>
+<span class="lineNum">    1427 </span><span class="lineCov">          1 :     return ap_pass_brigade(f-&gt;next, b);</span>
+<span class="lineNum">    1428 </span>            : }
+<span class="lineNum">    1429 </span>            : 
+<span class="lineNum">    1430 </span>            : /*
+<a name="1431"><span class="lineNum">    1431 </span>            :  * Send the body of a response to the client.</a>
+<span class="lineNum">    1432 </span>            :  */
+<span class="lineNum">    1433 </span><span class="lineNoCov">          0 : AP_DECLARE(apr_status_t) ap_send_fd(apr_file_t *fd, request_rec *r,</span>
+<span class="lineNum">    1434 </span>            :                                     apr_off_t offset, apr_size_t len,
+<span class="lineNum">    1435 </span>            :                                     apr_size_t *nbytes)
+<span class="lineNum">    1436 </span>            : {
+<span class="lineNum">    1437 </span><span class="lineNoCov">          0 :     conn_rec *c = r-&gt;connection;</span>
+<span class="lineNum">    1438 </span><span class="lineNoCov">          0 :     apr_bucket_brigade *bb = NULL;</span>
+<span class="lineNum">    1439 </span>            :     apr_status_t rv;
+<span class="lineNum">    1440 </span>            : 
+<span class="lineNum">    1441 </span><span class="lineNoCov">          0 :     bb = apr_brigade_create(r-&gt;pool, c-&gt;bucket_alloc);</span>
+<span class="lineNum">    1442 </span>            : 
+<span class="lineNum">    1443 </span><span class="lineNoCov">          0 :     apr_brigade_insert_file(bb, fd, offset, len, r-&gt;pool);</span>
+<span class="lineNum">    1444 </span>            : 
+<span class="lineNum">    1445 </span><span class="lineNoCov">          0 :     rv = ap_pass_brigade(r-&gt;output_filters, bb);</span>
+<span class="lineNum">    1446 </span><span class="lineNoCov">          0 :     if (rv != APR_SUCCESS) {</span>
+<span class="lineNum">    1447 </span><span class="lineNoCov">          0 :         *nbytes = 0; /* no way to tell how many were actually sent */</span>
+<span class="lineNum">    1448 </span>            :     }
+<span class="lineNum">    1449 </span>            :     else {
+<span class="lineNum">    1450 </span><span class="lineNoCov">          0 :         *nbytes = len;</span>
+<span class="lineNum">    1451 </span>            :     }
+<span class="lineNum">    1452 </span>            : 
+<span class="lineNum">    1453 </span><span class="lineNoCov">          0 :     return rv;</span>
+<span class="lineNum">    1454 </span>            : }
+<span class="lineNum">    1455 </span>            : 
+<a name="1456"><span class="lineNum">    1456 </span>            : #if APR_HAS_MMAP</a>
+<span class="lineNum">    1457 </span>            : /* send data from an in-memory buffer */
+<span class="lineNum">    1458 </span><span class="lineNoCov">          0 : AP_DECLARE(apr_size_t) ap_send_mmap(apr_mmap_t *mm,</span>
+<span class="lineNum">    1459 </span>            :                                     request_rec *r,
+<span class="lineNum">    1460 </span>            :                                     apr_size_t offset,
+<span class="lineNum">    1461 </span>            :                                     apr_size_t length)
+<span class="lineNum">    1462 </span>            : {
+<span class="lineNum">    1463 </span><span class="lineNoCov">          0 :     conn_rec *c = r-&gt;connection;</span>
+<span class="lineNum">    1464 </span><span class="lineNoCov">          0 :     apr_bucket_brigade *bb = NULL;</span>
+<span class="lineNum">    1465 </span>            :     apr_bucket *b;
+<span class="lineNum">    1466 </span>            : 
+<span class="lineNum">    1467 </span><span class="lineNoCov">          0 :     bb = apr_brigade_create(r-&gt;pool, c-&gt;bucket_alloc);</span>
+<span class="lineNum">    1468 </span><span class="lineNoCov">          0 :     b = apr_bucket_mmap_create(mm, offset, length, c-&gt;bucket_alloc);</span>
+<span class="lineNum">    1469 </span><span class="lineNoCov">          0 :     APR_BRIGADE_INSERT_TAIL(bb, b);</span>
+<span class="lineNum">    1470 </span><span class="lineNoCov">          0 :     ap_pass_brigade(r-&gt;output_filters, bb);</span>
+<span class="lineNum">    1471 </span>            : 
+<span class="lineNum">    1472 </span><span class="lineNoCov">          0 :     return mm-&gt;size; /* XXX - change API to report apr_status_t? */</span>
+<span class="lineNum">    1473 </span>            : }
+<span class="lineNum">    1474 </span>            : #endif /* APR_HAS_MMAP */
+<span class="lineNum">    1475 </span>            : 
+<span class="lineNum">    1476 </span>            : typedef struct {
+<span class="lineNum">    1477 </span>            :     apr_bucket_brigade *bb;
+<span class="lineNum">    1478 </span>            :     apr_bucket_brigade *tmpbb;
+<a name="1479"><span class="lineNum">    1479 </span>            : } old_write_filter_ctx;</a>
+<span class="lineNum">    1480 </span>            : 
+<span class="lineNum">    1481 </span><span class="lineNoCov">          0 : AP_CORE_DECLARE_NONSTD(apr_status_t) ap_old_write_filter(</span>
+<span class="lineNum">    1482 </span>            :     ap_filter_t *f, apr_bucket_brigade *bb)
+<span class="lineNum">    1483 </span>            : {
+<span class="lineNum">    1484 </span><span class="lineNoCov">          0 :     old_write_filter_ctx *ctx = f-&gt;ctx;</span>
+<span class="lineNum">    1485 </span>            : 
+<span class="lineNum">    1486 </span>            :     AP_DEBUG_ASSERT(ctx);
+<span class="lineNum">    1487 </span>            : 
+<span class="lineNum">    1488 </span><span class="lineNoCov">          0 :     if (ctx-&gt;bb != NULL) {</span>
+<span class="lineNum">    1489 </span>            :         /* whatever is coming down the pipe (we don't care), we
+<span class="lineNum">    1490 </span>            :          * can simply insert our buffered data at the front and
+<span class="lineNum">    1491 </span>            :          * pass the whole bundle down the chain.
+<span class="lineNum">    1492 </span>            :          */
+<span class="lineNum">    1493 </span><span class="lineNoCov">          0 :         APR_BRIGADE_PREPEND(bb, ctx-&gt;bb);</span>
+<span class="lineNum">    1494 </span>            :     }
+<span class="lineNum">    1495 </span>            : 
+<span class="lineNum">    1496 </span><span class="lineNoCov">          0 :     return ap_pass_brigade(f-&gt;next, bb);</span>
+<a name="1497"><span class="lineNum">    1497 </span>            : }</a>
+<span class="lineNum">    1498 </span>            : 
+<span class="lineNum">    1499 </span><span class="lineNoCov">          0 : static ap_filter_t *insert_old_write_filter(request_rec *r)</span>
+<span class="lineNum">    1500 </span>            : {
+<span class="lineNum">    1501 </span>            :     ap_filter_t *f;
+<span class="lineNum">    1502 </span>            :     old_write_filter_ctx *ctx;
+<span class="lineNum">    1503 </span>            : 
+<span class="lineNum">    1504 </span>            :     /* future optimization: record some flags in the request_rec to
+<span class="lineNum">    1505 </span>            :      * say whether we've added our filter, and whether it is first.
+<span class="lineNum">    1506 </span>            :      */
+<span class="lineNum">    1507 </span>            : 
+<span class="lineNum">    1508 </span>            :     /* this will typically exit on the first test */
+<span class="lineNum">    1509 </span><span class="lineNoCov">          0 :     for (f = r-&gt;output_filters; f != NULL; f = f-&gt;next) {</span>
+<span class="lineNum">    1510 </span><span class="lineNoCov">          0 :         if (ap_old_write_func == f-&gt;frec)</span>
+<span class="lineNum">    1511 </span><span class="lineNoCov">          0 :             break;</span>
+<span class="lineNum">    1512 </span>            :     }
+<span class="lineNum">    1513 </span>            : 
+<span class="lineNum">    1514 </span><span class="lineNoCov">          0 :     if (f == NULL) {</span>
+<span class="lineNum">    1515 </span>            :         /* our filter hasn't been added yet */
+<span class="lineNum">    1516 </span><span class="lineNoCov">          0 :         ctx = apr_pcalloc(r-&gt;pool, sizeof(*ctx));</span>
+<span class="lineNum">    1517 </span><span class="lineNoCov">          0 :         ctx-&gt;tmpbb = apr_brigade_create(r-&gt;pool, r-&gt;connection-&gt;bucket_alloc);</span>
+<span class="lineNum">    1518 </span>            : 
+<span class="lineNum">    1519 </span><span class="lineNoCov">          0 :         ap_add_output_filter(&quot;OLD_WRITE&quot;, ctx, r, r-&gt;connection);</span>
+<span class="lineNum">    1520 </span><span class="lineNoCov">          0 :         f = r-&gt;output_filters;</span>
+<span class="lineNum">    1521 </span>            :     }
+<span class="lineNum">    1522 </span>            : 
+<span class="lineNum">    1523 </span><span class="lineNoCov">          0 :     return f;</span>
+<a name="1524"><span class="lineNum">    1524 </span>            : }</a>
+<span class="lineNum">    1525 </span>            : 
+<span class="lineNum">    1526 </span><span class="lineNoCov">          0 : static apr_status_t buffer_output(request_rec *r,</span>
+<span class="lineNum">    1527 </span>            :                                   const char *str, apr_size_t len)
+<span class="lineNum">    1528 </span>            : {
+<span class="lineNum">    1529 </span><span class="lineNoCov">          0 :     conn_rec *c = r-&gt;connection;</span>
+<span class="lineNum">    1530 </span>            :     ap_filter_t *f;
+<span class="lineNum">    1531 </span>            :     old_write_filter_ctx *ctx;
+<span class="lineNum">    1532 </span>            : 
+<span class="lineNum">    1533 </span><span class="lineNoCov">          0 :     if (len == 0)</span>
+<span class="lineNum">    1534 </span><span class="lineNoCov">          0 :         return APR_SUCCESS;</span>
+<span class="lineNum">    1535 </span>            : 
+<span class="lineNum">    1536 </span><span class="lineNoCov">          0 :     f = insert_old_write_filter(r);</span>
+<span class="lineNum">    1537 </span><span class="lineNoCov">          0 :     ctx = f-&gt;ctx;</span>
+<span class="lineNum">    1538 </span>            : 
+<span class="lineNum">    1539 </span>            :     /* if the first filter is not our buffering filter, then we have to
+<span class="lineNum">    1540 </span>            :      * deliver the content through the normal filter chain
+<span class="lineNum">    1541 </span>            :      */
+<span class="lineNum">    1542 </span><span class="lineNoCov">          0 :     if (f != r-&gt;output_filters) {</span>
+<span class="lineNum">    1543 </span>            :         apr_status_t rv;
+<span class="lineNum">    1544 </span><span class="lineNoCov">          0 :         apr_bucket *b = apr_bucket_transient_create(str, len, c-&gt;bucket_alloc);</span>
+<span class="lineNum">    1545 </span><span class="lineNoCov">          0 :         APR_BRIGADE_INSERT_TAIL(ctx-&gt;tmpbb, b);</span>
+<span class="lineNum">    1546 </span>            : 
+<span class="lineNum">    1547 </span><span class="lineNoCov">          0 :         rv = ap_pass_brigade(r-&gt;output_filters, ctx-&gt;tmpbb);</span>
+<span class="lineNum">    1548 </span><span class="lineNoCov">          0 :         apr_brigade_cleanup(ctx-&gt;tmpbb);</span>
+<span class="lineNum">    1549 </span><span class="lineNoCov">          0 :         return rv;</span>
+<span class="lineNum">    1550 </span>            :     }
+<span class="lineNum">    1551 </span>            : 
+<span class="lineNum">    1552 </span><span class="lineNoCov">          0 :     if (ctx-&gt;bb == NULL) {</span>
+<span class="lineNum">    1553 </span><span class="lineNoCov">          0 :         ctx-&gt;bb = apr_brigade_create(r-&gt;pool, c-&gt;bucket_alloc);</span>
+<span class="lineNum">    1554 </span>            :     }
+<span class="lineNum">    1555 </span>            : 
+<span class="lineNum">    1556 </span><span class="lineNoCov">          0 :     return ap_fwrite(f-&gt;next, ctx-&gt;bb, str, len);</span>
+<a name="1557"><span class="lineNum">    1557 </span>            : }</a>
+<span class="lineNum">    1558 </span>            : 
+<span class="lineNum">    1559 </span><span class="lineNoCov">          0 : AP_DECLARE(int) ap_rputc(int c, request_rec *r)</span>
+<span class="lineNum">    1560 </span>            : {
+<span class="lineNum">    1561 </span><span class="lineNoCov">          0 :     char c2 = (char)c;</span>
+<span class="lineNum">    1562 </span>            : 
+<span class="lineNum">    1563 </span><span class="lineNoCov">          0 :     if (r-&gt;connection-&gt;aborted) {</span>
+<span class="lineNum">    1564 </span><span class="lineNoCov">          0 :         return -1;</span>
+<span class="lineNum">    1565 </span>            :     }
+<span class="lineNum">    1566 </span>            : 
+<span class="lineNum">    1567 </span><span class="lineNoCov">          0 :     if (buffer_output(r, &amp;c2, 1) != APR_SUCCESS)</span>
+<span class="lineNum">    1568 </span><span class="lineNoCov">          0 :         return -1;</span>
+<span class="lineNum">    1569 </span>            : 
+<span class="lineNum">    1570 </span><span class="lineNoCov">          0 :     return c;</span>
+<a name="1571"><span class="lineNum">    1571 </span>            : }</a>
+<span class="lineNum">    1572 </span>            : 
+<span class="lineNum">    1573 </span><span class="lineNoCov">          0 : AP_DECLARE(int) ap_rwrite(const void *buf, int nbyte, request_rec *r)</span>
+<span class="lineNum">    1574 </span>            : {
+<span class="lineNum">    1575 </span><span class="lineNoCov">          0 :     if (r-&gt;connection-&gt;aborted)</span>
+<span class="lineNum">    1576 </span><span class="lineNoCov">          0 :         return -1;</span>
+<span class="lineNum">    1577 </span>            : 
+<span class="lineNum">    1578 </span><span class="lineNoCov">          0 :     if (buffer_output(r, buf, nbyte) != APR_SUCCESS)</span>
+<span class="lineNum">    1579 </span><span class="lineNoCov">          0 :         return -1;</span>
+<span class="lineNum">    1580 </span>            : 
+<span class="lineNum">    1581 </span><span class="lineNoCov">          0 :     return nbyte;</span>
+<span class="lineNum">    1582 </span>            : }
+<span class="lineNum">    1583 </span>            : 
+<span class="lineNum">    1584 </span>            : struct ap_vrprintf_data {
+<span class="lineNum">    1585 </span>            :     apr_vformatter_buff_t vbuff;
+<span class="lineNum">    1586 </span>            :     request_rec *r;
+<span class="lineNum">    1587 </span>            :     char *buff;
+<span class="lineNum">    1588 </span>            : };
+<a name="1589"><span class="lineNum">    1589 </span>            : </a>
+<span class="lineNum">    1590 </span>            : /* Flush callback for apr_vformatter; returns -1 on error. */
+<span class="lineNum">    1591 </span><span class="lineNoCov">          0 : static int r_flush(apr_vformatter_buff_t *buff)</span>
+<span class="lineNum">    1592 </span>            : {
+<span class="lineNum">    1593 </span>            :     /* callback function passed to ap_vformatter to be called when
+<span class="lineNum">    1594 </span>            :      * vformatter needs to write into buff and buff.curpos &gt; buff.endpos */
+<span class="lineNum">    1595 </span>            : 
+<span class="lineNum">    1596 </span>            :     /* ap_vrprintf_data passed as a apr_vformatter_buff_t, which is then
+<span class="lineNum">    1597 </span>            :      * &quot;downcast&quot; to an ap_vrprintf_data */
+<span class="lineNum">    1598 </span><span class="lineNoCov">          0 :     struct ap_vrprintf_data *vd = (struct ap_vrprintf_data*)buff;</span>
+<span class="lineNum">    1599 </span>            : 
+<span class="lineNum">    1600 </span><span class="lineNoCov">          0 :     if (vd-&gt;r-&gt;connection-&gt;aborted)</span>
+<span class="lineNum">    1601 </span><span class="lineNoCov">          0 :         return -1;</span>
+<span class="lineNum">    1602 </span>            : 
+<span class="lineNum">    1603 </span>            :     /* r_flush is called when vbuff is completely full */
+<span class="lineNum">    1604 </span><span class="lineNoCov">          0 :     if (buffer_output(vd-&gt;r, vd-&gt;buff, AP_IOBUFSIZE)) {</span>
+<span class="lineNum">    1605 </span><span class="lineNoCov">          0 :         return -1;</span>
+<span class="lineNum">    1606 </span>            :     }
+<span class="lineNum">    1607 </span>            : 
+<span class="lineNum">    1608 </span>            :     /* reset the buffer position */
+<span class="lineNum">    1609 </span><span class="lineNoCov">          0 :     vd-&gt;vbuff.curpos = vd-&gt;buff;</span>
+<span class="lineNum">    1610 </span><span class="lineNoCov">          0 :     vd-&gt;vbuff.endpos = vd-&gt;buff + AP_IOBUFSIZE;</span>
+<span class="lineNum">    1611 </span>            : 
+<span class="lineNum">    1612 </span><span class="lineNoCov">          0 :     return 0;</span>
+<a name="1613"><span class="lineNum">    1613 </span>            : }</a>
+<span class="lineNum">    1614 </span>            : 
+<span class="lineNum">    1615 </span><span class="lineNoCov">          0 : AP_DECLARE(int) ap_vrprintf(request_rec *r, const char *fmt, va_list va)</span>
+<span class="lineNum">    1616 </span>            : {
+<span class="lineNum">    1617 </span>            :     apr_size_t written;
+<span class="lineNum">    1618 </span>            :     struct ap_vrprintf_data vd;
+<span class="lineNum">    1619 </span>            :     char vrprintf_buf[AP_IOBUFSIZE];
+<span class="lineNum">    1620 </span>            : 
+<span class="lineNum">    1621 </span><span class="lineNoCov">          0 :     vd.vbuff.curpos = vrprintf_buf;</span>
+<span class="lineNum">    1622 </span><span class="lineNoCov">          0 :     vd.vbuff.endpos = vrprintf_buf + AP_IOBUFSIZE;</span>
+<span class="lineNum">    1623 </span><span class="lineNoCov">          0 :     vd.r = r;</span>
+<span class="lineNum">    1624 </span><span class="lineNoCov">          0 :     vd.buff = vrprintf_buf;</span>
+<span class="lineNum">    1625 </span>            : 
+<span class="lineNum">    1626 </span><span class="lineNoCov">          0 :     if (r-&gt;connection-&gt;aborted)</span>
+<span class="lineNum">    1627 </span><span class="lineNoCov">          0 :         return -1;</span>
+<span class="lineNum">    1628 </span>            : 
+<span class="lineNum">    1629 </span><span class="lineNoCov">          0 :     written = apr_vformatter(r_flush, &amp;vd.vbuff, fmt, va);</span>
+<span class="lineNum">    1630 </span>            : 
+<span class="lineNum">    1631 </span><span class="lineNoCov">          0 :     if (written != -1) {</span>
+<span class="lineNum">    1632 </span><span class="lineNoCov">          0 :         int n = vd.vbuff.curpos - vrprintf_buf;</span>
+<span class="lineNum">    1633 </span>            : 
+<span class="lineNum">    1634 </span>            :         /* last call to buffer_output, to finish clearing the buffer */
+<span class="lineNum">    1635 </span><span class="lineNoCov">          0 :         if (buffer_output(r, vrprintf_buf,n) != APR_SUCCESS)</span>
+<span class="lineNum">    1636 </span><span class="lineNoCov">          0 :             return -1;</span>
+<span class="lineNum">    1637 </span>            : 
+<span class="lineNum">    1638 </span><span class="lineNoCov">          0 :         written += n;</span>
+<span class="lineNum">    1639 </span>            :     }
+<span class="lineNum">    1640 </span>            : 
+<span class="lineNum">    1641 </span><span class="lineNoCov">          0 :     return written;</span>
+<a name="1642"><span class="lineNum">    1642 </span>            : }</a>
+<span class="lineNum">    1643 </span>            : 
+<span class="lineNum">    1644 </span><span class="lineNoCov">          0 : AP_DECLARE_NONSTD(int) ap_rprintf(request_rec *r, const char *fmt, ...)</span>
+<span class="lineNum">    1645 </span>            : {
+<span class="lineNum">    1646 </span>            :     va_list va;
+<span class="lineNum">    1647 </span>            :     int n;
+<span class="lineNum">    1648 </span>            : 
+<span class="lineNum">    1649 </span><span class="lineNoCov">          0 :     if (r-&gt;connection-&gt;aborted)</span>
+<span class="lineNum">    1650 </span><span class="lineNoCov">          0 :         return -1;</span>
+<span class="lineNum">    1651 </span>            : 
+<span class="lineNum">    1652 </span><span class="lineNoCov">          0 :     va_start(va, fmt);</span>
+<span class="lineNum">    1653 </span><span class="lineNoCov">          0 :     n = ap_vrprintf(r, fmt, va);</span>
+<span class="lineNum">    1654 </span><span class="lineNoCov">          0 :     va_end(va);</span>
+<span class="lineNum">    1655 </span>            : 
+<span class="lineNum">    1656 </span><span class="lineNoCov">          0 :     return n;</span>
+<a name="1657"><span class="lineNum">    1657 </span>            : }</a>
+<span class="lineNum">    1658 </span>            : 
+<span class="lineNum">    1659 </span><span class="lineNoCov">          0 : AP_DECLARE_NONSTD(int) ap_rvputs(request_rec *r, ...)</span>
+<span class="lineNum">    1660 </span>            : {
+<span class="lineNum">    1661 </span>            :     va_list va;
+<span class="lineNum">    1662 </span>            :     const char *s;
+<span class="lineNum">    1663 </span>            :     apr_size_t len;
+<span class="lineNum">    1664 </span><span class="lineNoCov">          0 :     apr_size_t written = 0;</span>
+<span class="lineNum">    1665 </span>            : 
+<span class="lineNum">    1666 </span><span class="lineNoCov">          0 :     if (r-&gt;connection-&gt;aborted)</span>
+<span class="lineNum">    1667 </span><span class="lineNoCov">          0 :         return -1;</span>
+<span class="lineNum">    1668 </span>            : 
+<span class="lineNum">    1669 </span>            :     /* ### TODO: if the total output is large, put all the strings
+<span class="lineNum">    1670 </span>            :      * ### into a single brigade, rather than flushing each time we
+<span class="lineNum">    1671 </span>            :      * ### fill the buffer
+<span class="lineNum">    1672 </span>            :      */
+<span class="lineNum">    1673 </span><span class="lineNoCov">          0 :     va_start(va, r);</span>
+<span class="lineNum">    1674 </span>            :     while (1) {
+<span class="lineNum">    1675 </span><span class="lineNoCov">          0 :         s = va_arg(va, const char *);</span>
+<span class="lineNum">    1676 </span><span class="lineNoCov">          0 :         if (s == NULL)</span>
+<span class="lineNum">    1677 </span><span class="lineNoCov">          0 :             break;</span>
+<span class="lineNum">    1678 </span>            : 
+<span class="lineNum">    1679 </span><span class="lineNoCov">          0 :         len = strlen(s);</span>
+<span class="lineNum">    1680 </span><span class="lineNoCov">          0 :         if (buffer_output(r, s, len) != APR_SUCCESS) {</span>
+<span class="lineNum">    1681 </span><span class="lineNoCov">          0 :             return -1;</span>
+<span class="lineNum">    1682 </span>            :         }
+<span class="lineNum">    1683 </span>            : 
+<span class="lineNum">    1684 </span><span class="lineNoCov">          0 :         written += len;</span>
+<span class="lineNum">    1685 </span><span class="lineNoCov">          0 :     }</span>
+<span class="lineNum">    1686 </span><span class="lineNoCov">          0 :     va_end(va);</span>
+<span class="lineNum">    1687 </span>            : 
+<span class="lineNum">    1688 </span><span class="lineNoCov">          0 :     return written;</span>
+<a name="1689"><span class="lineNum">    1689 </span>            : }</a>
+<span class="lineNum">    1690 </span>            : 
+<span class="lineNum">    1691 </span><span class="lineNoCov">          0 : AP_DECLARE(int) ap_rflush(request_rec *r)</span>
+<span class="lineNum">    1692 </span>            : {
+<span class="lineNum">    1693 </span><span class="lineNoCov">          0 :     conn_rec *c = r-&gt;connection;</span>
+<span class="lineNum">    1694 </span>            :     apr_bucket *b;
+<span class="lineNum">    1695 </span>            :     ap_filter_t *f;
+<span class="lineNum">    1696 </span>            :     old_write_filter_ctx *ctx;
+<span class="lineNum">    1697 </span>            :     apr_status_t rv;
+<span class="lineNum">    1698 </span>            : 
+<span class="lineNum">    1699 </span><span class="lineNoCov">          0 :     f = insert_old_write_filter(r);</span>
+<span class="lineNum">    1700 </span><span class="lineNoCov">          0 :     ctx = f-&gt;ctx;</span>
+<span class="lineNum">    1701 </span>            : 
+<span class="lineNum">    1702 </span><span class="lineNoCov">          0 :     b = apr_bucket_flush_create(c-&gt;bucket_alloc);</span>
+<span class="lineNum">    1703 </span><span class="lineNoCov">          0 :     APR_BRIGADE_INSERT_TAIL(ctx-&gt;tmpbb, b);</span>
+<span class="lineNum">    1704 </span>            : 
+<span class="lineNum">    1705 </span><span class="lineNoCov">          0 :     rv = ap_pass_brigade(r-&gt;output_filters, ctx-&gt;tmpbb);</span>
+<span class="lineNum">    1706 </span><span class="lineNoCov">          0 :     apr_brigade_cleanup(ctx-&gt;tmpbb);</span>
+<span class="lineNum">    1707 </span><span class="lineNoCov">          0 :     if (rv != APR_SUCCESS)</span>
+<span class="lineNum">    1708 </span><span class="lineNoCov">          0 :         return -1;</span>
+<span class="lineNum">    1709 </span>            : 
+<span class="lineNum">    1710 </span><span class="lineNoCov">          0 :     return 0;</span>
+<span class="lineNum">    1711 </span>            : }
+<span class="lineNum">    1712 </span>            : 
+<span class="lineNum">    1713 </span>            : /*
+<span class="lineNum">    1714 </span>            :  * This function sets the Last-Modified output header field to the value
+<span class="lineNum">    1715 </span>            :  * of the mtime field in the request structure - rationalized to keep it from
+<a name="1716"><span class="lineNum">    1716 </span>            :  * being in the future.</a>
+<span class="lineNum">    1717 </span>            :  */
+<span class="lineNum">    1718 </span><span class="lineCov">          1 : AP_DECLARE(void) ap_set_last_modified(request_rec *r)</span>
+<span class="lineNum">    1719 </span>            : {
+<span class="lineNum">    1720 </span><span class="lineCov">          1 :     if (!r-&gt;assbackwards) {</span>
+<span class="lineNum">    1721 </span><span class="lineCov">          1 :         apr_time_t mod_time = ap_rationalize_mtime(r, r-&gt;mtime);</span>
+<span class="lineNum">    1722 </span><span class="lineCov">          1 :         char *datestr = apr_palloc(r-&gt;pool, APR_RFC822_DATE_LEN);</span>
+<span class="lineNum">    1723 </span>            : 
+<span class="lineNum">    1724 </span><span class="lineCov">          1 :         apr_rfc822_date(datestr, mod_time);</span>
+<span class="lineNum">    1725 </span><span class="lineCov">          1 :         apr_table_setn(r-&gt;headers_out, &quot;Last-Modified&quot;, datestr);</span>
+<span class="lineNum">    1726 </span>            :     }
+<span class="lineNum">    1727 </span><span class="lineCov">          1 : }</span>
+<span class="lineNum">    1728 </span>            : 
+<span class="lineNum">    1729 </span>            : typedef struct hdr_ptr {
+<span class="lineNum">    1730 </span>            :     ap_filter_t *f;
+<a name="1731"><span class="lineNum">    1731 </span>            :     apr_bucket_brigade *bb;</a>
+<span class="lineNum">    1732 </span>            : } hdr_ptr;
+<span class="lineNum">    1733 </span><span class="lineNoCov">          0 : static int send_header(void *data, const char *key, const char *val)</span>
+<span class="lineNum">    1734 </span>            : {
+<span class="lineNum">    1735 </span><span class="lineNoCov">          0 :     ap_fputstrs(((hdr_ptr*)data)-&gt;f, ((hdr_ptr*)data)-&gt;bb,</span>
+<span class="lineNum">    1736 </span>            :                 key, &quot;: &quot;, val, CRLF, NULL);
+<a name="1737"><span class="lineNum">    1737 </span><span class="lineNoCov">          0 :     return 1;</span></a>
+<span class="lineNum">    1738 </span>            : }
+<span class="lineNum">    1739 </span><span class="lineNoCov">          0 : AP_DECLARE(void) ap_send_interim_response(request_rec *r, int send_headers)</span>
+<span class="lineNum">    1740 </span>            : {
+<span class="lineNum">    1741 </span>            :     hdr_ptr x;
+<span class="lineNum">    1742 </span><span class="lineNoCov">          0 :     char *status_line = NULL;</span>
+<span class="lineNum">    1743 </span>            :     request_rec *rr;
+<span class="lineNum">    1744 </span>            : 
+<span class="lineNum">    1745 </span><span class="lineNoCov">          0 :     if (r-&gt;proto_num &lt; HTTP_VERSION(1,1)) {</span>
+<span class="lineNum">    1746 </span>            :         /* don't send interim response to HTTP/1.0 Client */
+<span class="lineNum">    1747 </span><span class="lineNoCov">          0 :         return;</span>
+<span class="lineNum">    1748 </span>            :     }
+<span class="lineNum">    1749 </span><span class="lineNoCov">          0 :     if (!ap_is_HTTP_INFO(r-&gt;status)) {</span>
+<span class="lineNum">    1750 </span><span class="lineNoCov">          0 :         ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r, APLOGNO(00575)</span>
+<span class="lineNum">    1751 </span>            :                       &quot;Status is %d - not sending interim response&quot;, r-&gt;status);
+<span class="lineNum">    1752 </span><span class="lineNoCov">          0 :         return;</span>
+<span class="lineNum">    1753 </span>            :     }
+<span class="lineNum">    1754 </span><span class="lineNoCov">          0 :     if ((r-&gt;status == HTTP_CONTINUE) &amp;&amp; !r-&gt;expecting_100) {</span>
+<span class="lineNum">    1755 </span>            :         /*
+<span class="lineNum">    1756 </span>            :          * Don't send 100-Continue when there was no Expect: 100-continue
+<span class="lineNum">    1757 </span>            :          * in the request headers. For origin servers this is a SHOULD NOT
+<span class="lineNum">    1758 </span>            :          * for proxies it is a MUST NOT according to RFC 2616 8.2.3
+<span class="lineNum">    1759 </span>            :          */
+<span class="lineNum">    1760 </span><span class="lineNoCov">          0 :         return;</span>
+<span class="lineNum">    1761 </span>            :     }
+<span class="lineNum">    1762 </span>            : 
+<span class="lineNum">    1763 </span>            :     /* if we send an interim response, we're no longer in a state of
+<span class="lineNum">    1764 </span>            :      * expecting one.  Also, this could feasibly be in a subrequest,
+<span class="lineNum">    1765 </span>            :      * so we need to propagate the fact that we responded.
+<span class="lineNum">    1766 </span>            :      */
+<span class="lineNum">    1767 </span><span class="lineNoCov">          0 :     for (rr = r; rr != NULL; rr = rr-&gt;main) {</span>
+<span class="lineNum">    1768 </span><span class="lineNoCov">          0 :         rr-&gt;expecting_100 = 0;</span>
+<span class="lineNum">    1769 </span>            :     }
+<span class="lineNum">    1770 </span>            : 
+<span class="lineNum">    1771 </span><span class="lineNoCov">          0 :     status_line = apr_pstrcat(r-&gt;pool, AP_SERVER_PROTOCOL, &quot; &quot;, r-&gt;status_line, CRLF, NULL);</span>
+<span class="lineNum">    1772 </span>            :     ap_xlate_proto_to_ascii(status_line, strlen(status_line));
+<span class="lineNum">    1773 </span>            : 
+<span class="lineNum">    1774 </span><span class="lineNoCov">          0 :     x.f = r-&gt;connection-&gt;output_filters;</span>
+<span class="lineNum">    1775 </span><span class="lineNoCov">          0 :     x.bb = apr_brigade_create(r-&gt;pool, r-&gt;connection-&gt;bucket_alloc);</span>
+<span class="lineNum">    1776 </span>            : 
+<span class="lineNum">    1777 </span><span class="lineNoCov">          0 :     ap_fputs(x.f, x.bb, status_line);</span>
+<span class="lineNum">    1778 </span><span class="lineNoCov">          0 :     if (send_headers) {</span>
+<span class="lineNum">    1779 </span><span class="lineNoCov">          0 :         apr_table_do(send_header, &amp;x, r-&gt;headers_out, NULL);</span>
+<span class="lineNum">    1780 </span><span class="lineNoCov">          0 :         apr_table_clear(r-&gt;headers_out);</span>
+<span class="lineNum">    1781 </span>            :     }
+<span class="lineNum">    1782 </span><span class="lineNoCov">          0 :     ap_fputs(x.f, x.bb, CRLF_ASCII);</span>
+<span class="lineNum">    1783 </span><span class="lineNoCov">          0 :     ap_fflush(x.f, x.bb);</span>
+<span class="lineNum">    1784 </span><span class="lineNoCov">          0 :     apr_brigade_destroy(x.bb);</span>
+<span class="lineNum">    1785 </span>            : }
+<a name="1786"><span class="lineNum">    1786 </span>            : </a>
+<span class="lineNum">    1787 </span>            : 
+<span class="lineNum">    1788 </span><span class="lineCov">          6 : AP_IMPLEMENT_HOOK_VOID(pre_read_request,</span>
+<a name="1789"><span class="lineNum">    1789 </span>            :                        (request_rec *r, conn_rec *c),</a>
+<span class="lineNum">    1790 </span>            :                        (r, c))
+<a name="1791"><span class="lineNum">    1791 </span><span class="lineCov">          1 : AP_IMPLEMENT_HOOK_RUN_ALL(int,post_read_request,</span></a>
+<span class="lineNum">    1792 </span>            :                           (request_rec *r), (r), OK, DECLINED)
+<a name="1793"><span class="lineNum">    1793 </span><span class="lineCov">          1 : AP_IMPLEMENT_HOOK_RUN_ALL(int,log_transaction,</span></a>
+<span class="lineNum">    1794 </span>            :                           (request_rec *r), (r), OK, DECLINED)
+<a name="1795"><span class="lineNum">    1795 </span><span class="lineCov">          4 : AP_IMPLEMENT_HOOK_RUN_FIRST(const char *,http_scheme,</span></a>
+<span class="lineNum">    1796 </span>            :                             (const request_rec *r), (r), NULL)
+<a name="1797"><span class="lineNum">    1797 </span><span class="lineCov">          4 : AP_IMPLEMENT_HOOK_RUN_FIRST(unsigned short,default_port,</span></a>
+<span class="lineNum">    1798 </span>            :                             (const request_rec *r), (r), 0)
+<span class="lineNum">    1799 </span><span class="lineNoCov">          0 : AP_IMPLEMENT_HOOK_RUN_FIRST(int, note_auth_failure,</span>
+<span class="lineNum">    1800 </span>            :                             (request_rec *r, const char *auth_type),
+<span class="lineNum">    1801 </span>            :                             (r, auth_type), DECLINED)
+</pre>
+      </td>
+    </tr>
+  </table>
+  <br>
+
+  <table width="100%" border=0 cellspacing=0 cellpadding=0>
+    <tr><td class="ruler"><img src="../glass.png" width=3 height=3 alt=""></td></tr>
+    <tr><td class="versionInfo">Generated by: <a href="http://ltp.sourceforge.net/coverage/lcov.php" target="_parent">LCOV version 1.11</a></td></tr>
+  </table>
+  <br>
+
+</body>
+</html>

@@ -1,0 +1,807 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+
+<html lang="en">
+
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <title>LCOV - apptest.info - server/util_filter.c</title>
+  <link rel="stylesheet" type="text/css" href="../gcov.css">
+</head>
+
+<body>
+
+  <table width="100%" border=0 cellspacing=0 cellpadding=0>
+    <tr><td class="title">LCOV - code coverage report</td></tr>
+    <tr><td class="ruler"><img src="../glass.png" width=3 height=3 alt=""></td></tr>
+
+    <tr>
+      <td width="100%">
+        <table cellpadding=1 border=0 width="100%">
+          <tr>
+            <td width="10%" class="headerItem">Current view:</td>
+            <td width="35%" class="headerValue"><a href="../index.html">top level</a> - <a href="index.html">server</a> - util_filter.c<span style="font-size: 80%;"> (source / <a href="util_filter.c.func-sort-c.html">functions</a>)</span></td>
+            <td width="5%"></td>
+            <td width="15%"></td>
+            <td width="10%" class="headerCovTableHead">Hit</td>
+            <td width="10%" class="headerCovTableHead">Total</td>
+            <td width="15%" class="headerCovTableHead">Coverage</td>
+          </tr>
+          <tr>
+            <td class="headerItem">Test:</td>
+            <td class="headerValue">apptest.info</td>
+            <td></td>
+            <td class="headerItem">Lines:</td>
+            <td class="headerCovTableEntry">142</td>
+            <td class="headerCovTableEntry">288</td>
+            <td class="headerCovTableEntryLo">49.3 %</td>
+          </tr>
+          <tr>
+            <td class="headerItem">Date:</td>
+            <td class="headerValue">2017-01-31 22:58:06</td>
+            <td></td>
+            <td class="headerItem">Functions:</td>
+            <td class="headerCovTableEntry">15</td>
+            <td class="headerCovTableEntry">30</td>
+            <td class="headerCovTableEntryLo">50.0 %</td>
+          </tr>
+          <tr><td><img src="../glass.png" width=3 height=3 alt=""></td></tr>
+        </table>
+      </td>
+    </tr>
+
+    <tr><td class="ruler"><img src="../glass.png" width=3 height=3 alt=""></td></tr>
+  </table>
+
+  <table cellpadding=0 cellspacing=0 border=0>
+    <tr>
+      <td><br></td>
+    </tr>
+    <tr>
+      <td>
+<pre class="sourceHeading">          Line data    Source code</pre>
+<pre class="source">
+<a name="1"><span class="lineNum">       1 </span>            : /* Licensed to the Apache Software Foundation (ASF) under one or more</a>
+<span class="lineNum">       2 </span>            :  * contributor license agreements.  See the NOTICE file distributed with
+<span class="lineNum">       3 </span>            :  * this work for additional information regarding copyright ownership.
+<span class="lineNum">       4 </span>            :  * The ASF licenses this file to You under the Apache License, Version 2.0
+<span class="lineNum">       5 </span>            :  * (the &quot;License&quot;); you may not use this file except in compliance with
+<span class="lineNum">       6 </span>            :  * the License.  You may obtain a copy of the License at
+<span class="lineNum">       7 </span>            :  *
+<span class="lineNum">       8 </span>            :  *     http://www.apache.org/licenses/LICENSE-2.0
+<span class="lineNum">       9 </span>            :  *
+<span class="lineNum">      10 </span>            :  * Unless required by applicable law or agreed to in writing, software
+<span class="lineNum">      11 </span>            :  * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+<span class="lineNum">      12 </span>            :  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+<span class="lineNum">      13 </span>            :  * See the License for the specific language governing permissions and
+<span class="lineNum">      14 </span>            :  * limitations under the License.
+<span class="lineNum">      15 </span>            :  */
+<span class="lineNum">      16 </span>            : 
+<span class="lineNum">      17 </span>            : #define APR_WANT_STRFUNC
+<span class="lineNum">      18 </span>            : #include &quot;apr_want.h&quot;
+<span class="lineNum">      19 </span>            : #include &quot;apr_lib.h&quot;
+<span class="lineNum">      20 </span>            : #include &quot;apr_hash.h&quot;
+<span class="lineNum">      21 </span>            : #include &quot;apr_strings.h&quot;
+<span class="lineNum">      22 </span>            : 
+<span class="lineNum">      23 </span>            : #include &quot;httpd.h&quot;
+<span class="lineNum">      24 </span>            : #include &quot;http_config.h&quot;
+<span class="lineNum">      25 </span>            : #include &quot;http_core.h&quot;
+<span class="lineNum">      26 </span>            : #include &quot;http_log.h&quot;
+<span class="lineNum">      27 </span>            : #include &quot;util_filter.h&quot;
+<span class="lineNum">      28 </span>            : 
+<span class="lineNum">      29 </span>            : /* NOTE: Apache's current design doesn't allow a pool to be passed thru,
+<span class="lineNum">      30 </span>            :    so we depend on a global to hold the correct pool
+<span class="lineNum">      31 </span>            : */
+<span class="lineNum">      32 </span>            : #define FILTER_POOL     apr_hook_global_pool
+<span class="lineNum">      33 </span>            : #include &quot;ap_hooks.h&quot;   /* for apr_hook_global_pool */
+<span class="lineNum">      34 </span>            : 
+<span class="lineNum">      35 </span>            : /*
+<span class="lineNum">      36 </span>            : ** This macro returns true/false if a given filter should be inserted BEFORE
+<span class="lineNum">      37 </span>            : ** another filter. This will happen when one of: 1) there isn't another
+<span class="lineNum">      38 </span>            : ** filter; 2) that filter has a higher filter type (class); 3) that filter
+<span class="lineNum">      39 </span>            : ** corresponds to a different request.
+<span class="lineNum">      40 </span>            : */
+<span class="lineNum">      41 </span>            : #define INSERT_BEFORE(f, before_this) ((before_this) == NULL \
+<span class="lineNum">      42 </span>            :                            || (before_this)-&gt;frec-&gt;ftype &gt; (f)-&gt;frec-&gt;ftype \
+<span class="lineNum">      43 </span>            :                            || (before_this)-&gt;r != (f)-&gt;r)
+<span class="lineNum">      44 </span>            : 
+<span class="lineNum">      45 </span>            : /* Trie structure to hold the mapping from registered
+<span class="lineNum">      46 </span>            :  * filter names to filters
+<span class="lineNum">      47 </span>            :  */
+<span class="lineNum">      48 </span>            : 
+<span class="lineNum">      49 </span>            : /* we know core's module_index is 0 */
+<span class="lineNum">      50 </span>            : #undef APLOG_MODULE_INDEX
+<span class="lineNum">      51 </span>            : #define APLOG_MODULE_INDEX AP_CORE_MODULE_INDEX
+<span class="lineNum">      52 </span>            : 
+<span class="lineNum">      53 </span>            : typedef struct filter_trie_node filter_trie_node;
+<span class="lineNum">      54 </span>            : 
+<span class="lineNum">      55 </span>            : typedef struct {
+<span class="lineNum">      56 </span>            :     int c;
+<span class="lineNum">      57 </span>            :     filter_trie_node *child;
+<span class="lineNum">      58 </span>            : } filter_trie_child_ptr;
+<span class="lineNum">      59 </span>            : 
+<span class="lineNum">      60 </span>            : /* Each trie node has an array of pointers to its children.
+<span class="lineNum">      61 </span>            :  * The array is kept in sorted order so that add_any_filter()
+<span class="lineNum">      62 </span>            :  * can do a binary search
+<span class="lineNum">      63 </span>            :  */
+<span class="lineNum">      64 </span>            : struct filter_trie_node {
+<span class="lineNum">      65 </span>            :     ap_filter_rec_t *frec;
+<span class="lineNum">      66 </span>            :     filter_trie_child_ptr *children;
+<span class="lineNum">      67 </span>            :     int nchildren;
+<span class="lineNum">      68 </span>            :     int size;
+<span class="lineNum">      69 </span>            : };
+<span class="lineNum">      70 </span>            : 
+<span class="lineNum">      71 </span>            : #define TRIE_INITIAL_SIZE 4
+<span class="lineNum">      72 </span>            : 
+<a name="73"><span class="lineNum">      73 </span>            : /* Link a trie node to its parent</a>
+<span class="lineNum">      74 </span>            :  */
+<span class="lineNum">      75 </span><span class="lineCov">        660 : static void trie_node_link(apr_pool_t *p, filter_trie_node *parent,</span>
+<span class="lineNum">      76 </span>            :                            filter_trie_node *child, int c)
+<span class="lineNum">      77 </span>            : {
+<span class="lineNum">      78 </span>            :     int i, j;
+<span class="lineNum">      79 </span>            : 
+<span class="lineNum">      80 </span><span class="lineCov">        660 :     if (parent-&gt;nchildren == parent-&gt;size) {</span>
+<span class="lineNum">      81 </span>            :         filter_trie_child_ptr *new;
+<span class="lineNum">      82 </span><span class="lineCov">          8 :         parent-&gt;size *= 2;</span>
+<span class="lineNum">      83 </span><span class="lineCov">          8 :         new = (filter_trie_child_ptr *)apr_palloc(p, parent-&gt;size *</span>
+<span class="lineNum">      84 </span>            :                                              sizeof(filter_trie_child_ptr));
+<span class="lineNum">      85 </span><span class="lineCov">          8 :         memcpy(new, parent-&gt;children, parent-&gt;nchildren *</span>
+<span class="lineNum">      86 </span>            :                sizeof(filter_trie_child_ptr));
+<span class="lineNum">      87 </span><span class="lineCov">          8 :         parent-&gt;children = new;</span>
+<span class="lineNum">      88 </span>            :     }
+<span class="lineNum">      89 </span>            : 
+<span class="lineNum">      90 </span><span class="lineCov">        768 :     for (i = 0; i &lt; parent-&gt;nchildren; i++) {</span>
+<span class="lineNum">      91 </span><span class="lineCov">        456 :         if (c == parent-&gt;children[i].c) {</span>
+<span class="lineNum">      92 </span><span class="lineCov">        688 :             return;</span>
+<span class="lineNum">      93 </span>            :         }
+<span class="lineNum">      94 </span><span class="lineCov">        428 :         else if (c &lt; parent-&gt;children[i].c) {</span>
+<span class="lineNum">      95 </span><span class="lineCov">        320 :             break;</span>
+<span class="lineNum">      96 </span>            :         }
+<span class="lineNum">      97 </span>            :     }
+<span class="lineNum">      98 </span><span class="lineCov">       1056 :     for (j = parent-&gt;nchildren; j &gt; i; j--) {</span>
+<span class="lineNum">      99 </span><span class="lineCov">        424 :         parent-&gt;children[j].c = parent-&gt;children[j - 1].c;</span>
+<span class="lineNum">     100 </span><span class="lineCov">        424 :         parent-&gt;children[j].child = parent-&gt;children[j - 1].child;</span>
+<span class="lineNum">     101 </span>            :     }
+<span class="lineNum">     102 </span><span class="lineCov">        632 :     parent-&gt;children[i].c = c;</span>
+<span class="lineNum">     103 </span><span class="lineCov">        632 :     parent-&gt;children[i].child = child;</span>
+<span class="lineNum">     104 </span>            : 
+<span class="lineNum">     105 </span><span class="lineCov">        632 :     parent-&gt;nchildren++;</span>
+<span class="lineNum">     106 </span>            : }
+<span class="lineNum">     107 </span>            : 
+<span class="lineNum">     108 </span>            : /* Allocate a new node for a trie.
+<span class="lineNum">     109 </span>            :  * If parent is non-NULL, link the new node under the parent node with
+<a name="110"><span class="lineNum">     110 </span>            :  * key 'c' (or, if an existing child node matches, return that one)</a>
+<span class="lineNum">     111 </span>            :  */
+<span class="lineNum">     112 </span><span class="lineCov">        368 : static filter_trie_node *trie_node_alloc(apr_pool_t *p,</span>
+<span class="lineNum">     113 </span>            :                                          filter_trie_node *parent, char c)
+<span class="lineNum">     114 </span>            : {
+<span class="lineNum">     115 </span>            :     filter_trie_node *new_node;
+<span class="lineNum">     116 </span><span class="lineCov">        368 :     if (parent) {</span>
+<span class="lineNum">     117 </span>            :         int i;
+<span class="lineNum">     118 </span><span class="lineCov">        496 :         for (i = 0; i &lt; parent-&gt;nchildren; i++) {</span>
+<span class="lineNum">     119 </span><span class="lineCov">        184 :             if (c == parent-&gt;children[i].c) {</span>
+<span class="lineNum">     120 </span><span class="lineCov">         32 :                 return parent-&gt;children[i].child;</span>
+<span class="lineNum">     121 </span>            :             }
+<span class="lineNum">     122 </span><span class="lineCov">        152 :             else if (c &lt; parent-&gt;children[i].c) {</span>
+<span class="lineNum">     123 </span><span class="lineCov">         16 :                 break;</span>
+<span class="lineNum">     124 </span>            :             }
+<span class="lineNum">     125 </span>            :         }
+<span class="lineNum">     126 </span><span class="lineCov">        328 :         new_node =</span>
+<span class="lineNum">     127 </span>            :             (filter_trie_node *)apr_palloc(p, sizeof(filter_trie_node));
+<span class="lineNum">     128 </span><span class="lineCov">        328 :         trie_node_link(p, parent, new_node, c);</span>
+<span class="lineNum">     129 </span>            :     }
+<span class="lineNum">     130 </span>            :     else { /* No parent node */
+<span class="lineNum">     131 </span><span class="lineCov">          8 :         new_node = (filter_trie_node *)apr_palloc(p,</span>
+<span class="lineNum">     132 </span>            :                                                   sizeof(filter_trie_node));
+<span class="lineNum">     133 </span>            :     }
+<span class="lineNum">     134 </span>            : 
+<span class="lineNum">     135 </span><span class="lineCov">        336 :     new_node-&gt;frec = NULL;</span>
+<span class="lineNum">     136 </span><span class="lineCov">        336 :     new_node-&gt;nchildren = 0;</span>
+<span class="lineNum">     137 </span><span class="lineCov">        336 :     new_node-&gt;size = TRIE_INITIAL_SIZE;</span>
+<span class="lineNum">     138 </span><span class="lineCov">        336 :     new_node-&gt;children = (filter_trie_child_ptr *)apr_palloc(p,</span>
+<span class="lineNum">     139 </span><span class="lineCov">        336 :                              new_node-&gt;size * sizeof(filter_trie_child_ptr));</span>
+<span class="lineNum">     140 </span><span class="lineCov">        336 :     return new_node;</span>
+<span class="lineNum">     141 </span>            : }
+<span class="lineNum">     142 </span>            : 
+<span class="lineNum">     143 </span>            : static filter_trie_node *registered_output_filters = NULL;
+<span class="lineNum">     144 </span>            : static filter_trie_node *registered_input_filters = NULL;
+<a name="145"><span class="lineNum">     145 </span>            : </a>
+<span class="lineNum">     146 </span>            : 
+<span class="lineNum">     147 </span><span class="lineCov">         30 : static apr_status_t filter_cleanup(void *ctx)</span>
+<span class="lineNum">     148 </span>            : {
+<span class="lineNum">     149 </span><span class="lineCov">         30 :     registered_output_filters = NULL;</span>
+<span class="lineNum">     150 </span><span class="lineCov">         30 :     registered_input_filters = NULL;</span>
+<span class="lineNum">     151 </span><span class="lineCov">         30 :     return APR_SUCCESS;</span>
+<a name="152"><span class="lineNum">     152 </span>            : }</a>
+<span class="lineNum">     153 </span>            : 
+<span class="lineNum">     154 </span><span class="lineNoCov">          0 : static ap_filter_rec_t *get_filter_handle(const char *name,</span>
+<span class="lineNum">     155 </span>            :                                           const filter_trie_node *filter_set)
+<span class="lineNum">     156 </span>            : {
+<span class="lineNum">     157 </span><span class="lineNoCov">          0 :     if (filter_set) {</span>
+<span class="lineNum">     158 </span>            :         const char *n;
+<span class="lineNum">     159 </span>            :         const filter_trie_node *node;
+<span class="lineNum">     160 </span>            : 
+<span class="lineNum">     161 </span><span class="lineNoCov">          0 :         node = filter_set;</span>
+<span class="lineNum">     162 </span><span class="lineNoCov">          0 :         for (n = name; *n; n++) {</span>
+<span class="lineNum">     163 </span>            :             int start, end;
+<span class="lineNum">     164 </span><span class="lineNoCov">          0 :             start = 0;</span>
+<span class="lineNum">     165 </span><span class="lineNoCov">          0 :             end = node-&gt;nchildren - 1;</span>
+<span class="lineNum">     166 </span><span class="lineNoCov">          0 :             while (end &gt;= start) {</span>
+<span class="lineNum">     167 </span><span class="lineNoCov">          0 :                 int middle = (end + start) / 2;</span>
+<span class="lineNum">     168 </span><span class="lineNoCov">          0 :                 char ch = node-&gt;children[middle].c;</span>
+<span class="lineNum">     169 </span><span class="lineNoCov">          0 :                 if (*n == ch) {</span>
+<span class="lineNum">     170 </span><span class="lineNoCov">          0 :                     node = node-&gt;children[middle].child;</span>
+<span class="lineNum">     171 </span><span class="lineNoCov">          0 :                     break;</span>
+<span class="lineNum">     172 </span>            :                 }
+<span class="lineNum">     173 </span><span class="lineNoCov">          0 :                 else if (*n &lt; ch) {</span>
+<span class="lineNum">     174 </span><span class="lineNoCov">          0 :                     end = middle - 1;</span>
+<span class="lineNum">     175 </span>            :                 }
+<span class="lineNum">     176 </span>            :                 else {
+<span class="lineNum">     177 </span><span class="lineNoCov">          0 :                     start = middle + 1;</span>
+<span class="lineNum">     178 </span>            :                 }
+<span class="lineNum">     179 </span>            :             }
+<span class="lineNum">     180 </span><span class="lineNoCov">          0 :             if (end &lt; start) {</span>
+<span class="lineNum">     181 </span><span class="lineNoCov">          0 :                 node = NULL;</span>
+<span class="lineNum">     182 </span><span class="lineNoCov">          0 :                 break;</span>
+<span class="lineNum">     183 </span>            :             }
+<span class="lineNum">     184 </span>            :         }
+<span class="lineNum">     185 </span>            : 
+<span class="lineNum">     186 </span><span class="lineNoCov">          0 :         if (node &amp;&amp; node-&gt;frec) {</span>
+<span class="lineNum">     187 </span><span class="lineNoCov">          0 :             return node-&gt;frec;</span>
+<span class="lineNum">     188 </span>            :         }
+<span class="lineNum">     189 </span>            :     }
+<span class="lineNum">     190 </span><span class="lineNoCov">          0 :     return NULL;</span>
+<a name="191"><span class="lineNum">     191 </span>            : }</a>
+<span class="lineNum">     192 </span>            : 
+<span class="lineNum">     193 </span><span class="lineNoCov">          0 : AP_DECLARE(ap_filter_rec_t *)ap_get_output_filter_handle(const char *name)</span>
+<span class="lineNum">     194 </span>            : {
+<span class="lineNum">     195 </span><span class="lineNoCov">          0 :     return get_filter_handle(name, registered_output_filters);</span>
+<a name="196"><span class="lineNum">     196 </span>            : }</a>
+<span class="lineNum">     197 </span>            : 
+<span class="lineNum">     198 </span><span class="lineNoCov">          0 : AP_DECLARE(ap_filter_rec_t *)ap_get_input_filter_handle(const char *name)</span>
+<span class="lineNum">     199 </span>            : {
+<span class="lineNum">     200 </span><span class="lineNoCov">          0 :     return get_filter_handle(name, registered_input_filters);</span>
+<a name="201"><span class="lineNum">     201 </span>            : }</a>
+<span class="lineNum">     202 </span>            : 
+<span class="lineNum">     203 </span><span class="lineCov">         40 : static ap_filter_rec_t *register_filter(const char *name,</span>
+<span class="lineNum">     204 </span>            :                             ap_filter_func filter_func,
+<span class="lineNum">     205 </span>            :                             ap_init_filter_func filter_init,
+<span class="lineNum">     206 </span>            :                             ap_filter_type ftype,
+<span class="lineNum">     207 </span>            :                             filter_trie_node **reg_filter_set)
+<span class="lineNum">     208 </span>            : {
+<span class="lineNum">     209 </span>            :     ap_filter_rec_t *frec;
+<span class="lineNum">     210 </span>            :     char *normalized_name;
+<span class="lineNum">     211 </span>            :     const char *n;
+<span class="lineNum">     212 </span>            :     filter_trie_node *node;
+<span class="lineNum">     213 </span>            : 
+<span class="lineNum">     214 </span><span class="lineCov">         40 :     if (!*reg_filter_set) {</span>
+<span class="lineNum">     215 </span><span class="lineCov">          8 :         *reg_filter_set = trie_node_alloc(FILTER_POOL, NULL, 0);</span>
+<span class="lineNum">     216 </span>            :     }
+<span class="lineNum">     217 </span>            : 
+<span class="lineNum">     218 </span><span class="lineCov">         40 :     normalized_name = apr_pstrdup(FILTER_POOL, name);</span>
+<span class="lineNum">     219 </span><span class="lineCov">         40 :     ap_str_tolower(normalized_name);</span>
+<span class="lineNum">     220 </span>            : 
+<span class="lineNum">     221 </span><span class="lineCov">         40 :     node = *reg_filter_set;</span>
+<span class="lineNum">     222 </span><span class="lineCov">        400 :     for (n = normalized_name; *n; n++) {</span>
+<span class="lineNum">     223 </span><span class="lineCov">        360 :         filter_trie_node *child = trie_node_alloc(FILTER_POOL, node, *n);</span>
+<span class="lineNum">     224 </span><span class="lineCov">        360 :         if (apr_isalpha(*n)) {</span>
+<span class="lineNum">     225 </span><span class="lineCov">        332 :             trie_node_link(FILTER_POOL, node, child, apr_toupper(*n));</span>
+<span class="lineNum">     226 </span>            :         }
+<span class="lineNum">     227 </span><span class="lineCov">        360 :         node = child;</span>
+<span class="lineNum">     228 </span>            :     }
+<span class="lineNum">     229 </span><span class="lineCov">         40 :     if (node-&gt;frec) {</span>
+<span class="lineNum">     230 </span><span class="lineNoCov">          0 :         frec = node-&gt;frec;</span>
+<span class="lineNum">     231 </span>            :     }
+<span class="lineNum">     232 </span>            :     else {
+<span class="lineNum">     233 </span><span class="lineCov">         40 :         frec = apr_pcalloc(FILTER_POOL, sizeof(*frec));</span>
+<span class="lineNum">     234 </span><span class="lineCov">         40 :         node-&gt;frec = frec;</span>
+<span class="lineNum">     235 </span><span class="lineCov">         40 :         frec-&gt;name = normalized_name;</span>
+<span class="lineNum">     236 </span>            :     }
+<span class="lineNum">     237 </span><span class="lineCov">         40 :     frec-&gt;filter_func = filter_func;</span>
+<span class="lineNum">     238 </span><span class="lineCov">         40 :     frec-&gt;filter_init_func = filter_init;</span>
+<span class="lineNum">     239 </span><span class="lineCov">         40 :     frec-&gt;ftype = ftype;</span>
+<span class="lineNum">     240 </span>            : 
+<span class="lineNum">     241 </span><span class="lineCov">         40 :     apr_pool_cleanup_register(FILTER_POOL, NULL, filter_cleanup,</span>
+<span class="lineNum">     242 </span>            :                               apr_pool_cleanup_null);
+<span class="lineNum">     243 </span><span class="lineCov">         40 :     return frec;</span>
+<a name="244"><span class="lineNum">     244 </span>            : }</a>
+<span class="lineNum">     245 </span>            : 
+<span class="lineNum">     246 </span><span class="lineCov">          8 : AP_DECLARE(ap_filter_rec_t *) ap_register_input_filter(const char *name,</span>
+<span class="lineNum">     247 </span>            :                                           ap_in_filter_func filter_func,
+<span class="lineNum">     248 </span>            :                                           ap_init_filter_func filter_init,
+<span class="lineNum">     249 </span>            :                                           ap_filter_type ftype)
+<span class="lineNum">     250 </span>            : {
+<span class="lineNum">     251 </span>            :     ap_filter_func f;
+<span class="lineNum">     252 </span><span class="lineCov">          8 :     f.in_func = filter_func;</span>
+<span class="lineNum">     253 </span><span class="lineCov">          8 :     return register_filter(name, f, filter_init, ftype,</span>
+<span class="lineNum">     254 </span>            :                            &amp;registered_input_filters);
+<a name="255"><span class="lineNum">     255 </span>            : }</a>
+<span class="lineNum">     256 </span>            : 
+<span class="lineNum">     257 </span><span class="lineCov">         32 : AP_DECLARE(ap_filter_rec_t *) ap_register_output_filter(const char *name,</span>
+<span class="lineNum">     258 </span>            :                                            ap_out_filter_func filter_func,
+<span class="lineNum">     259 </span>            :                                            ap_init_filter_func filter_init,
+<span class="lineNum">     260 </span>            :                                            ap_filter_type ftype)
+<span class="lineNum">     261 </span>            : {
+<span class="lineNum">     262 </span><span class="lineCov">         32 :     return ap_register_output_filter_protocol(name, filter_func,</span>
+<span class="lineNum">     263 </span>            :                                               filter_init, ftype, 0);
+<a name="264"><span class="lineNum">     264 </span>            : }</a>
+<span class="lineNum">     265 </span>            : 
+<span class="lineNum">     266 </span><span class="lineCov">         32 : AP_DECLARE(ap_filter_rec_t *) ap_register_output_filter_protocol(</span>
+<span class="lineNum">     267 </span>            :                                            const char *name,
+<span class="lineNum">     268 </span>            :                                            ap_out_filter_func filter_func,
+<span class="lineNum">     269 </span>            :                                            ap_init_filter_func filter_init,
+<span class="lineNum">     270 </span>            :                                            ap_filter_type ftype,
+<span class="lineNum">     271 </span>            :                                            unsigned int proto_flags)
+<span class="lineNum">     272 </span>            : {
+<span class="lineNum">     273 </span>            :     ap_filter_rec_t* ret ;
+<span class="lineNum">     274 </span>            :     ap_filter_func f;
+<span class="lineNum">     275 </span><span class="lineCov">         32 :     f.out_func = filter_func;</span>
+<span class="lineNum">     276 </span><span class="lineCov">         32 :     ret = register_filter(name, f, filter_init, ftype,</span>
+<span class="lineNum">     277 </span>            :                           &amp;registered_output_filters);
+<span class="lineNum">     278 </span><span class="lineCov">         32 :     ret-&gt;proto_flags = proto_flags ;</span>
+<span class="lineNum">     279 </span><span class="lineCov">         32 :     return ret ;</span>
+<a name="280"><span class="lineNum">     280 </span>            : }</a>
+<span class="lineNum">     281 </span>            : 
+<span class="lineNum">     282 </span><span class="lineCov">         12 : static ap_filter_t *add_any_filter_handle(ap_filter_rec_t *frec, void *ctx,</span>
+<span class="lineNum">     283 </span>            :                                           request_rec *r, conn_rec *c,
+<span class="lineNum">     284 </span>            :                                           ap_filter_t **r_filters,
+<span class="lineNum">     285 </span>            :                                           ap_filter_t **p_filters,
+<span class="lineNum">     286 </span>            :                                           ap_filter_t **c_filters)
+<span class="lineNum">     287 </span>            : {
+<span class="lineNum">     288 </span><span class="lineCov">         12 :     apr_pool_t *p = frec-&gt;ftype &lt; AP_FTYPE_CONNECTION &amp;&amp; r ? r-&gt;pool : c-&gt;pool;</span>
+<span class="lineNum">     289 </span><span class="lineCov">         12 :     ap_filter_t *f = apr_palloc(p, sizeof(*f));</span>
+<span class="lineNum">     290 </span>            :     ap_filter_t **outf;
+<span class="lineNum">     291 </span>            : 
+<span class="lineNum">     292 </span><span class="lineCov">         12 :     if (frec-&gt;ftype &lt; AP_FTYPE_PROTOCOL) {</span>
+<span class="lineNum">     293 </span><span class="lineCov">          1 :         if (r) {</span>
+<span class="lineNum">     294 </span><span class="lineCov">          1 :             outf = r_filters;</span>
+<span class="lineNum">     295 </span>            :         }
+<span class="lineNum">     296 </span>            :         else {
+<span class="lineNum">     297 </span><span class="lineNoCov">          0 :             ap_log_cerror(APLOG_MARK, APLOG_ERR, 0, c, APLOGNO(00080)</span>
+<span class="lineNum">     298 </span>            :                           &quot;a content filter was added without a request: %s&quot;, frec-&gt;name);
+<span class="lineNum">     299 </span><span class="lineNoCov">          0 :             return NULL;</span>
+<span class="lineNum">     300 </span>            :         }
+<span class="lineNum">     301 </span>            :     }
+<span class="lineNum">     302 </span><span class="lineCov">         11 :     else if (frec-&gt;ftype &lt; AP_FTYPE_CONNECTION) {</span>
+<span class="lineNum">     303 </span><span class="lineCov">          9 :         if (r) {</span>
+<span class="lineNum">     304 </span><span class="lineCov">          9 :             outf = p_filters;</span>
+<span class="lineNum">     305 </span>            :         }
+<span class="lineNum">     306 </span>            :         else {
+<span class="lineNum">     307 </span><span class="lineNoCov">          0 :             ap_log_cerror(APLOG_MARK, APLOG_ERR, 0, c, APLOGNO(00081)</span>
+<span class="lineNum">     308 </span>            :                           &quot;a protocol filter was added without a request: %s&quot;, frec-&gt;name);
+<span class="lineNum">     309 </span><span class="lineNoCov">          0 :             return NULL;</span>
+<span class="lineNum">     310 </span>            :         }
+<span class="lineNum">     311 </span>            :     }
+<span class="lineNum">     312 </span>            :     else {
+<span class="lineNum">     313 </span><span class="lineCov">          2 :         outf = c_filters;</span>
+<span class="lineNum">     314 </span>            :     }
+<span class="lineNum">     315 </span>            : 
+<span class="lineNum">     316 </span><span class="lineCov">         12 :     f-&gt;frec = frec;</span>
+<span class="lineNum">     317 </span><span class="lineCov">         12 :     f-&gt;ctx = ctx;</span>
+<span class="lineNum">     318 </span>            :     /* f-&gt;r must always be NULL for connection filters */
+<span class="lineNum">     319 </span><span class="lineCov">         12 :     f-&gt;r = frec-&gt;ftype &lt; AP_FTYPE_CONNECTION ? r : NULL;</span>
+<span class="lineNum">     320 </span><span class="lineCov">         12 :     f-&gt;c = c;</span>
+<span class="lineNum">     321 </span><span class="lineCov">         12 :     f-&gt;next = NULL;</span>
+<span class="lineNum">     322 </span>            : 
+<span class="lineNum">     323 </span><span class="lineCov">         12 :     if (INSERT_BEFORE(f, *outf)) {</span>
+<span class="lineNum">     324 </span><span class="lineCov">          6 :         f-&gt;next = *outf;</span>
+<span class="lineNum">     325 </span>            : 
+<span class="lineNum">     326 </span><span class="lineCov">          6 :         if (*outf) {</span>
+<span class="lineNum">     327 </span><span class="lineCov">          4 :             ap_filter_t *first = NULL;</span>
+<span class="lineNum">     328 </span>            : 
+<span class="lineNum">     329 </span><span class="lineCov">          4 :             if (r) {</span>
+<span class="lineNum">     330 </span>            :                 /* If we are adding our first non-connection filter,
+<span class="lineNum">     331 </span>            :                  * Then don't try to find the right location, it is
+<span class="lineNum">     332 </span>            :                  * automatically first.
+<span class="lineNum">     333 </span>            :                  */
+<span class="lineNum">     334 </span><span class="lineCov">          4 :                 if (*r_filters != *c_filters) {</span>
+<span class="lineNum">     335 </span><span class="lineCov">          1 :                     first = *r_filters;</span>
+<span class="lineNum">     336 </span><span class="lineCov">          7 :                     while (first &amp;&amp; (first-&gt;next != (*outf))) {</span>
+<span class="lineNum">     337 </span><span class="lineCov">          5 :                         first = first-&gt;next;</span>
+<span class="lineNum">     338 </span>            :                     }
+<span class="lineNum">     339 </span>            :                 }
+<span class="lineNum">     340 </span>            :             }
+<span class="lineNum">     341 </span><span class="lineCov">          4 :             if (first &amp;&amp; first != (*outf)) {</span>
+<span class="lineNum">     342 </span><span class="lineNoCov">          0 :                 first-&gt;next = f;</span>
+<span class="lineNum">     343 </span>            :             }
+<span class="lineNum">     344 </span>            :         }
+<span class="lineNum">     345 </span><span class="lineCov">          6 :         *outf = f;</span>
+<span class="lineNum">     346 </span>            :     }
+<span class="lineNum">     347 </span>            :     else {
+<span class="lineNum">     348 </span><span class="lineCov">          6 :         ap_filter_t *fscan = *outf;</span>
+<span class="lineNum">     349 </span><span class="lineCov">         18 :         while (!INSERT_BEFORE(f, fscan-&gt;next))</span>
+<span class="lineNum">     350 </span><span class="lineCov">          6 :             fscan = fscan-&gt;next;</span>
+<span class="lineNum">     351 </span>            : 
+<span class="lineNum">     352 </span><span class="lineCov">          6 :         f-&gt;next = fscan-&gt;next;</span>
+<span class="lineNum">     353 </span><span class="lineCov">          6 :         fscan-&gt;next = f;</span>
+<span class="lineNum">     354 </span>            :     }
+<span class="lineNum">     355 </span>            : 
+<span class="lineNum">     356 </span><span class="lineCov">         12 :     if (frec-&gt;ftype &lt; AP_FTYPE_CONNECTION &amp;&amp; (*r_filters == *c_filters)) {</span>
+<span class="lineNum">     357 </span><span class="lineCov">          3 :         *r_filters = *p_filters;</span>
+<span class="lineNum">     358 </span>            :     }
+<span class="lineNum">     359 </span><span class="lineCov">         12 :     return f;</span>
+<a name="360"><span class="lineNum">     360 </span>            : }</a>
+<span class="lineNum">     361 </span>            : 
+<span class="lineNum">     362 </span><span class="lineNoCov">          0 : static ap_filter_t *add_any_filter(const char *name, void *ctx,</span>
+<span class="lineNum">     363 </span>            :                                    request_rec *r, conn_rec *c,
+<span class="lineNum">     364 </span>            :                                    const filter_trie_node *reg_filter_set,
+<span class="lineNum">     365 </span>            :                                    ap_filter_t **r_filters,
+<span class="lineNum">     366 </span>            :                                    ap_filter_t **p_filters,
+<span class="lineNum">     367 </span>            :                                    ap_filter_t **c_filters)
+<span class="lineNum">     368 </span>            : {
+<span class="lineNum">     369 </span><span class="lineNoCov">          0 :     if (reg_filter_set) {</span>
+<span class="lineNum">     370 </span>            :         const char *n;
+<span class="lineNum">     371 </span>            :         const filter_trie_node *node;
+<span class="lineNum">     372 </span>            : 
+<span class="lineNum">     373 </span><span class="lineNoCov">          0 :         node = reg_filter_set;</span>
+<span class="lineNum">     374 </span><span class="lineNoCov">          0 :         for (n = name; *n; n++) {</span>
+<span class="lineNum">     375 </span>            :             int start, end;
+<span class="lineNum">     376 </span><span class="lineNoCov">          0 :             start = 0;</span>
+<span class="lineNum">     377 </span><span class="lineNoCov">          0 :             end = node-&gt;nchildren - 1;</span>
+<span class="lineNum">     378 </span><span class="lineNoCov">          0 :             while (end &gt;= start) {</span>
+<span class="lineNum">     379 </span><span class="lineNoCov">          0 :                 int middle = (end + start) / 2;</span>
+<span class="lineNum">     380 </span><span class="lineNoCov">          0 :                 char ch = node-&gt;children[middle].c;</span>
+<span class="lineNum">     381 </span><span class="lineNoCov">          0 :                 if (*n == ch) {</span>
+<span class="lineNum">     382 </span><span class="lineNoCov">          0 :                     node = node-&gt;children[middle].child;</span>
+<span class="lineNum">     383 </span><span class="lineNoCov">          0 :                     break;</span>
+<span class="lineNum">     384 </span>            :                 }
+<span class="lineNum">     385 </span><span class="lineNoCov">          0 :                 else if (*n &lt; ch) {</span>
+<span class="lineNum">     386 </span><span class="lineNoCov">          0 :                     end = middle - 1;</span>
+<span class="lineNum">     387 </span>            :                 }
+<span class="lineNum">     388 </span>            :                 else {
+<span class="lineNum">     389 </span><span class="lineNoCov">          0 :                     start = middle + 1;</span>
+<span class="lineNum">     390 </span>            :                 }
+<span class="lineNum">     391 </span>            :             }
+<span class="lineNum">     392 </span><span class="lineNoCov">          0 :             if (end &lt; start) {</span>
+<span class="lineNum">     393 </span><span class="lineNoCov">          0 :                 node = NULL;</span>
+<span class="lineNum">     394 </span><span class="lineNoCov">          0 :                 break;</span>
+<span class="lineNum">     395 </span>            :             }
+<span class="lineNum">     396 </span>            :         }
+<span class="lineNum">     397 </span>            : 
+<span class="lineNum">     398 </span><span class="lineNoCov">          0 :         if (node &amp;&amp; node-&gt;frec) {</span>
+<span class="lineNum">     399 </span><span class="lineNoCov">          0 :             return add_any_filter_handle(node-&gt;frec, ctx, r, c, r_filters,</span>
+<span class="lineNum">     400 </span>            :                                          p_filters, c_filters);
+<span class="lineNum">     401 </span>            :         }
+<span class="lineNum">     402 </span>            :     }
+<span class="lineNum">     403 </span>            : 
+<span class="lineNum">     404 </span><span class="lineNoCov">          0 :     ap_log_cerror(APLOG_MARK, APLOG_ERR, 0, r ? r-&gt;connection : c, APLOGNO(00082)</span>
+<span class="lineNum">     405 </span>            :                   &quot;an unknown filter was not added: %s&quot;, name);
+<span class="lineNum">     406 </span><span class="lineNoCov">          0 :     return NULL;</span>
+<a name="407"><span class="lineNum">     407 </span>            : }</a>
+<span class="lineNum">     408 </span>            : 
+<span class="lineNum">     409 </span><span class="lineNoCov">          0 : AP_DECLARE(ap_filter_t *) ap_add_input_filter(const char *name, void *ctx,</span>
+<span class="lineNum">     410 </span>            :                                               request_rec *r, conn_rec *c)
+<span class="lineNum">     411 </span>            : {
+<span class="lineNum">     412 </span><span class="lineNoCov">          0 :     return add_any_filter(name, ctx, r, c, registered_input_filters,</span>
+<span class="lineNum">     413 </span>            :                           r ? &amp;r-&gt;input_filters : NULL,
+<span class="lineNum">     414 </span><span class="lineNoCov">          0 :                           r ? &amp;r-&gt;proto_input_filters : NULL, &amp;c-&gt;input_filters);</span>
+<a name="415"><span class="lineNum">     415 </span>            : }</a>
+<span class="lineNum">     416 </span>            : 
+<span class="lineNum">     417 </span><span class="lineCov">          2 : AP_DECLARE(ap_filter_t *) ap_add_input_filter_handle(ap_filter_rec_t *f,</span>
+<span class="lineNum">     418 </span>            :                                                      void *ctx,
+<span class="lineNum">     419 </span>            :                                                      request_rec *r,
+<span class="lineNum">     420 </span>            :                                                      conn_rec *c)
+<span class="lineNum">     421 </span>            : {
+<span class="lineNum">     422 </span><span class="lineCov">          2 :     return add_any_filter_handle(f, ctx, r, c, r ? &amp;r-&gt;input_filters : NULL,</span>
+<span class="lineNum">     423 </span>            :                                  r ? &amp;r-&gt;proto_input_filters : NULL,
+<span class="lineNum">     424 </span><span class="lineCov">          2 :                                  &amp;c-&gt;input_filters);</span>
+<a name="425"><span class="lineNum">     425 </span>            : }</a>
+<span class="lineNum">     426 </span>            : 
+<span class="lineNum">     427 </span><span class="lineNoCov">          0 : AP_DECLARE(ap_filter_t *) ap_add_output_filter(const char *name, void *ctx,</span>
+<span class="lineNum">     428 </span>            :                                                request_rec *r, conn_rec *c)
+<span class="lineNum">     429 </span>            : {
+<span class="lineNum">     430 </span><span class="lineNoCov">          0 :     return add_any_filter(name, ctx, r, c, registered_output_filters,</span>
+<span class="lineNum">     431 </span>            :                           r ? &amp;r-&gt;output_filters : NULL,
+<span class="lineNum">     432 </span><span class="lineNoCov">          0 :                           r ? &amp;r-&gt;proto_output_filters : NULL, &amp;c-&gt;output_filters);</span>
+<a name="433"><span class="lineNum">     433 </span>            : }</a>
+<span class="lineNum">     434 </span>            : 
+<span class="lineNum">     435 </span><span class="lineCov">         10 : AP_DECLARE(ap_filter_t *) ap_add_output_filter_handle(ap_filter_rec_t *f,</span>
+<span class="lineNum">     436 </span>            :                                                       void *ctx,
+<span class="lineNum">     437 </span>            :                                                       request_rec *r,
+<span class="lineNum">     438 </span>            :                                                       conn_rec *c)
+<span class="lineNum">     439 </span>            : {
+<span class="lineNum">     440 </span><span class="lineCov">         10 :     return add_any_filter_handle(f, ctx, r, c, r ? &amp;r-&gt;output_filters : NULL,</span>
+<span class="lineNum">     441 </span>            :                                  r ? &amp;r-&gt;proto_output_filters : NULL,
+<span class="lineNum">     442 </span><span class="lineCov">         10 :                                  &amp;c-&gt;output_filters);</span>
+<a name="443"><span class="lineNum">     443 </span>            : }</a>
+<span class="lineNum">     444 </span>            : 
+<span class="lineNum">     445 </span><span class="lineCov">          3 : static void remove_any_filter(ap_filter_t *f, ap_filter_t **r_filt, ap_filter_t **p_filt,</span>
+<span class="lineNum">     446 </span>            :                               ap_filter_t **c_filt)
+<span class="lineNum">     447 </span>            : {
+<span class="lineNum">     448 </span><span class="lineCov">          3 :     ap_filter_t **curr = r_filt ? r_filt : c_filt;</span>
+<span class="lineNum">     449 </span><span class="lineCov">          3 :     ap_filter_t *fscan = *curr;</span>
+<span class="lineNum">     450 </span>            : 
+<span class="lineNum">     451 </span><span class="lineCov">          3 :     if (p_filt &amp;&amp; *p_filt == f)</span>
+<span class="lineNum">     452 </span><span class="lineCov">          1 :         *p_filt = (*p_filt)-&gt;next;</span>
+<span class="lineNum">     453 </span>            : 
+<span class="lineNum">     454 </span><span class="lineCov">          3 :     if (*curr == f) {</span>
+<span class="lineNum">     455 </span><span class="lineCov">          2 :         *curr = (*curr)-&gt;next;</span>
+<span class="lineNum">     456 </span><span class="lineCov">          2 :         return;</span>
+<span class="lineNum">     457 </span>            :     }
+<span class="lineNum">     458 </span>            : 
+<span class="lineNum">     459 </span><span class="lineCov">          2 :     while (fscan-&gt;next != f) {</span>
+<span class="lineNum">     460 </span><span class="lineNoCov">          0 :         if (!(fscan = fscan-&gt;next)) {</span>
+<span class="lineNum">     461 </span><span class="lineNoCov">          0 :             return;</span>
+<span class="lineNum">     462 </span>            :         }
+<span class="lineNum">     463 </span>            :     }
+<span class="lineNum">     464 </span>            : 
+<span class="lineNum">     465 </span><span class="lineCov">          1 :     fscan-&gt;next = f-&gt;next;</span>
+<a name="466"><span class="lineNum">     466 </span>            : }</a>
+<span class="lineNum">     467 </span>            : 
+<span class="lineNum">     468 </span><span class="lineNoCov">          0 : AP_DECLARE(void) ap_remove_input_filter(ap_filter_t *f)</span>
+<span class="lineNum">     469 </span>            : {
+<span class="lineNum">     470 </span><span class="lineNoCov">          0 :     remove_any_filter(f, f-&gt;r ? &amp;f-&gt;r-&gt;input_filters : NULL,</span>
+<span class="lineNum">     471 </span><span class="lineNoCov">          0 :                       f-&gt;r ? &amp;f-&gt;r-&gt;proto_input_filters : NULL,</span>
+<span class="lineNum">     472 </span><span class="lineNoCov">          0 :                       &amp;f-&gt;c-&gt;input_filters);</span>
+<a name="473"><span class="lineNum">     473 </span><span class="lineNoCov">          0 : }</span></a>
+<span class="lineNum">     474 </span>            : 
+<span class="lineNum">     475 </span><span class="lineCov">          3 : AP_DECLARE(void) ap_remove_output_filter(ap_filter_t *f)</span>
+<span class="lineNum">     476 </span>            : {
+<span class="lineNum">     477 </span><span class="lineCov">          6 :     remove_any_filter(f, f-&gt;r ? &amp;f-&gt;r-&gt;output_filters : NULL,</span>
+<span class="lineNum">     478 </span><span class="lineCov">          6 :                       f-&gt;r ? &amp;f-&gt;r-&gt;proto_output_filters : NULL,</span>
+<span class="lineNum">     479 </span><span class="lineCov">          3 :                       &amp;f-&gt;c-&gt;output_filters);</span>
+<a name="480"><span class="lineNum">     480 </span><span class="lineCov">          3 : }</span></a>
+<span class="lineNum">     481 </span>            : 
+<span class="lineNum">     482 </span><span class="lineNoCov">          0 : AP_DECLARE(apr_status_t) ap_remove_input_filter_byhandle(ap_filter_t *next,</span>
+<span class="lineNum">     483 </span>            :                                                          const char *handle)
+<span class="lineNum">     484 </span>            : {
+<span class="lineNum">     485 </span><span class="lineNoCov">          0 :     ap_filter_t *found = NULL;</span>
+<span class="lineNum">     486 </span>            :     ap_filter_rec_t *filter;
+<span class="lineNum">     487 </span>            : 
+<span class="lineNum">     488 </span><span class="lineNoCov">          0 :     if (!handle) {</span>
+<span class="lineNum">     489 </span><span class="lineNoCov">          0 :         return APR_EINVAL;</span>
+<span class="lineNum">     490 </span>            :     }
+<span class="lineNum">     491 </span><span class="lineNoCov">          0 :     filter = ap_get_input_filter_handle(handle);</span>
+<span class="lineNum">     492 </span><span class="lineNoCov">          0 :     if (!filter) {</span>
+<span class="lineNum">     493 </span><span class="lineNoCov">          0 :         return APR_NOTFOUND;</span>
+<span class="lineNum">     494 </span>            :     }
+<span class="lineNum">     495 </span>            : 
+<span class="lineNum">     496 </span><span class="lineNoCov">          0 :     while (next) {</span>
+<span class="lineNum">     497 </span><span class="lineNoCov">          0 :         if (next-&gt;frec == filter) {</span>
+<span class="lineNum">     498 </span><span class="lineNoCov">          0 :             found = next;</span>
+<span class="lineNum">     499 </span><span class="lineNoCov">          0 :             break;</span>
+<span class="lineNum">     500 </span>            :         }
+<span class="lineNum">     501 </span><span class="lineNoCov">          0 :         next = next-&gt;next;</span>
+<span class="lineNum">     502 </span>            :     }
+<span class="lineNum">     503 </span><span class="lineNoCov">          0 :     if (found) {</span>
+<span class="lineNum">     504 </span><span class="lineNoCov">          0 :         ap_remove_input_filter(found);</span>
+<span class="lineNum">     505 </span><span class="lineNoCov">          0 :         return APR_SUCCESS;</span>
+<span class="lineNum">     506 </span>            :     }
+<span class="lineNum">     507 </span><span class="lineNoCov">          0 :     return APR_NOTFOUND;</span>
+<a name="508"><span class="lineNum">     508 </span>            : }</a>
+<span class="lineNum">     509 </span>            : 
+<span class="lineNum">     510 </span><span class="lineNoCov">          0 : AP_DECLARE(apr_status_t) ap_remove_output_filter_byhandle(ap_filter_t *next,</span>
+<span class="lineNum">     511 </span>            :                                                           const char *handle)
+<span class="lineNum">     512 </span>            : {
+<span class="lineNum">     513 </span><span class="lineNoCov">          0 :     ap_filter_t *found = NULL;</span>
+<span class="lineNum">     514 </span>            :     ap_filter_rec_t *filter;
+<span class="lineNum">     515 </span>            : 
+<span class="lineNum">     516 </span><span class="lineNoCov">          0 :     if (!handle) {</span>
+<span class="lineNum">     517 </span><span class="lineNoCov">          0 :         return APR_EINVAL;</span>
+<span class="lineNum">     518 </span>            :     }
+<span class="lineNum">     519 </span><span class="lineNoCov">          0 :     filter = ap_get_output_filter_handle(handle);</span>
+<span class="lineNum">     520 </span><span class="lineNoCov">          0 :     if (!filter) {</span>
+<span class="lineNum">     521 </span><span class="lineNoCov">          0 :         return APR_NOTFOUND;</span>
+<span class="lineNum">     522 </span>            :     }
+<span class="lineNum">     523 </span>            : 
+<span class="lineNum">     524 </span><span class="lineNoCov">          0 :     while (next) {</span>
+<span class="lineNum">     525 </span><span class="lineNoCov">          0 :         if (next-&gt;frec == filter) {</span>
+<span class="lineNum">     526 </span><span class="lineNoCov">          0 :             found = next;</span>
+<span class="lineNum">     527 </span><span class="lineNoCov">          0 :             break;</span>
+<span class="lineNum">     528 </span>            :         }
+<span class="lineNum">     529 </span><span class="lineNoCov">          0 :         next = next-&gt;next;</span>
+<span class="lineNum">     530 </span>            :     }
+<span class="lineNum">     531 </span><span class="lineNoCov">          0 :     if (found) {</span>
+<span class="lineNum">     532 </span><span class="lineNoCov">          0 :         ap_remove_output_filter(found);</span>
+<span class="lineNum">     533 </span><span class="lineNoCov">          0 :         return APR_SUCCESS;</span>
+<span class="lineNum">     534 </span>            :     }
+<span class="lineNum">     535 </span><span class="lineNoCov">          0 :     return APR_NOTFOUND;</span>
+<span class="lineNum">     536 </span>            : }
+<span class="lineNum">     537 </span>            : 
+<span class="lineNum">     538 </span>            : 
+<span class="lineNum">     539 </span>            : /*
+<span class="lineNum">     540 </span>            :  * Read data from the next filter in the filter stack.  Data should be
+<span class="lineNum">     541 </span>            :  * modified in the bucket brigade that is passed in.  The core allocates the
+<span class="lineNum">     542 </span>            :  * bucket brigade, modules that wish to replace large chunks of data or to
+<span class="lineNum">     543 </span>            :  * save data off to the side should probably create their own temporary
+<a name="544"><span class="lineNum">     544 </span>            :  * brigade especially for that use.</a>
+<span class="lineNum">     545 </span>            :  */
+<span class="lineNum">     546 </span><span class="lineCov">          9 : AP_DECLARE(apr_status_t) ap_get_brigade(ap_filter_t *next,</span>
+<span class="lineNum">     547 </span>            :                                         apr_bucket_brigade *bb,
+<span class="lineNum">     548 </span>            :                                         ap_input_mode_t mode,
+<span class="lineNum">     549 </span>            :                                         apr_read_type_e block,
+<span class="lineNum">     550 </span>            :                                         apr_off_t readbytes)
+<span class="lineNum">     551 </span>            : {
+<span class="lineNum">     552 </span><span class="lineCov">          9 :     if (next) {</span>
+<span class="lineNum">     553 </span><span class="lineCov">          9 :         return next-&gt;frec-&gt;filter_func.in_func(next, bb, mode, block,</span>
+<span class="lineNum">     554 </span>            :                                                readbytes);
+<span class="lineNum">     555 </span>            :     }
+<span class="lineNum">     556 </span><span class="lineNoCov">          0 :     return AP_NOBODY_READ;</span>
+<span class="lineNum">     557 </span>            : }
+<span class="lineNum">     558 </span>            : 
+<span class="lineNum">     559 </span>            : /* Pass the buckets to the next filter in the filter stack.  If the
+<span class="lineNum">     560 </span>            :  * current filter is a handler, we should get NULL passed in instead of
+<span class="lineNum">     561 </span>            :  * the current filter.  At that point, we can just call the first filter in
+<a name="562"><span class="lineNum">     562 </span>            :  * the stack, or r-&gt;output_filters.</a>
+<span class="lineNum">     563 </span>            :  */
+<span class="lineNum">     564 </span><span class="lineCov">          9 : AP_DECLARE(apr_status_t) ap_pass_brigade(ap_filter_t *next,</span>
+<span class="lineNum">     565 </span>            :                                          apr_bucket_brigade *bb)
+<span class="lineNum">     566 </span>            : {
+<span class="lineNum">     567 </span><span class="lineCov">          9 :     if (next) {</span>
+<span class="lineNum">     568 </span>            :         apr_bucket *e;
+<span class="lineNum">     569 </span><span class="lineCov">          9 :         if ((e = APR_BRIGADE_LAST(bb)) &amp;&amp; APR_BUCKET_IS_EOS(e) &amp;&amp; next-&gt;r) {</span>
+<span class="lineNum">     570 </span>            :             /* This is only safe because HTTP_HEADER filter is always in
+<span class="lineNum">     571 </span>            :              * the filter stack.   This ensures that there is ALWAYS a
+<span class="lineNum">     572 </span>            :              * request-based filter that we can attach this to.  If the
+<span class="lineNum">     573 </span>            :              * HTTP_FILTER is removed, and another filter is not put in its
+<span class="lineNum">     574 </span>            :              * place, then handlers like mod_cgi, which attach their own
+<span class="lineNum">     575 </span>            :              * EOS bucket to the brigade will be broken, because we will
+<span class="lineNum">     576 </span>            :              * get two EOS buckets on the same request.
+<span class="lineNum">     577 </span>            :              */
+<span class="lineNum">     578 </span><span class="lineCov">          4 :             next-&gt;r-&gt;eos_sent = 1;</span>
+<span class="lineNum">     579 </span>            : 
+<span class="lineNum">     580 </span>            :             /* remember the eos for internal redirects, too */
+<span class="lineNum">     581 </span><span class="lineCov">          4 :             if (next-&gt;r-&gt;prev) {</span>
+<span class="lineNum">     582 </span><span class="lineNoCov">          0 :                 request_rec *prev = next-&gt;r-&gt;prev;</span>
+<span class="lineNum">     583 </span>            : 
+<span class="lineNum">     584 </span><span class="lineNoCov">          0 :                 while (prev) {</span>
+<span class="lineNum">     585 </span><span class="lineNoCov">          0 :                     prev-&gt;eos_sent = 1;</span>
+<span class="lineNum">     586 </span><span class="lineNoCov">          0 :                     prev = prev-&gt;prev;</span>
+<span class="lineNum">     587 </span>            :                 }
+<span class="lineNum">     588 </span>            :             }
+<span class="lineNum">     589 </span>            :         }
+<span class="lineNum">     590 </span><span class="lineCov">          9 :         return next-&gt;frec-&gt;filter_func.out_func(next, bb);</span>
+<span class="lineNum">     591 </span>            :     }
+<span class="lineNum">     592 </span><span class="lineNoCov">          0 :     return AP_NOBODY_WROTE;</span>
+<span class="lineNum">     593 </span>            : }
+<span class="lineNum">     594 </span>            : 
+<span class="lineNum">     595 </span>            : /* Pass the buckets to the next filter in the filter stack
+<span class="lineNum">     596 </span>            :  * checking return status for filter errors.
+<span class="lineNum">     597 </span>            :  * returns: OK if ap_pass_brigade returns APR_SUCCESS
+<span class="lineNum">     598 </span>            :  *          AP_FILTER_ERROR if filter error exists
+<span class="lineNum">     599 </span>            :  *          HTTP_INTERNAL_SERVER_ERROR for all other cases
+<a name="600"><span class="lineNum">     600 </span>            :  *          logged with optional errmsg</a>
+<span class="lineNum">     601 </span>            :  */
+<span class="lineNum">     602 </span><span class="lineNoCov">          0 : AP_DECLARE(apr_status_t) ap_pass_brigade_fchk(request_rec *r,</span>
+<span class="lineNum">     603 </span>            :                                               apr_bucket_brigade *bb,
+<span class="lineNum">     604 </span>            :                                               const char *fmt,
+<span class="lineNum">     605 </span>            :                                               ...)
+<span class="lineNum">     606 </span>            : {
+<span class="lineNum">     607 </span>            :     apr_status_t rv;
+<span class="lineNum">     608 </span>            : 
+<span class="lineNum">     609 </span><span class="lineNoCov">          0 :     rv = ap_pass_brigade(r-&gt;output_filters, bb);</span>
+<span class="lineNum">     610 </span><span class="lineNoCov">          0 :     if (rv != APR_SUCCESS) {</span>
+<span class="lineNum">     611 </span><span class="lineNoCov">          0 :         if (rv != AP_FILTER_ERROR) {</span>
+<span class="lineNum">     612 </span><span class="lineNoCov">          0 :             if (!fmt)</span>
+<span class="lineNum">     613 </span><span class="lineNoCov">          0 :                 ap_log_rerror(APLOG_MARK, APLOG_DEBUG, rv, r, APLOGNO(00083)</span>
+<span class="lineNum">     614 </span>            :                               &quot;ap_pass_brigade returned %d&quot;, rv);
+<span class="lineNum">     615 </span>            :             else {
+<span class="lineNum">     616 </span>            :                 va_list ap;
+<span class="lineNum">     617 </span>            :                 const char *res;
+<span class="lineNum">     618 </span><span class="lineNoCov">          0 :                 va_start(ap, fmt);</span>
+<span class="lineNum">     619 </span><span class="lineNoCov">          0 :                 res = apr_pvsprintf(r-&gt;pool, fmt, ap);</span>
+<span class="lineNum">     620 </span><span class="lineNoCov">          0 :                 va_end(ap);</span>
+<span class="lineNum">     621 </span><span class="lineNoCov">          0 :                 ap_log_rerror(APLOG_MARK, APLOG_DEBUG, rv, r, &quot;%s&quot;, res);</span>
+<span class="lineNum">     622 </span>            :             }
+<span class="lineNum">     623 </span><span class="lineNoCov">          0 :             return HTTP_INTERNAL_SERVER_ERROR;</span>
+<span class="lineNum">     624 </span>            :         }
+<span class="lineNum">     625 </span><span class="lineNoCov">          0 :         return AP_FILTER_ERROR;</span>
+<span class="lineNum">     626 </span>            :     }
+<span class="lineNum">     627 </span><span class="lineNoCov">          0 :     return OK;</span>
+<a name="628"><span class="lineNum">     628 </span>            : }</a>
+<span class="lineNum">     629 </span>            : 
+<span class="lineNum">     630 </span><span class="lineCov">          3 : AP_DECLARE(apr_status_t) ap_save_brigade(ap_filter_t *f,</span>
+<span class="lineNum">     631 </span>            :                                          apr_bucket_brigade **saveto,
+<span class="lineNum">     632 </span>            :                                          apr_bucket_brigade **b, apr_pool_t *p)
+<span class="lineNum">     633 </span>            : {
+<span class="lineNum">     634 </span>            :     apr_bucket *e;
+<span class="lineNum">     635 </span><span class="lineCov">          3 :     apr_status_t rv, srv = APR_SUCCESS;</span>
+<span class="lineNum">     636 </span>            : 
+<span class="lineNum">     637 </span>            :     /* If have never stored any data in the filter, then we had better
+<span class="lineNum">     638 </span>            :      * create an empty bucket brigade so that we can concat.
+<span class="lineNum">     639 </span>            :      */
+<span class="lineNum">     640 </span><span class="lineCov">          3 :     if (!(*saveto)) {</span>
+<span class="lineNum">     641 </span><span class="lineNoCov">          0 :         *saveto = apr_brigade_create(p, f-&gt;c-&gt;bucket_alloc);</span>
+<span class="lineNum">     642 </span>            :     }
+<span class="lineNum">     643 </span>            : 
+<span class="lineNum">     644 </span><span class="lineCov">         14 :     for (e = APR_BRIGADE_FIRST(*b);</span>
+<span class="lineNum">     645 </span><span class="lineCov">         11 :          e != APR_BRIGADE_SENTINEL(*b);</span>
+<span class="lineNum">     646 </span><span class="lineCov">          8 :          e = APR_BUCKET_NEXT(e))</span>
+<span class="lineNum">     647 </span>            :     {
+<span class="lineNum">     648 </span><span class="lineCov">          8 :         rv = apr_bucket_setaside(e, p);</span>
+<span class="lineNum">     649 </span>            : 
+<span class="lineNum">     650 </span>            :         /* If the bucket type does not implement setaside, then
+<span class="lineNum">     651 </span>            :          * (hopefully) morph it into a bucket type which does, and set
+<span class="lineNum">     652 </span>            :          * *that* aside... */
+<span class="lineNum">     653 </span><span class="lineCov">          8 :         if (rv == APR_ENOTIMPL) {</span>
+<span class="lineNum">     654 </span>            :             const char *s;
+<span class="lineNum">     655 </span>            :             apr_size_t n;
+<span class="lineNum">     656 </span>            : 
+<span class="lineNum">     657 </span><span class="lineNoCov">          0 :             rv = apr_bucket_read(e, &amp;s, &amp;n, APR_BLOCK_READ);</span>
+<span class="lineNum">     658 </span><span class="lineNoCov">          0 :             if (rv == APR_SUCCESS) {</span>
+<span class="lineNum">     659 </span><span class="lineNoCov">          0 :                 rv = apr_bucket_setaside(e, p);</span>
+<span class="lineNum">     660 </span>            :             }
+<span class="lineNum">     661 </span>            :         }
+<span class="lineNum">     662 </span>            : 
+<span class="lineNum">     663 </span><span class="lineCov">          8 :         if (rv != APR_SUCCESS) {</span>
+<span class="lineNum">     664 </span><span class="lineNoCov">          0 :             srv = rv;</span>
+<span class="lineNum">     665 </span>            :             /* Return an error but still save the brigade if
+<span class="lineNum">     666 </span>            :              * -&gt;setaside() is really not implemented. */
+<span class="lineNum">     667 </span><span class="lineNoCov">          0 :             if (rv != APR_ENOTIMPL) {</span>
+<span class="lineNum">     668 </span><span class="lineNoCov">          0 :                 return rv;</span>
+<span class="lineNum">     669 </span>            :             }
+<span class="lineNum">     670 </span>            :         }
+<span class="lineNum">     671 </span>            :     }
+<span class="lineNum">     672 </span><span class="lineCov">          3 :     APR_BRIGADE_CONCAT(*saveto, *b);</span>
+<span class="lineNum">     673 </span><span class="lineCov">          3 :     return srv;</span>
+<a name="674"><span class="lineNum">     674 </span>            : }</a>
+<span class="lineNum">     675 </span>            : 
+<span class="lineNum">     676 </span><span class="lineNoCov">          0 : AP_DECLARE_NONSTD(apr_status_t) ap_filter_flush(apr_bucket_brigade *bb,</span>
+<span class="lineNum">     677 </span>            :                                                 void *ctx)
+<span class="lineNum">     678 </span>            : {
+<span class="lineNum">     679 </span><span class="lineNoCov">          0 :     ap_filter_t *f = ctx;</span>
+<span class="lineNum">     680 </span>            :     apr_status_t rv;
+<span class="lineNum">     681 </span>            : 
+<span class="lineNum">     682 </span><span class="lineNoCov">          0 :     rv = ap_pass_brigade(f, bb);</span>
+<span class="lineNum">     683 </span>            : 
+<span class="lineNum">     684 </span>            :     /* Before invocation of the flush callback, apr_brigade_write et
+<span class="lineNum">     685 </span>            :      * al may place transient buckets in the brigade, which will fall
+<span class="lineNum">     686 </span>            :      * out of scope after returning.  Empty the brigade here, to avoid
+<span class="lineNum">     687 </span>            :      * issues with leaving such buckets in the brigade if some filter
+<span class="lineNum">     688 </span>            :      * fails and leaves a non-empty brigade. */
+<span class="lineNum">     689 </span><span class="lineNoCov">          0 :     apr_brigade_cleanup(bb);</span>
+<span class="lineNum">     690 </span>            : 
+<span class="lineNum">     691 </span><span class="lineNoCov">          0 :     return rv;</span>
+<a name="692"><span class="lineNum">     692 </span>            : }</a>
+<span class="lineNum">     693 </span>            : 
+<span class="lineNum">     694 </span><span class="lineNoCov">          0 : AP_DECLARE(apr_status_t) ap_fflush(ap_filter_t *f, apr_bucket_brigade *bb)</span>
+<span class="lineNum">     695 </span>            : {
+<span class="lineNum">     696 </span>            :     apr_bucket *b;
+<span class="lineNum">     697 </span>            : 
+<span class="lineNum">     698 </span><span class="lineNoCov">          0 :     b = apr_bucket_flush_create(f-&gt;c-&gt;bucket_alloc);</span>
+<span class="lineNum">     699 </span><span class="lineNoCov">          0 :     APR_BRIGADE_INSERT_TAIL(bb, b);</span>
+<span class="lineNum">     700 </span><span class="lineNoCov">          0 :     return ap_pass_brigade(f, bb);</span>
+<a name="701"><span class="lineNum">     701 </span>            : }</a>
+<span class="lineNum">     702 </span>            : 
+<span class="lineNum">     703 </span><span class="lineNoCov">          0 : AP_DECLARE_NONSTD(apr_status_t) ap_fputstrs(ap_filter_t *f,</span>
+<span class="lineNum">     704 </span>            :                                             apr_bucket_brigade *bb, ...)
+<span class="lineNum">     705 </span>            : {
+<span class="lineNum">     706 </span>            :     va_list args;
+<span class="lineNum">     707 </span>            :     apr_status_t rv;
+<span class="lineNum">     708 </span>            : 
+<span class="lineNum">     709 </span><span class="lineNoCov">          0 :     va_start(args, bb);</span>
+<span class="lineNum">     710 </span><span class="lineNoCov">          0 :     rv = apr_brigade_vputstrs(bb, ap_filter_flush, f, args);</span>
+<span class="lineNum">     711 </span><span class="lineNoCov">          0 :     va_end(args);</span>
+<span class="lineNum">     712 </span><span class="lineNoCov">          0 :     return rv;</span>
+<a name="713"><span class="lineNum">     713 </span>            : }</a>
+<span class="lineNum">     714 </span>            : 
+<span class="lineNum">     715 </span><span class="lineNoCov">          0 : AP_DECLARE_NONSTD(apr_status_t) ap_fprintf(ap_filter_t *f,</span>
+<span class="lineNum">     716 </span>            :                                            apr_bucket_brigade *bb,
+<span class="lineNum">     717 </span>            :                                            const char *fmt,
+<span class="lineNum">     718 </span>            :                                            ...)
+<span class="lineNum">     719 </span>            : {
+<span class="lineNum">     720 </span>            :     va_list args;
+<span class="lineNum">     721 </span>            :     apr_status_t rv;
+<span class="lineNum">     722 </span>            : 
+<span class="lineNum">     723 </span><span class="lineNoCov">          0 :     va_start(args, fmt);</span>
+<span class="lineNum">     724 </span><span class="lineNoCov">          0 :     rv = apr_brigade_vprintf(bb, ap_filter_flush, f, fmt, args);</span>
+<span class="lineNum">     725 </span><span class="lineNoCov">          0 :     va_end(args);</span>
+<a name="726"><span class="lineNum">     726 </span><span class="lineNoCov">          0 :     return rv;</span></a>
+<span class="lineNum">     727 </span>            : }
+<span class="lineNum">     728 </span><span class="lineNoCov">          0 : AP_DECLARE(void) ap_filter_protocol(ap_filter_t *f, unsigned int flags)</span>
+<span class="lineNum">     729 </span>            : {
+<span class="lineNum">     730 </span><span class="lineNoCov">          0 :     f-&gt;frec-&gt;proto_flags = flags ;</span>
+<span class="lineNum">     731 </span><span class="lineNoCov">          0 : }</span>
+</pre>
+      </td>
+    </tr>
+  </table>
+  <br>
+
+  <table width="100%" border=0 cellspacing=0 cellpadding=0>
+    <tr><td class="ruler"><img src="../glass.png" width=3 height=3 alt=""></td></tr>
+    <tr><td class="versionInfo">Generated by: <a href="http://ltp.sourceforge.net/coverage/lcov.php" target="_parent">LCOV version 1.11</a></td></tr>
+  </table>
+  <br>
+
+</body>
+</html>

@@ -1,0 +1,966 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+
+<html lang="en">
+
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <title>LCOV - apptest.info - server/core_filters.c</title>
+  <link rel="stylesheet" type="text/css" href="../gcov.css">
+</head>
+
+<body>
+
+  <table width="100%" border=0 cellspacing=0 cellpadding=0>
+    <tr><td class="title">LCOV - code coverage report</td></tr>
+    <tr><td class="ruler"><img src="../glass.png" width=3 height=3 alt=""></td></tr>
+
+    <tr>
+      <td width="100%">
+        <table cellpadding=1 border=0 width="100%">
+          <tr>
+            <td width="10%" class="headerItem">Current view:</td>
+            <td width="35%" class="headerValue"><a href="../index.html">top level</a> - <a href="index.html">server</a> - core_filters.c<span style="font-size: 80%;"> (source / <a href="core_filters.c.func-sort-c.html">functions</a>)</span></td>
+            <td width="5%"></td>
+            <td width="15%"></td>
+            <td width="10%" class="headerCovTableHead">Hit</td>
+            <td width="10%" class="headerCovTableHead">Total</td>
+            <td width="15%" class="headerCovTableHead">Coverage</td>
+          </tr>
+          <tr>
+            <td class="headerItem">Test:</td>
+            <td class="headerValue">apptest.info</td>
+            <td></td>
+            <td class="headerItem">Lines:</td>
+            <td class="headerCovTableEntry">161</td>
+            <td class="headerCovTableEntry">327</td>
+            <td class="headerCovTableEntryLo">49.2 %</td>
+          </tr>
+          <tr>
+            <td class="headerItem">Date:</td>
+            <td class="headerValue">2017-01-31 22:58:06</td>
+            <td></td>
+            <td class="headerItem">Functions:</td>
+            <td class="headerCovTableEntry">7</td>
+            <td class="headerCovTableEntry">8</td>
+            <td class="headerCovTableEntryMed">87.5 %</td>
+          </tr>
+          <tr><td><img src="../glass.png" width=3 height=3 alt=""></td></tr>
+        </table>
+      </td>
+    </tr>
+
+    <tr><td class="ruler"><img src="../glass.png" width=3 height=3 alt=""></td></tr>
+  </table>
+
+  <table cellpadding=0 cellspacing=0 border=0>
+    <tr>
+      <td><br></td>
+    </tr>
+    <tr>
+      <td>
+<pre class="sourceHeading">          Line data    Source code</pre>
+<pre class="source">
+<a name="1"><span class="lineNum">       1 </span>            : /* Licensed to the Apache Software Foundation (ASF) under one or more</a>
+<span class="lineNum">       2 </span>            :  * contributor license agreements.  See the NOTICE file distributed with
+<span class="lineNum">       3 </span>            :  * this work for additional information regarding copyright ownership.
+<span class="lineNum">       4 </span>            :  * The ASF licenses this file to You under the Apache License, Version 2.0
+<span class="lineNum">       5 </span>            :  * (the &quot;License&quot;); you may not use this file except in compliance with
+<span class="lineNum">       6 </span>            :  * the License.  You may obtain a copy of the License at
+<span class="lineNum">       7 </span>            :  *
+<span class="lineNum">       8 </span>            :  *     http://www.apache.org/licenses/LICENSE-2.0
+<span class="lineNum">       9 </span>            :  *
+<span class="lineNum">      10 </span>            :  * Unless required by applicable law or agreed to in writing, software
+<span class="lineNum">      11 </span>            :  * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+<span class="lineNum">      12 </span>            :  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+<span class="lineNum">      13 </span>            :  * See the License for the specific language governing permissions and
+<span class="lineNum">      14 </span>            :  * limitations under the License.
+<span class="lineNum">      15 </span>            :  */
+<span class="lineNum">      16 </span>            : 
+<span class="lineNum">      17 </span>            : /**
+<span class="lineNum">      18 </span>            :  * @file  core_filters.c
+<span class="lineNum">      19 </span>            :  * @brief Core input/output network filters.
+<span class="lineNum">      20 </span>            :  */
+<span class="lineNum">      21 </span>            : 
+<span class="lineNum">      22 </span>            : #include &quot;apr.h&quot;
+<span class="lineNum">      23 </span>            : #include &quot;apr_strings.h&quot;
+<span class="lineNum">      24 </span>            : #include &quot;apr_lib.h&quot;
+<span class="lineNum">      25 </span>            : #include &quot;apr_fnmatch.h&quot;
+<span class="lineNum">      26 </span>            : #include &quot;apr_hash.h&quot;
+<span class="lineNum">      27 </span>            : #include &quot;apr_thread_proc.h&quot;    /* for RLIMIT stuff */
+<span class="lineNum">      28 </span>            : 
+<span class="lineNum">      29 </span>            : #define APR_WANT_IOVEC
+<span class="lineNum">      30 </span>            : #define APR_WANT_STRFUNC
+<span class="lineNum">      31 </span>            : #define APR_WANT_MEMFUNC
+<span class="lineNum">      32 </span>            : #include &quot;apr_want.h&quot;
+<span class="lineNum">      33 </span>            : 
+<span class="lineNum">      34 </span>            : #include &quot;ap_config.h&quot;
+<span class="lineNum">      35 </span>            : #include &quot;httpd.h&quot;
+<span class="lineNum">      36 </span>            : #include &quot;http_config.h&quot;
+<span class="lineNum">      37 </span>            : #include &quot;http_core.h&quot;
+<span class="lineNum">      38 </span>            : #include &quot;http_protocol.h&quot; /* For index_of_response().  Grump. */
+<span class="lineNum">      39 </span>            : #include &quot;http_request.h&quot;
+<span class="lineNum">      40 </span>            : #include &quot;http_vhost.h&quot;
+<span class="lineNum">      41 </span>            : #include &quot;http_main.h&quot;     /* For the default_handler below... */
+<span class="lineNum">      42 </span>            : #include &quot;http_log.h&quot;
+<span class="lineNum">      43 </span>            : #include &quot;util_md5.h&quot;
+<span class="lineNum">      44 </span>            : #include &quot;http_connection.h&quot;
+<span class="lineNum">      45 </span>            : #include &quot;apr_buckets.h&quot;
+<span class="lineNum">      46 </span>            : #include &quot;util_filter.h&quot;
+<span class="lineNum">      47 </span>            : #include &quot;util_ebcdic.h&quot;
+<span class="lineNum">      48 </span>            : #include &quot;mpm_common.h&quot;
+<span class="lineNum">      49 </span>            : #include &quot;scoreboard.h&quot;
+<span class="lineNum">      50 </span>            : #include &quot;mod_core.h&quot;
+<span class="lineNum">      51 </span>            : #include &quot;mod_proxy.h&quot;
+<span class="lineNum">      52 </span>            : #include &quot;ap_listen.h&quot;
+<span class="lineNum">      53 </span>            : 
+<span class="lineNum">      54 </span>            : #include &quot;mod_so.h&quot; /* for ap_find_loaded_module_symbol */
+<span class="lineNum">      55 </span>            : 
+<span class="lineNum">      56 </span>            : #define AP_MIN_SENDFILE_BYTES           (256)
+<span class="lineNum">      57 </span>            : 
+<span class="lineNum">      58 </span>            : /**
+<span class="lineNum">      59 </span>            :  * Remove all zero length buckets from the brigade.
+<span class="lineNum">      60 </span>            :  */
+<span class="lineNum">      61 </span>            : #define BRIGADE_NORMALIZE(b) \
+<span class="lineNum">      62 </span>            : do { \
+<span class="lineNum">      63 </span>            :     apr_bucket *e = APR_BRIGADE_FIRST(b); \
+<span class="lineNum">      64 </span>            :     do {  \
+<span class="lineNum">      65 </span>            :         if (e-&gt;length == 0 &amp;&amp; !APR_BUCKET_IS_METADATA(e)) { \
+<span class="lineNum">      66 </span>            :             apr_bucket *d; \
+<span class="lineNum">      67 </span>            :             d = APR_BUCKET_NEXT(e); \
+<span class="lineNum">      68 </span>            :             apr_bucket_delete(e); \
+<span class="lineNum">      69 </span>            :             e = d; \
+<span class="lineNum">      70 </span>            :         } \
+<span class="lineNum">      71 </span>            :         else { \
+<span class="lineNum">      72 </span>            :             e = APR_BUCKET_NEXT(e); \
+<span class="lineNum">      73 </span>            :         } \
+<span class="lineNum">      74 </span>            :     } while (!APR_BRIGADE_EMPTY(b) &amp;&amp; (e != APR_BRIGADE_SENTINEL(b))); \
+<span class="lineNum">      75 </span>            : } while (0)
+<span class="lineNum">      76 </span>            : 
+<span class="lineNum">      77 </span>            : /* we know core's module_index is 0 */
+<span class="lineNum">      78 </span>            : #undef APLOG_MODULE_INDEX
+<span class="lineNum">      79 </span>            : #define APLOG_MODULE_INDEX AP_CORE_MODULE_INDEX
+<span class="lineNum">      80 </span>            : 
+<span class="lineNum">      81 </span>            : struct core_output_filter_ctx {
+<span class="lineNum">      82 </span>            :     apr_bucket_brigade *buffered_bb;
+<span class="lineNum">      83 </span>            :     apr_bucket_brigade *tmp_flush_bb;
+<span class="lineNum">      84 </span>            :     apr_pool_t *deferred_write_pool;
+<span class="lineNum">      85 </span>            :     apr_size_t bytes_written;
+<span class="lineNum">      86 </span>            : };
+<span class="lineNum">      87 </span>            : 
+<span class="lineNum">      88 </span>            : struct core_filter_ctx {
+<span class="lineNum">      89 </span>            :     apr_bucket_brigade *b;
+<span class="lineNum">      90 </span>            :     apr_bucket_brigade *tmpbb;
+<span class="lineNum">      91 </span>            : };
+<a name="92"><span class="lineNum">      92 </span>            : </a>
+<span class="lineNum">      93 </span>            : 
+<span class="lineNum">      94 </span><span class="lineCov">          7 : apr_status_t ap_core_input_filter(ap_filter_t *f, apr_bucket_brigade *b,</span>
+<span class="lineNum">      95 </span>            :                                   ap_input_mode_t mode, apr_read_type_e block,
+<span class="lineNum">      96 </span>            :                                   apr_off_t readbytes)
+<span class="lineNum">      97 </span>            : {
+<span class="lineNum">      98 </span>            :     apr_status_t rv;
+<span class="lineNum">      99 </span><span class="lineCov">          7 :     core_net_rec *net = f-&gt;ctx;</span>
+<span class="lineNum">     100 </span><span class="lineCov">          7 :     core_ctx_t *ctx = net-&gt;in_ctx;</span>
+<span class="lineNum">     101 </span>            :     const char *str;
+<span class="lineNum">     102 </span>            :     apr_size_t len;
+<span class="lineNum">     103 </span>            : 
+<span class="lineNum">     104 </span><span class="lineCov">          7 :     if (mode == AP_MODE_INIT) {</span>
+<span class="lineNum">     105 </span>            :         /*
+<span class="lineNum">     106 </span>            :          * this mode is for filters that might need to 'initialize'
+<span class="lineNum">     107 </span>            :          * a connection before reading request data from a client.
+<span class="lineNum">     108 </span>            :          * NNTP over SSL for example needs to handshake before the
+<span class="lineNum">     109 </span>            :          * server sends the welcome message.
+<span class="lineNum">     110 </span>            :          * such filters would have changed the mode before this point
+<span class="lineNum">     111 </span>            :          * is reached.  however, protocol modules such as NNTP should
+<span class="lineNum">     112 </span>            :          * not need to know anything about SSL.  given the example, if
+<span class="lineNum">     113 </span>            :          * SSL is not in the filter chain, AP_MODE_INIT is a noop.
+<span class="lineNum">     114 </span>            :          */
+<span class="lineNum">     115 </span><span class="lineNoCov">          0 :         return APR_SUCCESS;</span>
+<span class="lineNum">     116 </span>            :     }
+<span class="lineNum">     117 </span>            : 
+<span class="lineNum">     118 </span><span class="lineCov">          7 :     if (!ctx)</span>
+<span class="lineNum">     119 </span>            :     {
+<span class="lineNum">     120 </span><span class="lineCov">          1 :         net-&gt;in_ctx = ctx = apr_palloc(f-&gt;c-&gt;pool, sizeof(*ctx));</span>
+<span class="lineNum">     121 </span><span class="lineCov">          1 :         ctx-&gt;b = apr_brigade_create(f-&gt;c-&gt;pool, f-&gt;c-&gt;bucket_alloc);</span>
+<span class="lineNum">     122 </span><span class="lineCov">          1 :         ctx-&gt;tmpbb = apr_brigade_create(f-&gt;c-&gt;pool, f-&gt;c-&gt;bucket_alloc);</span>
+<span class="lineNum">     123 </span>            :         /* seed the brigade with the client socket. */
+<span class="lineNum">     124 </span><span class="lineCov">          1 :         rv = ap_run_insert_network_bucket(f-&gt;c, ctx-&gt;b, net-&gt;client_socket);</span>
+<span class="lineNum">     125 </span><span class="lineCov">          1 :         if (rv != APR_SUCCESS)</span>
+<span class="lineNum">     126 </span><span class="lineNoCov">          0 :             return rv;</span>
+<span class="lineNum">     127 </span>            :     }
+<span class="lineNum">     128 </span><span class="lineCov">          6 :     else if (APR_BRIGADE_EMPTY(ctx-&gt;b)) {</span>
+<span class="lineNum">     129 </span><span class="lineNoCov">          0 :         return APR_EOF;</span>
+<span class="lineNum">     130 </span>            :     }
+<span class="lineNum">     131 </span>            : 
+<span class="lineNum">     132 </span>            :     /* ### This is bad. */
+<span class="lineNum">     133 </span><span class="lineCov">          7 :     BRIGADE_NORMALIZE(ctx-&gt;b);</span>
+<span class="lineNum">     134 </span>            : 
+<span class="lineNum">     135 </span>            :     /* check for empty brigade again *AFTER* BRIGADE_NORMALIZE()
+<span class="lineNum">     136 </span>            :      * If we have lost our socket bucket (see above), we are EOF.
+<span class="lineNum">     137 </span>            :      *
+<span class="lineNum">     138 </span>            :      * Ideally, this should be returning SUCCESS with EOS bucket, but
+<span class="lineNum">     139 </span>            :      * some higher-up APIs (spec. read_request_line via ap_rgetline)
+<span class="lineNum">     140 </span>            :      * want an error code. */
+<span class="lineNum">     141 </span><span class="lineCov">          7 :     if (APR_BRIGADE_EMPTY(ctx-&gt;b)) {</span>
+<span class="lineNum">     142 </span><span class="lineNoCov">          0 :         return APR_EOF;</span>
+<span class="lineNum">     143 </span>            :     }
+<span class="lineNum">     144 </span>            : 
+<span class="lineNum">     145 </span><span class="lineCov">          7 :     if (mode == AP_MODE_GETLINE) {</span>
+<span class="lineNum">     146 </span>            :         /* we are reading a single LF line, e.g. the HTTP headers */
+<span class="lineNum">     147 </span><span class="lineCov">          6 :         rv = apr_brigade_split_line(b, ctx-&gt;b, block, HUGE_STRING_LEN);</span>
+<span class="lineNum">     148 </span>            :         /* We should treat EAGAIN here the same as we do for EOF (brigade is
+<span class="lineNum">     149 </span>            :          * empty).  We do this by returning whatever we have read.  This may
+<span class="lineNum">     150 </span>            :          * or may not be bogus, but is consistent (for now) with EOF logic.
+<span class="lineNum">     151 </span>            :          */
+<span class="lineNum">     152 </span><span class="lineCov">          6 :         if (APR_STATUS_IS_EAGAIN(rv) &amp;&amp; block == APR_NONBLOCK_READ) {</span>
+<span class="lineNum">     153 </span><span class="lineNoCov">          0 :             rv = APR_SUCCESS;</span>
+<span class="lineNum">     154 </span>            :         }
+<span class="lineNum">     155 </span><span class="lineCov">          6 :         return rv;</span>
+<span class="lineNum">     156 </span>            :     }
+<span class="lineNum">     157 </span>            : 
+<span class="lineNum">     158 </span>            :     /* ### AP_MODE_PEEK is a horrific name for this mode because we also
+<span class="lineNum">     159 </span>            :      * eat any CRLFs that we see.  That's not the obvious intention of
+<span class="lineNum">     160 </span>            :      * this mode.  Determine whether anyone actually uses this or not. */
+<span class="lineNum">     161 </span><span class="lineCov">          1 :     if (mode == AP_MODE_EATCRLF) {</span>
+<span class="lineNum">     162 </span>            :         apr_bucket *e;
+<span class="lineNum">     163 </span>            :         const char *c;
+<span class="lineNum">     164 </span>            : 
+<span class="lineNum">     165 </span>            :         /* The purpose of this loop is to ignore any CRLF (or LF) at the end
+<span class="lineNum">     166 </span>            :          * of a request.  Many browsers send extra lines at the end of POST
+<span class="lineNum">     167 </span>            :          * requests.  We use the PEEK method to determine if there is more
+<span class="lineNum">     168 </span>            :          * data on the socket, so that we know if we should delay sending the
+<span class="lineNum">     169 </span>            :          * end of one request until we have served the second request in a
+<span class="lineNum">     170 </span>            :          * pipelined situation.  We don't want to actually delay sending a
+<span class="lineNum">     171 </span>            :          * response if the server finds a CRLF (or LF), becuause that doesn't
+<span class="lineNum">     172 </span>            :          * mean that there is another request, just a blank line.
+<span class="lineNum">     173 </span>            :          */
+<span class="lineNum">     174 </span>            :         while (1) {
+<span class="lineNum">     175 </span><span class="lineNoCov">          0 :             if (APR_BRIGADE_EMPTY(ctx-&gt;b))</span>
+<span class="lineNum">     176 </span><span class="lineNoCov">          0 :                 return APR_EOF;</span>
+<span class="lineNum">     177 </span>            : 
+<span class="lineNum">     178 </span><span class="lineNoCov">          0 :             e = APR_BRIGADE_FIRST(ctx-&gt;b);</span>
+<span class="lineNum">     179 </span>            : 
+<span class="lineNum">     180 </span><span class="lineNoCov">          0 :             rv = apr_bucket_read(e, &amp;str, &amp;len, APR_NONBLOCK_READ);</span>
+<span class="lineNum">     181 </span>            : 
+<span class="lineNum">     182 </span><span class="lineNoCov">          0 :             if (rv != APR_SUCCESS)</span>
+<span class="lineNum">     183 </span><span class="lineNoCov">          0 :                 return rv;</span>
+<span class="lineNum">     184 </span>            : 
+<span class="lineNum">     185 </span><span class="lineNoCov">          0 :             c = str;</span>
+<span class="lineNum">     186 </span><span class="lineNoCov">          0 :             while (c &lt; str + len) {</span>
+<span class="lineNum">     187 </span><span class="lineNoCov">          0 :                 if (*c == APR_ASCII_LF)</span>
+<span class="lineNum">     188 </span><span class="lineNoCov">          0 :                     c++;</span>
+<span class="lineNum">     189 </span><span class="lineNoCov">          0 :                 else if (*c == APR_ASCII_CR &amp;&amp; *(c + 1) == APR_ASCII_LF)</span>
+<span class="lineNum">     190 </span><span class="lineNoCov">          0 :                     c += 2;</span>
+<span class="lineNum">     191 </span>            :                 else
+<span class="lineNum">     192 </span><span class="lineNoCov">          0 :                     return APR_SUCCESS;</span>
+<span class="lineNum">     193 </span>            :             }
+<span class="lineNum">     194 </span>            : 
+<span class="lineNum">     195 </span>            :             /* If we reach here, we were a bucket just full of CRLFs, so
+<span class="lineNum">     196 </span>            :              * just toss the bucket. */
+<span class="lineNum">     197 </span>            :             /* FIXME: Is this the right thing to do in the core? */
+<span class="lineNum">     198 </span><span class="lineNoCov">          0 :             apr_bucket_delete(e);</span>
+<span class="lineNum">     199 </span><span class="lineNoCov">          0 :         }</span>
+<span class="lineNum">     200 </span>            :         return APR_SUCCESS;
+<span class="lineNum">     201 </span>            :     }
+<span class="lineNum">     202 </span>            : 
+<span class="lineNum">     203 </span>            :     /* If mode is EXHAUSTIVE, we want to just read everything until the end
+<span class="lineNum">     204 </span>            :      * of the brigade, which in this case means the end of the socket.
+<span class="lineNum">     205 </span>            :      * To do this, we attach the brigade that has currently been setaside to
+<span class="lineNum">     206 </span>            :      * the brigade that was passed down, and send that brigade back.
+<span class="lineNum">     207 </span>            :      *
+<span class="lineNum">     208 </span>            :      * NOTE:  This is VERY dangerous to use, and should only be done with
+<span class="lineNum">     209 </span>            :      * extreme caution.  FWLIW, this would be needed by an MPM like Perchild;
+<span class="lineNum">     210 </span>            :      * such an MPM can easily request the socket and all data that has been
+<span class="lineNum">     211 </span>            :      * read, which means that it can pass it to the correct child process.
+<span class="lineNum">     212 </span>            :      */
+<span class="lineNum">     213 </span><span class="lineCov">          1 :     if (mode == AP_MODE_EXHAUSTIVE) {</span>
+<span class="lineNum">     214 </span>            :         apr_bucket *e;
+<span class="lineNum">     215 </span>            : 
+<span class="lineNum">     216 </span>            :         /* Tack on any buckets that were set aside. */
+<span class="lineNum">     217 </span><span class="lineNoCov">          0 :         APR_BRIGADE_CONCAT(b, ctx-&gt;b);</span>
+<span class="lineNum">     218 </span>            : 
+<span class="lineNum">     219 </span>            :         /* Since we've just added all potential buckets (which will most
+<span class="lineNum">     220 </span>            :          * likely simply be the socket bucket) we know this is the end,
+<span class="lineNum">     221 </span>            :          * so tack on an EOS too. */
+<span class="lineNum">     222 </span>            :         /* We have read until the brigade was empty, so we know that we
+<span class="lineNum">     223 </span>            :          * must be EOS. */
+<span class="lineNum">     224 </span><span class="lineNoCov">          0 :         e = apr_bucket_eos_create(f-&gt;c-&gt;bucket_alloc);</span>
+<span class="lineNum">     225 </span><span class="lineNoCov">          0 :         APR_BRIGADE_INSERT_TAIL(b, e);</span>
+<span class="lineNum">     226 </span><span class="lineNoCov">          0 :         return APR_SUCCESS;</span>
+<span class="lineNum">     227 </span>            :     }
+<span class="lineNum">     228 </span>            : 
+<span class="lineNum">     229 </span>            :     /* read up to the amount they specified. */
+<span class="lineNum">     230 </span><span class="lineCov">          1 :     if (mode == AP_MODE_READBYTES || mode == AP_MODE_SPECULATIVE) {</span>
+<span class="lineNum">     231 </span>            :         apr_bucket *e;
+<span class="lineNum">     232 </span>            : 
+<span class="lineNum">     233 </span>            :         AP_DEBUG_ASSERT(readbytes &gt; 0);
+<span class="lineNum">     234 </span>            : 
+<span class="lineNum">     235 </span><span class="lineCov">          1 :         e = APR_BRIGADE_FIRST(ctx-&gt;b);</span>
+<span class="lineNum">     236 </span><span class="lineCov">          1 :         rv = apr_bucket_read(e, &amp;str, &amp;len, block);</span>
+<span class="lineNum">     237 </span>            : 
+<span class="lineNum">     238 </span><span class="lineCov">          1 :         if (APR_STATUS_IS_EAGAIN(rv) &amp;&amp; block == APR_NONBLOCK_READ) {</span>
+<span class="lineNum">     239 </span>            :             /* getting EAGAIN for a blocking read is an error; for a
+<span class="lineNum">     240 </span>            :              * non-blocking read, return an empty brigade. */
+<span class="lineNum">     241 </span><span class="lineCov">          2 :             return APR_SUCCESS;</span>
+<span class="lineNum">     242 </span>            :         }
+<span class="lineNum">     243 </span><span class="lineNoCov">          0 :         else if (rv != APR_SUCCESS) {</span>
+<span class="lineNum">     244 </span><span class="lineNoCov">          0 :             return rv;</span>
+<span class="lineNum">     245 </span>            :         }
+<span class="lineNum">     246 </span><span class="lineNoCov">          0 :         else if (block == APR_BLOCK_READ &amp;&amp; len == 0) {</span>
+<span class="lineNum">     247 </span>            :             /* We wanted to read some bytes in blocking mode.  We read
+<span class="lineNum">     248 </span>            :              * 0 bytes.  Hence, we now assume we are EOS.
+<span class="lineNum">     249 </span>            :              *
+<span class="lineNum">     250 </span>            :              * When we are in normal mode, return an EOS bucket to the
+<span class="lineNum">     251 </span>            :              * caller.
+<span class="lineNum">     252 </span>            :              * When we are in speculative mode, leave ctx-&gt;b empty, so
+<span class="lineNum">     253 </span>            :              * that the next call returns an EOS bucket.
+<span class="lineNum">     254 </span>            :              */
+<span class="lineNum">     255 </span><span class="lineNoCov">          0 :             apr_bucket_delete(e);</span>
+<span class="lineNum">     256 </span>            : 
+<span class="lineNum">     257 </span><span class="lineNoCov">          0 :             if (mode == AP_MODE_READBYTES) {</span>
+<span class="lineNum">     258 </span><span class="lineNoCov">          0 :                 e = apr_bucket_eos_create(f-&gt;c-&gt;bucket_alloc);</span>
+<span class="lineNum">     259 </span><span class="lineNoCov">          0 :                 APR_BRIGADE_INSERT_TAIL(b, e);</span>
+<span class="lineNum">     260 </span>            :             }
+<span class="lineNum">     261 </span><span class="lineNoCov">          0 :             return APR_SUCCESS;</span>
+<span class="lineNum">     262 </span>            :         }
+<span class="lineNum">     263 </span>            : 
+<span class="lineNum">     264 </span>            :         /* Have we read as much data as we wanted (be greedy)? */
+<span class="lineNum">     265 </span><span class="lineNoCov">          0 :         if (len &lt; readbytes) {</span>
+<span class="lineNum">     266 </span>            :             apr_size_t bucket_len;
+<span class="lineNum">     267 </span>            : 
+<span class="lineNum">     268 </span><span class="lineNoCov">          0 :             rv = APR_SUCCESS;</span>
+<span class="lineNum">     269 </span>            :             /* We already registered the data in e in len */
+<span class="lineNum">     270 </span><span class="lineNoCov">          0 :             e = APR_BUCKET_NEXT(e);</span>
+<span class="lineNum">     271 </span><span class="lineNoCov">          0 :             while ((len &lt; readbytes) &amp;&amp; (rv == APR_SUCCESS)</span>
+<span class="lineNum">     272 </span><span class="lineNoCov">          0 :                    &amp;&amp; (e != APR_BRIGADE_SENTINEL(ctx-&gt;b))) {</span>
+<span class="lineNum">     273 </span>            :                 /* Check for the availability of buckets with known length */
+<span class="lineNum">     274 </span><span class="lineNoCov">          0 :                 if (e-&gt;length != -1) {</span>
+<span class="lineNum">     275 </span><span class="lineNoCov">          0 :                     len += e-&gt;length;</span>
+<span class="lineNum">     276 </span><span class="lineNoCov">          0 :                     e = APR_BUCKET_NEXT(e);</span>
+<span class="lineNum">     277 </span>            :                 }
+<span class="lineNum">     278 </span>            :                 else {
+<span class="lineNum">     279 </span>            :                     /*
+<span class="lineNum">     280 </span>            :                      * Read from bucket, but non blocking. If there isn't any
+<span class="lineNum">     281 </span>            :                      * more data, well than this is fine as well, we will
+<span class="lineNum">     282 </span>            :                      * not wait for more since we already got some and we are
+<span class="lineNum">     283 </span>            :                      * only checking if there isn't more.
+<span class="lineNum">     284 </span>            :                      */
+<span class="lineNum">     285 </span><span class="lineNoCov">          0 :                     rv = apr_bucket_read(e, &amp;str, &amp;bucket_len,</span>
+<span class="lineNum">     286 </span>            :                                          APR_NONBLOCK_READ);
+<span class="lineNum">     287 </span><span class="lineNoCov">          0 :                     if (rv == APR_SUCCESS) {</span>
+<span class="lineNum">     288 </span><span class="lineNoCov">          0 :                         len += bucket_len;</span>
+<span class="lineNum">     289 </span><span class="lineNoCov">          0 :                         e = APR_BUCKET_NEXT(e);</span>
+<span class="lineNum">     290 </span>            :                     }
+<span class="lineNum">     291 </span>            :                 }
+<span class="lineNum">     292 </span>            :             }
+<span class="lineNum">     293 </span>            :         }
+<span class="lineNum">     294 </span>            : 
+<span class="lineNum">     295 </span>            :         /* We can only return at most what we read. */
+<span class="lineNum">     296 </span><span class="lineNoCov">          0 :         if (len &lt; readbytes) {</span>
+<span class="lineNum">     297 </span><span class="lineNoCov">          0 :             readbytes = len;</span>
+<span class="lineNum">     298 </span>            :         }
+<span class="lineNum">     299 </span>            : 
+<span class="lineNum">     300 </span><span class="lineNoCov">          0 :         rv = apr_brigade_partition(ctx-&gt;b, readbytes, &amp;e);</span>
+<span class="lineNum">     301 </span><span class="lineNoCov">          0 :         if (rv != APR_SUCCESS) {</span>
+<span class="lineNum">     302 </span><span class="lineNoCov">          0 :             return rv;</span>
+<span class="lineNum">     303 </span>            :         }
+<span class="lineNum">     304 </span>            : 
+<span class="lineNum">     305 </span>            :         /* Must do move before CONCAT */
+<span class="lineNum">     306 </span><span class="lineNoCov">          0 :         ctx-&gt;tmpbb = apr_brigade_split_ex(ctx-&gt;b, e, ctx-&gt;tmpbb);</span>
+<span class="lineNum">     307 </span>            : 
+<span class="lineNum">     308 </span><span class="lineNoCov">          0 :         if (mode == AP_MODE_READBYTES) {</span>
+<span class="lineNum">     309 </span><span class="lineNoCov">          0 :             APR_BRIGADE_CONCAT(b, ctx-&gt;b);</span>
+<span class="lineNum">     310 </span>            :         }
+<span class="lineNum">     311 </span><span class="lineNoCov">          0 :         else if (mode == AP_MODE_SPECULATIVE) {</span>
+<span class="lineNum">     312 </span>            :             apr_bucket *copy_bucket;
+<span class="lineNum">     313 </span>            : 
+<span class="lineNum">     314 </span><span class="lineNoCov">          0 :             for (e = APR_BRIGADE_FIRST(ctx-&gt;b);</span>
+<span class="lineNum">     315 </span><span class="lineNoCov">          0 :                  e != APR_BRIGADE_SENTINEL(ctx-&gt;b);</span>
+<span class="lineNum">     316 </span><span class="lineNoCov">          0 :                  e = APR_BUCKET_NEXT(e))</span>
+<span class="lineNum">     317 </span>            :             {
+<span class="lineNum">     318 </span><span class="lineNoCov">          0 :                 rv = apr_bucket_copy(e, &amp;copy_bucket);</span>
+<span class="lineNum">     319 </span><span class="lineNoCov">          0 :                 if (rv != APR_SUCCESS) {</span>
+<span class="lineNum">     320 </span><span class="lineNoCov">          0 :                     return rv;</span>
+<span class="lineNum">     321 </span>            :                 }
+<span class="lineNum">     322 </span><span class="lineNoCov">          0 :                 APR_BRIGADE_INSERT_TAIL(b, copy_bucket);</span>
+<span class="lineNum">     323 </span>            :             }
+<span class="lineNum">     324 </span>            :         }
+<span class="lineNum">     325 </span>            : 
+<span class="lineNum">     326 </span>            :         /* Take what was originally there and place it back on ctx-&gt;b */
+<span class="lineNum">     327 </span><span class="lineNoCov">          0 :         APR_BRIGADE_CONCAT(ctx-&gt;b, ctx-&gt;tmpbb);</span>
+<span class="lineNum">     328 </span>            :     }
+<span class="lineNum">     329 </span><span class="lineNoCov">          0 :     return APR_SUCCESS;</span>
+<span class="lineNum">     330 </span>            : }
+<span class="lineNum">     331 </span>            : 
+<span class="lineNum">     332 </span>            : static void setaside_remaining_output(ap_filter_t *f,
+<span class="lineNum">     333 </span>            :                                       core_output_filter_ctx_t *ctx,
+<span class="lineNum">     334 </span>            :                                       apr_bucket_brigade *bb,
+<span class="lineNum">     335 </span>            :                                       conn_rec *c);
+<span class="lineNum">     336 </span>            : 
+<span class="lineNum">     337 </span>            : static apr_status_t send_brigade_nonblocking(apr_socket_t *s,
+<span class="lineNum">     338 </span>            :                                              apr_bucket_brigade *bb,
+<span class="lineNum">     339 </span>            :                                              apr_size_t *bytes_written,
+<span class="lineNum">     340 </span>            :                                              conn_rec *c);
+<span class="lineNum">     341 </span>            : 
+<span class="lineNum">     342 </span>            : static void remove_empty_buckets(apr_bucket_brigade *bb);
+<span class="lineNum">     343 </span>            : 
+<span class="lineNum">     344 </span>            : static apr_status_t send_brigade_blocking(apr_socket_t *s,
+<span class="lineNum">     345 </span>            :                                           apr_bucket_brigade *bb,
+<span class="lineNum">     346 </span>            :                                           apr_size_t *bytes_written,
+<span class="lineNum">     347 </span>            :                                           conn_rec *c);
+<span class="lineNum">     348 </span>            : 
+<span class="lineNum">     349 </span>            : static apr_status_t writev_nonblocking(apr_socket_t *s,
+<span class="lineNum">     350 </span>            :                                        struct iovec *vec, apr_size_t nvec,
+<span class="lineNum">     351 </span>            :                                        apr_bucket_brigade *bb,
+<span class="lineNum">     352 </span>            :                                        apr_size_t *cumulative_bytes_written,
+<span class="lineNum">     353 </span>            :                                        conn_rec *c);
+<span class="lineNum">     354 </span>            : 
+<span class="lineNum">     355 </span>            : #if APR_HAS_SENDFILE
+<span class="lineNum">     356 </span>            : static apr_status_t sendfile_nonblocking(apr_socket_t *s,
+<span class="lineNum">     357 </span>            :                                          apr_bucket *bucket,
+<span class="lineNum">     358 </span>            :                                          apr_size_t *cumulative_bytes_written,
+<span class="lineNum">     359 </span>            :                                          conn_rec *c);
+<span class="lineNum">     360 </span>            : #endif
+<span class="lineNum">     361 </span>            : 
+<span class="lineNum">     362 </span>            : /* XXX: Should these be configurable parameters? */
+<span class="lineNum">     363 </span>            : #define THRESHOLD_MIN_WRITE 4096
+<span class="lineNum">     364 </span>            : #define THRESHOLD_MAX_BUFFER 65536
+<span class="lineNum">     365 </span>            : #define MAX_REQUESTS_IN_PIPELINE 5
+<span class="lineNum">     366 </span>            : 
+<span class="lineNum">     367 </span>            : /* Optional function coming from mod_logio, used for logging of output
+<span class="lineNum">     368 </span>            :  * traffic
+<span class="lineNum">     369 </span>            :  */
+<a name="370"><span class="lineNum">     370 </span>            : extern APR_OPTIONAL_FN_TYPE(ap_logio_add_bytes_out) *ap__logio_add_bytes_out;</a>
+<span class="lineNum">     371 </span>            : 
+<span class="lineNum">     372 </span><span class="lineCov">          5 : apr_status_t ap_core_output_filter(ap_filter_t *f, apr_bucket_brigade *new_bb)</span>
+<span class="lineNum">     373 </span>            : {
+<span class="lineNum">     374 </span><span class="lineCov">          5 :     conn_rec *c = f-&gt;c;</span>
+<span class="lineNum">     375 </span><span class="lineCov">          5 :     core_net_rec *net = f-&gt;ctx;</span>
+<span class="lineNum">     376 </span><span class="lineCov">          5 :     core_output_filter_ctx_t *ctx = net-&gt;out_ctx;</span>
+<span class="lineNum">     377 </span><span class="lineCov">          5 :     apr_bucket_brigade *bb = NULL;</span>
+<span class="lineNum">     378 </span><span class="lineCov">          5 :     apr_bucket *bucket, *next, *flush_upto = NULL;</span>
+<span class="lineNum">     379 </span>            :     apr_size_t bytes_in_brigade, non_file_bytes_in_brigade;
+<span class="lineNum">     380 </span>            :     int eor_buckets_in_brigade, morphing_bucket_in_brigade;
+<span class="lineNum">     381 </span>            :     apr_status_t rv;
+<span class="lineNum">     382 </span>            : 
+<span class="lineNum">     383 </span>            :     /* Fail quickly if the connection has already been aborted. */
+<span class="lineNum">     384 </span><span class="lineCov">          5 :     if (c-&gt;aborted) {</span>
+<span class="lineNum">     385 </span><span class="lineNoCov">          0 :         if (new_bb != NULL) {</span>
+<span class="lineNum">     386 </span><span class="lineNoCov">          0 :             apr_brigade_cleanup(new_bb);</span>
+<span class="lineNum">     387 </span>            :         }
+<span class="lineNum">     388 </span><span class="lineNoCov">          0 :         return APR_ECONNABORTED;</span>
+<span class="lineNum">     389 </span>            :     }
+<span class="lineNum">     390 </span>            : 
+<span class="lineNum">     391 </span><span class="lineCov">          5 :     if (ctx == NULL) {</span>
+<span class="lineNum">     392 </span><span class="lineCov">          1 :         ctx = apr_pcalloc(c-&gt;pool, sizeof(*ctx));</span>
+<span class="lineNum">     393 </span><span class="lineCov">          1 :         net-&gt;out_ctx = (core_output_filter_ctx_t *)ctx;</span>
+<span class="lineNum">     394 </span>            :         /*
+<span class="lineNum">     395 </span>            :          * Need to create tmp brigade with correct lifetime. Passing
+<span class="lineNum">     396 </span>            :          * NULL to apr_brigade_split_ex would result in a brigade
+<span class="lineNum">     397 </span>            :          * allocated from bb-&gt;pool which might be wrong.
+<span class="lineNum">     398 </span>            :          */
+<span class="lineNum">     399 </span><span class="lineCov">          1 :         ctx-&gt;tmp_flush_bb = apr_brigade_create(c-&gt;pool, c-&gt;bucket_alloc);</span>
+<span class="lineNum">     400 </span>            :         /* same for buffered_bb and ap_save_brigade */
+<span class="lineNum">     401 </span><span class="lineCov">          1 :         ctx-&gt;buffered_bb = apr_brigade_create(c-&gt;pool, c-&gt;bucket_alloc);</span>
+<span class="lineNum">     402 </span>            :     }
+<span class="lineNum">     403 </span>            : 
+<span class="lineNum">     404 </span><span class="lineCov">          5 :     if (new_bb != NULL)</span>
+<span class="lineNum">     405 </span><span class="lineCov">          4 :         bb = new_bb;</span>
+<span class="lineNum">     406 </span>            : 
+<span class="lineNum">     407 </span><span class="lineCov">         10 :     if ((ctx-&gt;buffered_bb != NULL) &amp;&amp;</span>
+<span class="lineNum">     408 </span><span class="lineCov">          5 :         !APR_BRIGADE_EMPTY(ctx-&gt;buffered_bb)) {</span>
+<span class="lineNum">     409 </span><span class="lineCov">          3 :         if (new_bb != NULL) {</span>
+<span class="lineNum">     410 </span><span class="lineCov">          2 :             APR_BRIGADE_PREPEND(bb, ctx-&gt;buffered_bb);</span>
+<span class="lineNum">     411 </span>            :         }
+<span class="lineNum">     412 </span>            :         else {
+<span class="lineNum">     413 </span><span class="lineCov">          1 :             bb = ctx-&gt;buffered_bb;</span>
+<span class="lineNum">     414 </span>            :         }
+<span class="lineNum">     415 </span><span class="lineCov">          3 :         c-&gt;data_in_output_filters = 0;</span>
+<span class="lineNum">     416 </span>            :     }
+<span class="lineNum">     417 </span><span class="lineCov">          2 :     else if (new_bb == NULL) {</span>
+<span class="lineNum">     418 </span><span class="lineNoCov">          0 :         return APR_SUCCESS;</span>
+<span class="lineNum">     419 </span>            :     }
+<span class="lineNum">     420 </span>            : 
+<span class="lineNum">     421 </span>            :     /* Scan through the brigade and decide whether to attempt a write,
+<span class="lineNum">     422 </span>            :      * and how much to write, based on the following rules:
+<span class="lineNum">     423 </span>            :      *
+<span class="lineNum">     424 </span>            :      *  1) The new_bb is null: Do a nonblocking write of as much as
+<span class="lineNum">     425 </span>            :      *     possible: do a nonblocking write of as much data as possible,
+<span class="lineNum">     426 </span>            :      *     then save the rest in ctx-&gt;buffered_bb.  (If new_bb == NULL,
+<span class="lineNum">     427 </span>            :      *     it probably means that the MPM is doing asynchronous write
+<span class="lineNum">     428 </span>            :      *     completion and has just determined that this connection
+<span class="lineNum">     429 </span>            :      *     is writable.)
+<span class="lineNum">     430 </span>            :      *
+<span class="lineNum">     431 </span>            :      *  2) Determine if and up to which bucket we need to do a blocking
+<span class="lineNum">     432 </span>            :      *     write:
+<span class="lineNum">     433 </span>            :      *
+<span class="lineNum">     434 </span>            :      *  a) The brigade contains a flush bucket: Do a blocking write
+<span class="lineNum">     435 </span>            :      *     of everything up that point.
+<span class="lineNum">     436 </span>            :      *
+<span class="lineNum">     437 </span>            :      *  b) The request is in CONN_STATE_HANDLER state, and the brigade
+<span class="lineNum">     438 </span>            :      *     contains at least THRESHOLD_MAX_BUFFER bytes in non-file
+<span class="lineNum">     439 </span>            :      *     buckets: Do blocking writes until the amount of data in the
+<span class="lineNum">     440 </span>            :      *     buffer is less than THRESHOLD_MAX_BUFFER.  (The point of this
+<span class="lineNum">     441 </span>            :      *     rule is to provide flow control, in case a handler is
+<span class="lineNum">     442 </span>            :      *     streaming out lots of data faster than the data can be
+<span class="lineNum">     443 </span>            :      *     sent to the client.)
+<span class="lineNum">     444 </span>            :      *
+<span class="lineNum">     445 </span>            :      *  c) The request is in CONN_STATE_HANDLER state, and the brigade
+<span class="lineNum">     446 </span>            :      *     contains at least MAX_REQUESTS_IN_PIPELINE EOR buckets:
+<span class="lineNum">     447 </span>            :      *     Do blocking writes until less than MAX_REQUESTS_IN_PIPELINE EOR
+<span class="lineNum">     448 </span>            :      *     buckets are left. (The point of this rule is to prevent too many
+<span class="lineNum">     449 </span>            :      *     FDs being kept open by pipelined requests, possibly allowing a
+<span class="lineNum">     450 </span>            :      *     DoS).
+<span class="lineNum">     451 </span>            :      *
+<span class="lineNum">     452 </span>            :      *  d) The brigade contains a morphing bucket: If there was no other
+<span class="lineNum">     453 </span>            :      *     reason to do a blocking write yet, try reading the bucket. If its
+<span class="lineNum">     454 </span>            :      *     contents fit into memory before THRESHOLD_MAX_BUFFER is reached,
+<span class="lineNum">     455 </span>            :      *     everything is fine. Otherwise we need to do a blocking write the
+<span class="lineNum">     456 </span>            :      *     up to and including the morphing bucket, because ap_save_brigade()
+<span class="lineNum">     457 </span>            :      *     would read the whole bucket into memory later on.
+<span class="lineNum">     458 </span>            :      *
+<span class="lineNum">     459 </span>            :      *  3) Actually do the blocking write up to the last bucket determined
+<span class="lineNum">     460 </span>            :      *     by rules 2a-d. The point of doing only one flush is to make as
+<span class="lineNum">     461 </span>            :      *     few calls to writev() as possible.
+<span class="lineNum">     462 </span>            :      *
+<span class="lineNum">     463 </span>            :      *  4) If the brigade contains at least THRESHOLD_MIN_WRITE
+<span class="lineNum">     464 </span>            :      *     bytes: Do a nonblocking write of as much data as possible,
+<span class="lineNum">     465 </span>            :      *     then save the rest in ctx-&gt;buffered_bb.
+<span class="lineNum">     466 </span>            :      */
+<span class="lineNum">     467 </span>            : 
+<span class="lineNum">     468 </span><span class="lineCov">          5 :     if (new_bb == NULL) {</span>
+<span class="lineNum">     469 </span><span class="lineCov">          1 :         rv = send_brigade_nonblocking(net-&gt;client_socket, bb,</span>
+<span class="lineNum">     470 </span>            :                                       &amp;(ctx-&gt;bytes_written), c);
+<span class="lineNum">     471 </span><span class="lineCov">          1 :         if (APR_STATUS_IS_EAGAIN(rv)) {</span>
+<span class="lineNum">     472 </span><span class="lineNoCov">          0 :             rv = APR_SUCCESS;</span>
+<span class="lineNum">     473 </span>            :         }
+<span class="lineNum">     474 </span><span class="lineCov">          1 :         else if (rv != APR_SUCCESS) {</span>
+<span class="lineNum">     475 </span>            :             /* The client has aborted the connection */
+<span class="lineNum">     476 </span><span class="lineNoCov">          0 :             ap_log_cerror(APLOG_MARK, APLOG_TRACE1, rv, c,</span>
+<span class="lineNum">     477 </span>            :                           &quot;core_output_filter: writing data to the network&quot;);
+<span class="lineNum">     478 </span><span class="lineNoCov">          0 :             c-&gt;aborted = 1;</span>
+<span class="lineNum">     479 </span>            :         }
+<span class="lineNum">     480 </span><span class="lineCov">          1 :         setaside_remaining_output(f, ctx, bb, c);</span>
+<span class="lineNum">     481 </span><span class="lineCov">          1 :         return rv;</span>
+<span class="lineNum">     482 </span>            :     }
+<span class="lineNum">     483 </span>            : 
+<span class="lineNum">     484 </span><span class="lineCov">          4 :     bytes_in_brigade = 0;</span>
+<span class="lineNum">     485 </span><span class="lineCov">          4 :     non_file_bytes_in_brigade = 0;</span>
+<span class="lineNum">     486 </span><span class="lineCov">          4 :     eor_buckets_in_brigade = 0;</span>
+<span class="lineNum">     487 </span><span class="lineCov">          4 :     morphing_bucket_in_brigade = 0;</span>
+<span class="lineNum">     488 </span>            : 
+<span class="lineNum">     489 </span><span class="lineCov">         18 :     for (bucket = APR_BRIGADE_FIRST(bb); bucket != APR_BRIGADE_SENTINEL(bb);</span>
+<span class="lineNum">     490 </span><span class="lineCov">         10 :          bucket = next) {</span>
+<span class="lineNum">     491 </span><span class="lineCov">         10 :         next = APR_BUCKET_NEXT(bucket);</span>
+<span class="lineNum">     492 </span>            : 
+<span class="lineNum">     493 </span><span class="lineCov">         10 :         if (!APR_BUCKET_IS_METADATA(bucket)) {</span>
+<span class="lineNum">     494 </span><span class="lineCov">          5 :             if (bucket-&gt;length == (apr_size_t)-1) {</span>
+<span class="lineNum">     495 </span>            :                 /*
+<span class="lineNum">     496 </span>            :                  * A setaside of morphing buckets would read everything into
+<span class="lineNum">     497 </span>            :                  * memory. Instead, we will flush everything up to and
+<span class="lineNum">     498 </span>            :                  * including this bucket.
+<span class="lineNum">     499 </span>            :                  */
+<span class="lineNum">     500 </span><span class="lineNoCov">          0 :                 morphing_bucket_in_brigade = 1;</span>
+<span class="lineNum">     501 </span>            :             }
+<span class="lineNum">     502 </span>            :             else {
+<span class="lineNum">     503 </span><span class="lineCov">          5 :                 bytes_in_brigade += bucket-&gt;length;</span>
+<span class="lineNum">     504 </span><span class="lineCov">          5 :                 if (!APR_BUCKET_IS_FILE(bucket))</span>
+<span class="lineNum">     505 </span><span class="lineCov">          3 :                     non_file_bytes_in_brigade += bucket-&gt;length;</span>
+<span class="lineNum">     506 </span>            :             }
+<span class="lineNum">     507 </span>            :         }
+<span class="lineNum">     508 </span><span class="lineCov">          5 :         else if (AP_BUCKET_IS_EOR(bucket)) {</span>
+<span class="lineNum">     509 </span><span class="lineCov">          1 :             eor_buckets_in_brigade++;</span>
+<span class="lineNum">     510 </span>            :         }
+<span class="lineNum">     511 </span>            : 
+<span class="lineNum">     512 </span><span class="lineCov">         10 :         if (APR_BUCKET_IS_FLUSH(bucket)</span>
+<span class="lineNum">     513 </span><span class="lineCov">          9 :             || non_file_bytes_in_brigade &gt;= THRESHOLD_MAX_BUFFER</span>
+<span class="lineNum">     514 </span><span class="lineCov">          9 :             || morphing_bucket_in_brigade</span>
+<span class="lineNum">     515 </span><span class="lineCov">          9 :             || eor_buckets_in_brigade &gt; MAX_REQUESTS_IN_PIPELINE) {</span>
+<span class="lineNum">     516 </span>            :             /* this segment of the brigade MUST be sent before returning. */
+<span class="lineNum">     517 </span>            : 
+<span class="lineNum">     518 </span><span class="lineCov">          1 :             if (APLOGctrace6(c)) {</span>
+<span class="lineNum">     519 </span><span class="lineNoCov">          0 :                 char *reason = APR_BUCKET_IS_FLUSH(bucket) ?</span>
+<span class="lineNum">     520 </span><span class="lineNoCov">          0 :                                &quot;FLUSH bucket&quot; :</span>
+<span class="lineNum">     521 </span>            :                                (non_file_bytes_in_brigade &gt;= THRESHOLD_MAX_BUFFER) ?
+<span class="lineNum">     522 </span><span class="lineNoCov">          0 :                                &quot;THRESHOLD_MAX_BUFFER&quot; :</span>
+<span class="lineNum">     523 </span><span class="lineNoCov">          0 :                                morphing_bucket_in_brigade ? &quot;morphing bucket&quot; :</span>
+<span class="lineNum">     524 </span>            :                                &quot;MAX_REQUESTS_IN_PIPELINE&quot;;
+<span class="lineNum">     525 </span><span class="lineNoCov">          0 :                 ap_log_cerror(APLOG_MARK, APLOG_TRACE6, 0, c,</span>
+<span class="lineNum">     526 </span>            :                               &quot;core_output_filter: flushing because of %s&quot;,
+<span class="lineNum">     527 </span>            :                               reason);
+<span class="lineNum">     528 </span>            :             }
+<span class="lineNum">     529 </span>            :             /*
+<span class="lineNum">     530 </span>            :              * Defer the actual blocking write to avoid doing many writes.
+<span class="lineNum">     531 </span>            :              */
+<span class="lineNum">     532 </span><span class="lineCov">          1 :             flush_upto = next;</span>
+<span class="lineNum">     533 </span>            : 
+<span class="lineNum">     534 </span><span class="lineCov">          1 :             bytes_in_brigade = 0;</span>
+<span class="lineNum">     535 </span><span class="lineCov">          1 :             non_file_bytes_in_brigade = 0;</span>
+<span class="lineNum">     536 </span><span class="lineCov">          1 :             eor_buckets_in_brigade = 0;</span>
+<span class="lineNum">     537 </span><span class="lineCov">          1 :             morphing_bucket_in_brigade = 0;</span>
+<span class="lineNum">     538 </span>            :         }
+<span class="lineNum">     539 </span>            :     }
+<span class="lineNum">     540 </span>            : 
+<span class="lineNum">     541 </span><span class="lineCov">          4 :     if (flush_upto != NULL) {</span>
+<span class="lineNum">     542 </span><span class="lineCov">          1 :         ctx-&gt;tmp_flush_bb = apr_brigade_split_ex(bb, flush_upto,</span>
+<span class="lineNum">     543 </span>            :                                                  ctx-&gt;tmp_flush_bb);
+<span class="lineNum">     544 </span><span class="lineCov">          1 :         rv = send_brigade_blocking(net-&gt;client_socket, bb,</span>
+<span class="lineNum">     545 </span>            :                                    &amp;(ctx-&gt;bytes_written), c);
+<span class="lineNum">     546 </span><span class="lineCov">          1 :         if (rv != APR_SUCCESS) {</span>
+<span class="lineNum">     547 </span>            :             /* The client has aborted the connection */
+<span class="lineNum">     548 </span><span class="lineNoCov">          0 :             ap_log_cerror(APLOG_MARK, APLOG_TRACE1, rv, c,</span>
+<span class="lineNum">     549 </span>            :                           &quot;core_output_filter: writing data to the network&quot;);
+<span class="lineNum">     550 </span><span class="lineNoCov">          0 :             c-&gt;aborted = 1;</span>
+<span class="lineNum">     551 </span><span class="lineNoCov">          0 :             return rv;</span>
+<span class="lineNum">     552 </span>            :         }
+<span class="lineNum">     553 </span><span class="lineCov">          1 :         APR_BRIGADE_CONCAT(bb, ctx-&gt;tmp_flush_bb);</span>
+<span class="lineNum">     554 </span>            :     }
+<span class="lineNum">     555 </span>            : 
+<span class="lineNum">     556 </span><span class="lineCov">          4 :     if (bytes_in_brigade &gt;= THRESHOLD_MIN_WRITE) {</span>
+<span class="lineNum">     557 </span><span class="lineNoCov">          0 :         rv = send_brigade_nonblocking(net-&gt;client_socket, bb,</span>
+<span class="lineNum">     558 </span>            :                                       &amp;(ctx-&gt;bytes_written), c);
+<span class="lineNum">     559 </span><span class="lineNoCov">          0 :         if ((rv != APR_SUCCESS) &amp;&amp; (!APR_STATUS_IS_EAGAIN(rv))) {</span>
+<span class="lineNum">     560 </span>            :             /* The client has aborted the connection */
+<span class="lineNum">     561 </span><span class="lineNoCov">          0 :             ap_log_cerror(APLOG_MARK, APLOG_TRACE1, rv, c,</span>
+<span class="lineNum">     562 </span>            :                           &quot;core_output_filter: writing data to the network&quot;);
+<span class="lineNum">     563 </span><span class="lineNoCov">          0 :             c-&gt;aborted = 1;</span>
+<span class="lineNum">     564 </span><span class="lineNoCov">          0 :             return rv;</span>
+<span class="lineNum">     565 </span>            :         }
+<span class="lineNum">     566 </span>            :     }
+<span class="lineNum">     567 </span>            : 
+<span class="lineNum">     568 </span><span class="lineCov">          4 :     setaside_remaining_output(f, ctx, bb, c);</span>
+<span class="lineNum">     569 </span><span class="lineCov">          4 :     return APR_SUCCESS;</span>
+<span class="lineNum">     570 </span>            : }
+<span class="lineNum">     571 </span>            : 
+<span class="lineNum">     572 </span>            : /*
+<span class="lineNum">     573 </span>            :  * This function assumes that either ctx-&gt;buffered_bb == NULL, or
+<a name="574"><span class="lineNum">     574 </span>            :  * ctx-&gt;buffered_bb is empty, or ctx-&gt;buffered_bb == bb</a>
+<span class="lineNum">     575 </span>            :  */
+<span class="lineNum">     576 </span><span class="lineCov">          5 : static void setaside_remaining_output(ap_filter_t *f,</span>
+<span class="lineNum">     577 </span>            :                                       core_output_filter_ctx_t *ctx,
+<span class="lineNum">     578 </span>            :                                       apr_bucket_brigade *bb,
+<span class="lineNum">     579 </span>            :                                       conn_rec *c)
+<span class="lineNum">     580 </span>            : {
+<span class="lineNum">     581 </span><span class="lineCov">          5 :     if (bb == NULL) {</span>
+<span class="lineNum">     582 </span><span class="lineCov">          5 :         return;</span>
+<span class="lineNum">     583 </span>            :     }
+<span class="lineNum">     584 </span><span class="lineCov">          5 :     remove_empty_buckets(bb);</span>
+<span class="lineNum">     585 </span><span class="lineCov">          5 :     if (!APR_BRIGADE_EMPTY(bb)) {</span>
+<span class="lineNum">     586 </span><span class="lineCov">          3 :         c-&gt;data_in_output_filters = 1;</span>
+<span class="lineNum">     587 </span><span class="lineCov">          3 :         if (bb != ctx-&gt;buffered_bb) {</span>
+<span class="lineNum">     588 </span><span class="lineCov">          3 :             if (!ctx-&gt;deferred_write_pool) {</span>
+<span class="lineNum">     589 </span><span class="lineCov">          1 :                 apr_pool_create(&amp;ctx-&gt;deferred_write_pool, c-&gt;pool);</span>
+<span class="lineNum">     590 </span><span class="lineCov">          1 :                 apr_pool_tag(ctx-&gt;deferred_write_pool, &quot;deferred_write&quot;);</span>
+<span class="lineNum">     591 </span>            :             }
+<span class="lineNum">     592 </span><span class="lineCov">          3 :             ap_save_brigade(f, &amp;(ctx-&gt;buffered_bb), &amp;bb,</span>
+<span class="lineNum">     593 </span>            :                             ctx-&gt;deferred_write_pool);
+<span class="lineNum">     594 </span><span class="lineCov">          3 :             apr_brigade_cleanup(bb);</span>
+<span class="lineNum">     595 </span>            :         }
+<span class="lineNum">     596 </span>            :     }
+<span class="lineNum">     597 </span><span class="lineCov">          2 :     else if (ctx-&gt;deferred_write_pool) {</span>
+<span class="lineNum">     598 </span>            :         /*
+<span class="lineNum">     599 </span>            :          * There are no more requests in the pipeline. We can just clear the
+<span class="lineNum">     600 </span>            :          * pool.
+<span class="lineNum">     601 </span>            :          */
+<span class="lineNum">     602 </span><span class="lineCov">          2 :         apr_pool_clear(ctx-&gt;deferred_write_pool);</span>
+<span class="lineNum">     603 </span>            :     }
+<span class="lineNum">     604 </span>            : }
+<span class="lineNum">     605 </span>            : 
+<span class="lineNum">     606 </span>            : #ifndef APR_MAX_IOVEC_SIZE
+<span class="lineNum">     607 </span>            : #define MAX_IOVEC_TO_WRITE 16
+<span class="lineNum">     608 </span>            : #else
+<span class="lineNum">     609 </span>            : #if APR_MAX_IOVEC_SIZE &gt; 16
+<span class="lineNum">     610 </span>            : #define MAX_IOVEC_TO_WRITE 16
+<span class="lineNum">     611 </span>            : #else
+<span class="lineNum">     612 </span>            : #define MAX_IOVEC_TO_WRITE APR_MAX_IOVEC_SIZE
+<span class="lineNum">     613 </span>            : #endif
+<a name="614"><span class="lineNum">     614 </span>            : #endif</a>
+<span class="lineNum">     615 </span>            : 
+<span class="lineNum">     616 </span><span class="lineCov">          2 : static apr_status_t send_brigade_nonblocking(apr_socket_t *s,</span>
+<span class="lineNum">     617 </span>            :                                              apr_bucket_brigade *bb,
+<span class="lineNum">     618 </span>            :                                              apr_size_t *bytes_written,
+<span class="lineNum">     619 </span>            :                                              conn_rec *c)
+<span class="lineNum">     620 </span>            : {
+<span class="lineNum">     621 </span>            :     apr_bucket *bucket, *next;
+<span class="lineNum">     622 </span>            :     apr_status_t rv;
+<span class="lineNum">     623 </span>            :     struct iovec vec[MAX_IOVEC_TO_WRITE];
+<span class="lineNum">     624 </span><span class="lineCov">          2 :     apr_size_t nvec = 0;</span>
+<span class="lineNum">     625 </span>            : 
+<span class="lineNum">     626 </span><span class="lineCov">          2 :     remove_empty_buckets(bb);</span>
+<span class="lineNum">     627 </span>            : 
+<span class="lineNum">     628 </span><span class="lineCov">          8 :     for (bucket = APR_BRIGADE_FIRST(bb);</span>
+<span class="lineNum">     629 </span><span class="lineCov">          6 :          bucket != APR_BRIGADE_SENTINEL(bb);</span>
+<span class="lineNum">     630 </span><span class="lineCov">          4 :          bucket = next) {</span>
+<span class="lineNum">     631 </span><span class="lineCov">          4 :         next = APR_BUCKET_NEXT(bucket);</span>
+<span class="lineNum">     632 </span>            : #if APR_HAS_SENDFILE
+<span class="lineNum">     633 </span><span class="lineCov">          4 :         if (APR_BUCKET_IS_FILE(bucket)) {</span>
+<span class="lineNum">     634 </span><span class="lineCov">          1 :             apr_bucket_file *file_bucket = (apr_bucket_file *)(bucket-&gt;data);</span>
+<span class="lineNum">     635 </span><span class="lineCov">          1 :             apr_file_t *fd = file_bucket-&gt;fd;</span>
+<span class="lineNum">     636 </span>            :             /* Use sendfile to send this file unless:
+<span class="lineNum">     637 </span>            :              *   - the platform doesn't support sendfile,
+<span class="lineNum">     638 </span>            :              *   - the file is too small for sendfile to be useful, or
+<span class="lineNum">     639 </span>            :              *   - sendfile is disabled in the httpd config via &quot;EnableSendfile off&quot;
+<span class="lineNum">     640 </span>            :              */
+<span class="lineNum">     641 </span>            : 
+<span class="lineNum">     642 </span><span class="lineCov">          1 :             if ((apr_file_flags_get(fd) &amp; APR_SENDFILE_ENABLED) &amp;&amp;</span>
+<span class="lineNum">     643 </span><span class="lineNoCov">          0 :                 (bucket-&gt;length &gt;= AP_MIN_SENDFILE_BYTES)) {</span>
+<span class="lineNum">     644 </span><span class="lineNoCov">          0 :                 if (nvec &gt; 0) {</span>
+<span class="lineNum">     645 </span><span class="lineNoCov">          0 :                     (void)apr_socket_opt_set(s, APR_TCP_NOPUSH, 1);</span>
+<span class="lineNum">     646 </span><span class="lineNoCov">          0 :                     rv = writev_nonblocking(s, vec, nvec, bb, bytes_written, c);</span>
+<span class="lineNum">     647 </span><span class="lineNoCov">          0 :                     nvec = 0;</span>
+<span class="lineNum">     648 </span><span class="lineNoCov">          0 :                     if (rv != APR_SUCCESS) {</span>
+<span class="lineNum">     649 </span><span class="lineNoCov">          0 :                         (void)apr_socket_opt_set(s, APR_TCP_NOPUSH, 0);</span>
+<span class="lineNum">     650 </span><span class="lineNoCov">          0 :                         return rv;</span>
+<span class="lineNum">     651 </span>            :                     }
+<span class="lineNum">     652 </span>            :                 }
+<span class="lineNum">     653 </span><span class="lineNoCov">          0 :                 rv = sendfile_nonblocking(s, bucket, bytes_written, c);</span>
+<span class="lineNum">     654 </span><span class="lineNoCov">          0 :                 if (nvec &gt; 0) {</span>
+<span class="lineNum">     655 </span><span class="lineNoCov">          0 :                     (void)apr_socket_opt_set(s, APR_TCP_NOPUSH, 0);</span>
+<span class="lineNum">     656 </span>            :                 }
+<span class="lineNum">     657 </span><span class="lineNoCov">          0 :                 if (rv != APR_SUCCESS) {</span>
+<span class="lineNum">     658 </span><span class="lineNoCov">          0 :                     return rv;</span>
+<span class="lineNum">     659 </span>            :                 }
+<span class="lineNum">     660 </span><span class="lineNoCov">          0 :                 break;</span>
+<span class="lineNum">     661 </span>            :             }
+<span class="lineNum">     662 </span>            :         }
+<span class="lineNum">     663 </span>            : #endif /* APR_HAS_SENDFILE */
+<span class="lineNum">     664 </span>            :         /* didn't sendfile */
+<span class="lineNum">     665 </span><span class="lineCov">          4 :         if (!APR_BUCKET_IS_METADATA(bucket)) {</span>
+<span class="lineNum">     666 </span>            :             const char *data;
+<span class="lineNum">     667 </span>            :             apr_size_t length;
+<span class="lineNum">     668 </span>            :             
+<span class="lineNum">     669 </span>            :             /* Non-blocking read first, in case this is a morphing
+<span class="lineNum">     670 </span>            :              * bucket type. */
+<span class="lineNum">     671 </span><span class="lineCov">          2 :             rv = apr_bucket_read(bucket, &amp;data, &amp;length, APR_NONBLOCK_READ);</span>
+<span class="lineNum">     672 </span><span class="lineCov">          2 :             if (APR_STATUS_IS_EAGAIN(rv)) {</span>
+<span class="lineNum">     673 </span>            :                 /* Read would block; flush any pending data and retry. */
+<span class="lineNum">     674 </span><span class="lineNoCov">          0 :                 if (nvec) {</span>
+<span class="lineNum">     675 </span><span class="lineNoCov">          0 :                     rv = writev_nonblocking(s, vec, nvec, bb, bytes_written, c);</span>
+<span class="lineNum">     676 </span><span class="lineNoCov">          0 :                     if (rv) {</span>
+<span class="lineNum">     677 </span><span class="lineNoCov">          0 :                         return rv;</span>
+<span class="lineNum">     678 </span>            :                     }
+<span class="lineNum">     679 </span><span class="lineNoCov">          0 :                     nvec = 0;</span>
+<span class="lineNum">     680 </span>            :                 }
+<span class="lineNum">     681 </span>            :                 
+<span class="lineNum">     682 </span><span class="lineNoCov">          0 :                 rv = apr_bucket_read(bucket, &amp;data, &amp;length, APR_BLOCK_READ);</span>
+<span class="lineNum">     683 </span>            :             }
+<span class="lineNum">     684 </span><span class="lineCov">          2 :             if (rv != APR_SUCCESS) {</span>
+<span class="lineNum">     685 </span><span class="lineNoCov">          0 :                 return rv;</span>
+<span class="lineNum">     686 </span>            :             }
+<span class="lineNum">     687 </span>            : 
+<span class="lineNum">     688 </span>            :             /* reading may have split the bucket, so recompute next: */
+<span class="lineNum">     689 </span><span class="lineCov">          2 :             next = APR_BUCKET_NEXT(bucket);</span>
+<span class="lineNum">     690 </span><span class="lineCov">          2 :             vec[nvec].iov_base = (char *)data;</span>
+<span class="lineNum">     691 </span><span class="lineCov">          2 :             vec[nvec].iov_len = length;</span>
+<span class="lineNum">     692 </span><span class="lineCov">          2 :             nvec++;</span>
+<span class="lineNum">     693 </span><span class="lineCov">          2 :             if (nvec == MAX_IOVEC_TO_WRITE) {</span>
+<span class="lineNum">     694 </span><span class="lineNoCov">          0 :                 rv = writev_nonblocking(s, vec, nvec, bb, bytes_written, c);</span>
+<span class="lineNum">     695 </span><span class="lineNoCov">          0 :                 nvec = 0;</span>
+<span class="lineNum">     696 </span><span class="lineNoCov">          0 :                 if (rv != APR_SUCCESS) {</span>
+<span class="lineNum">     697 </span><span class="lineNoCov">          0 :                     return rv;</span>
+<span class="lineNum">     698 </span>            :                 }
+<span class="lineNum">     699 </span><span class="lineNoCov">          0 :                 break;</span>
+<span class="lineNum">     700 </span>            :             }
+<span class="lineNum">     701 </span>            :         }
+<span class="lineNum">     702 </span>            :     }
+<span class="lineNum">     703 </span>            : 
+<span class="lineNum">     704 </span><span class="lineCov">          2 :     if (nvec &gt; 0) {</span>
+<span class="lineNum">     705 </span><span class="lineCov">          1 :         rv = writev_nonblocking(s, vec, nvec, bb, bytes_written, c);</span>
+<span class="lineNum">     706 </span><span class="lineCov">          1 :         if (rv != APR_SUCCESS) {</span>
+<span class="lineNum">     707 </span><span class="lineNoCov">          0 :             return rv;</span>
+<span class="lineNum">     708 </span>            :         }
+<span class="lineNum">     709 </span>            :     }
+<span class="lineNum">     710 </span>            : 
+<span class="lineNum">     711 </span><span class="lineCov">          2 :     remove_empty_buckets(bb);</span>
+<span class="lineNum">     712 </span>            : 
+<span class="lineNum">     713 </span><span class="lineCov">          2 :     return APR_SUCCESS;</span>
+<a name="714"><span class="lineNum">     714 </span>            : }</a>
+<span class="lineNum">     715 </span>            : 
+<span class="lineNum">     716 </span><span class="lineCov">          9 : static void remove_empty_buckets(apr_bucket_brigade *bb)</span>
+<span class="lineNum">     717 </span>            : {
+<span class="lineNum">     718 </span>            :     apr_bucket *bucket;
+<span class="lineNum">     719 </span><span class="lineCov">         30 :     while (((bucket = APR_BRIGADE_FIRST(bb)) != APR_BRIGADE_SENTINEL(bb)) &amp;&amp;</span>
+<span class="lineNum">     720 </span><span class="lineCov">         12 :            (APR_BUCKET_IS_METADATA(bucket) || (bucket-&gt;length == 0))) {</span>
+<span class="lineNum">     721 </span><span class="lineCov">          4 :         apr_bucket_delete(bucket);</span>
+<span class="lineNum">     722 </span>            :     }
+<a name="723"><span class="lineNum">     723 </span><span class="lineCov">          9 : }</span></a>
+<span class="lineNum">     724 </span>            : 
+<span class="lineNum">     725 </span><span class="lineCov">          1 : static apr_status_t send_brigade_blocking(apr_socket_t *s,</span>
+<span class="lineNum">     726 </span>            :                                           apr_bucket_brigade *bb,
+<span class="lineNum">     727 </span>            :                                           apr_size_t *bytes_written,
+<span class="lineNum">     728 </span>            :                                           conn_rec *c)
+<span class="lineNum">     729 </span>            : {
+<span class="lineNum">     730 </span>            :     apr_status_t rv;
+<span class="lineNum">     731 </span>            : 
+<span class="lineNum">     732 </span><span class="lineCov">          1 :     rv = APR_SUCCESS;</span>
+<span class="lineNum">     733 </span><span class="lineCov">          3 :     while (!APR_BRIGADE_EMPTY(bb)) {</span>
+<span class="lineNum">     734 </span><span class="lineCov">          1 :         rv = send_brigade_nonblocking(s, bb, bytes_written, c);</span>
+<span class="lineNum">     735 </span><span class="lineCov">          1 :         if (rv != APR_SUCCESS) {</span>
+<span class="lineNum">     736 </span><span class="lineNoCov">          0 :             if (APR_STATUS_IS_EAGAIN(rv)) {</span>
+<span class="lineNum">     737 </span>            :                 /* Wait until we can send more data */
+<span class="lineNum">     738 </span>            :                 apr_int32_t nsds;
+<span class="lineNum">     739 </span>            :                 apr_interval_time_t timeout;
+<span class="lineNum">     740 </span>            :                 apr_pollfd_t pollset;
+<span class="lineNum">     741 </span>            : 
+<span class="lineNum">     742 </span><span class="lineNoCov">          0 :                 pollset.p = c-&gt;pool;</span>
+<span class="lineNum">     743 </span><span class="lineNoCov">          0 :                 pollset.desc_type = APR_POLL_SOCKET;</span>
+<span class="lineNum">     744 </span><span class="lineNoCov">          0 :                 pollset.reqevents = APR_POLLOUT;</span>
+<span class="lineNum">     745 </span><span class="lineNoCov">          0 :                 pollset.desc.s = s;</span>
+<span class="lineNum">     746 </span><span class="lineNoCov">          0 :                 apr_socket_timeout_get(s, &amp;timeout);</span>
+<span class="lineNum">     747 </span>            :                 do {
+<span class="lineNum">     748 </span><span class="lineNoCov">          0 :                     rv = apr_poll(&amp;pollset, 1, &amp;nsds, timeout);</span>
+<span class="lineNum">     749 </span><span class="lineNoCov">          0 :                 } while (APR_STATUS_IS_EINTR(rv));</span>
+<span class="lineNum">     750 </span><span class="lineNoCov">          0 :                 if (rv != APR_SUCCESS) {</span>
+<span class="lineNum">     751 </span><span class="lineNoCov">          0 :                     break;</span>
+<span class="lineNum">     752 </span>            :                 }
+<span class="lineNum">     753 </span>            :             }
+<span class="lineNum">     754 </span>            :             else {
+<span class="lineNum">     755 </span><span class="lineNoCov">          0 :                 break;</span>
+<span class="lineNum">     756 </span>            :             }
+<span class="lineNum">     757 </span>            :         }
+<span class="lineNum">     758 </span>            :     }
+<span class="lineNum">     759 </span><span class="lineCov">          1 :     return rv;</span>
+<a name="760"><span class="lineNum">     760 </span>            : }</a>
+<span class="lineNum">     761 </span>            : 
+<span class="lineNum">     762 </span><span class="lineCov">          1 : static apr_status_t writev_nonblocking(apr_socket_t *s,</span>
+<span class="lineNum">     763 </span>            :                                        struct iovec *vec, apr_size_t nvec,
+<span class="lineNum">     764 </span>            :                                        apr_bucket_brigade *bb,
+<span class="lineNum">     765 </span>            :                                        apr_size_t *cumulative_bytes_written,
+<span class="lineNum">     766 </span>            :                                        conn_rec *c)
+<span class="lineNum">     767 </span>            : {
+<span class="lineNum">     768 </span><span class="lineCov">          1 :     apr_status_t rv = APR_SUCCESS, arv;</span>
+<span class="lineNum">     769 </span><span class="lineCov">          1 :     apr_size_t bytes_written = 0, bytes_to_write = 0;</span>
+<span class="lineNum">     770 </span>            :     apr_size_t i, offset;
+<span class="lineNum">     771 </span>            :     apr_interval_time_t old_timeout;
+<span class="lineNum">     772 </span>            : 
+<span class="lineNum">     773 </span><span class="lineCov">          1 :     arv = apr_socket_timeout_get(s, &amp;old_timeout);</span>
+<span class="lineNum">     774 </span><span class="lineCov">          1 :     if (arv != APR_SUCCESS) {</span>
+<span class="lineNum">     775 </span><span class="lineNoCov">          0 :         return arv;</span>
+<span class="lineNum">     776 </span>            :     }
+<span class="lineNum">     777 </span><span class="lineCov">          1 :     arv = apr_socket_timeout_set(s, 0);</span>
+<span class="lineNum">     778 </span><span class="lineCov">          1 :     if (arv != APR_SUCCESS) {</span>
+<span class="lineNum">     779 </span><span class="lineNoCov">          0 :         return arv;</span>
+<span class="lineNum">     780 </span>            :     }
+<span class="lineNum">     781 </span>            : 
+<span class="lineNum">     782 </span><span class="lineCov">          3 :     for (i = 0; i &lt; nvec; i++) {</span>
+<span class="lineNum">     783 </span><span class="lineCov">          2 :         bytes_to_write += vec[i].iov_len;</span>
+<span class="lineNum">     784 </span>            :     }
+<span class="lineNum">     785 </span><span class="lineCov">          1 :     offset = 0;</span>
+<span class="lineNum">     786 </span><span class="lineCov">          3 :     while (bytes_written &lt; bytes_to_write) {</span>
+<span class="lineNum">     787 </span><span class="lineCov">          1 :         apr_size_t n = 0;</span>
+<span class="lineNum">     788 </span><span class="lineCov">          1 :         rv = apr_socket_sendv(s, vec + offset, nvec - offset, &amp;n);</span>
+<span class="lineNum">     789 </span><span class="lineCov">          1 :         if (n &gt; 0) {</span>
+<span class="lineNum">     790 </span><span class="lineCov">          1 :             bytes_written += n;</span>
+<span class="lineNum">     791 </span><span class="lineCov">          4 :             for (i = offset; i &lt; nvec; ) {</span>
+<span class="lineNum">     792 </span><span class="lineCov">          2 :                 apr_bucket *bucket = APR_BRIGADE_FIRST(bb);</span>
+<span class="lineNum">     793 </span><span class="lineCov">          2 :                 if (APR_BUCKET_IS_METADATA(bucket)) {</span>
+<span class="lineNum">     794 </span><span class="lineNoCov">          0 :                     apr_bucket_delete(bucket);</span>
+<span class="lineNum">     795 </span>            :                 }
+<span class="lineNum">     796 </span><span class="lineCov">          2 :                 else if (n &gt;= vec[i].iov_len) {</span>
+<span class="lineNum">     797 </span><span class="lineCov">          2 :                     apr_bucket_delete(bucket);</span>
+<span class="lineNum">     798 </span><span class="lineCov">          2 :                     offset++;</span>
+<span class="lineNum">     799 </span><span class="lineCov">          2 :                     n -= vec[i++].iov_len;</span>
+<span class="lineNum">     800 </span>            :                 }
+<span class="lineNum">     801 </span>            :                 else {
+<span class="lineNum">     802 </span><span class="lineNoCov">          0 :                     apr_bucket_split(bucket, n);</span>
+<span class="lineNum">     803 </span><span class="lineNoCov">          0 :                     apr_bucket_delete(bucket);</span>
+<span class="lineNum">     804 </span><span class="lineNoCov">          0 :                     vec[i].iov_len -= n;</span>
+<span class="lineNum">     805 </span><span class="lineNoCov">          0 :                     vec[i].iov_base = (char *) vec[i].iov_base + n;</span>
+<span class="lineNum">     806 </span><span class="lineNoCov">          0 :                     break;</span>
+<span class="lineNum">     807 </span>            :                 }
+<span class="lineNum">     808 </span>            :             }
+<span class="lineNum">     809 </span>            :         }
+<span class="lineNum">     810 </span><span class="lineCov">          1 :         if (rv != APR_SUCCESS) {</span>
+<span class="lineNum">     811 </span><span class="lineNoCov">          0 :             break;</span>
+<span class="lineNum">     812 </span>            :         }
+<span class="lineNum">     813 </span>            :     }
+<span class="lineNum">     814 </span><span class="lineCov">          1 :     if ((ap__logio_add_bytes_out != NULL) &amp;&amp; (bytes_written &gt; 0)) {</span>
+<span class="lineNum">     815 </span><span class="lineNoCov">          0 :         ap__logio_add_bytes_out(c, bytes_written);</span>
+<span class="lineNum">     816 </span>            :     }
+<span class="lineNum">     817 </span><span class="lineCov">          1 :     *cumulative_bytes_written += bytes_written;</span>
+<span class="lineNum">     818 </span>            : 
+<span class="lineNum">     819 </span><span class="lineCov">          1 :     arv = apr_socket_timeout_set(s, old_timeout);</span>
+<span class="lineNum">     820 </span><span class="lineCov">          1 :     if ((arv != APR_SUCCESS) &amp;&amp; (rv == APR_SUCCESS)) {</span>
+<span class="lineNum">     821 </span><span class="lineNoCov">          0 :         return arv;</span>
+<span class="lineNum">     822 </span>            :     }
+<span class="lineNum">     823 </span>            :     else {
+<span class="lineNum">     824 </span><span class="lineCov">          1 :         return rv;</span>
+<span class="lineNum">     825 </span>            :     }
+<span class="lineNum">     826 </span>            : }
+<span class="lineNum">     827 </span>            : 
+<a name="828"><span class="lineNum">     828 </span>            : #if APR_HAS_SENDFILE</a>
+<span class="lineNum">     829 </span>            : 
+<span class="lineNum">     830 </span><span class="lineNoCov">          0 : static apr_status_t sendfile_nonblocking(apr_socket_t *s,</span>
+<span class="lineNum">     831 </span>            :                                          apr_bucket *bucket,
+<span class="lineNum">     832 </span>            :                                          apr_size_t *cumulative_bytes_written,
+<span class="lineNum">     833 </span>            :                                          conn_rec *c)
+<span class="lineNum">     834 </span>            : {
+<span class="lineNum">     835 </span><span class="lineNoCov">          0 :     apr_status_t rv = APR_SUCCESS;</span>
+<span class="lineNum">     836 </span>            :     apr_bucket_file *file_bucket;
+<span class="lineNum">     837 </span>            :     apr_file_t *fd;
+<span class="lineNum">     838 </span>            :     apr_size_t file_length;
+<span class="lineNum">     839 </span>            :     apr_off_t file_offset;
+<span class="lineNum">     840 </span><span class="lineNoCov">          0 :     apr_size_t bytes_written = 0;</span>
+<span class="lineNum">     841 </span>            : 
+<span class="lineNum">     842 </span><span class="lineNoCov">          0 :     if (!APR_BUCKET_IS_FILE(bucket)) {</span>
+<span class="lineNum">     843 </span><span class="lineNoCov">          0 :         ap_log_error(APLOG_MARK, APLOG_ERR, rv, c-&gt;base_server, APLOGNO(00006)</span>
+<span class="lineNum">     844 </span>            :                      &quot;core_filter: sendfile_nonblocking: &quot;
+<span class="lineNum">     845 </span>            :                      &quot;this should never happen&quot;);
+<span class="lineNum">     846 </span><span class="lineNoCov">          0 :         return APR_EGENERAL;</span>
+<span class="lineNum">     847 </span>            :     }
+<span class="lineNum">     848 </span><span class="lineNoCov">          0 :     file_bucket = (apr_bucket_file *)(bucket-&gt;data);</span>
+<span class="lineNum">     849 </span><span class="lineNoCov">          0 :     fd = file_bucket-&gt;fd;</span>
+<span class="lineNum">     850 </span><span class="lineNoCov">          0 :     file_length = bucket-&gt;length;</span>
+<span class="lineNum">     851 </span><span class="lineNoCov">          0 :     file_offset = bucket-&gt;start;</span>
+<span class="lineNum">     852 </span>            : 
+<span class="lineNum">     853 </span><span class="lineNoCov">          0 :     if (bytes_written &lt; file_length) {</span>
+<span class="lineNum">     854 </span><span class="lineNoCov">          0 :         apr_size_t n = file_length - bytes_written;</span>
+<span class="lineNum">     855 </span>            :         apr_status_t arv;
+<span class="lineNum">     856 </span>            :         apr_interval_time_t old_timeout;
+<span class="lineNum">     857 </span>            : 
+<span class="lineNum">     858 </span><span class="lineNoCov">          0 :         arv = apr_socket_timeout_get(s, &amp;old_timeout);</span>
+<span class="lineNum">     859 </span><span class="lineNoCov">          0 :         if (arv != APR_SUCCESS) {</span>
+<span class="lineNum">     860 </span><span class="lineNoCov">          0 :             return arv;</span>
+<span class="lineNum">     861 </span>            :         }
+<span class="lineNum">     862 </span><span class="lineNoCov">          0 :         arv = apr_socket_timeout_set(s, 0);</span>
+<span class="lineNum">     863 </span><span class="lineNoCov">          0 :         if (arv != APR_SUCCESS) {</span>
+<span class="lineNum">     864 </span><span class="lineNoCov">          0 :             return arv;</span>
+<span class="lineNum">     865 </span>            :         }
+<span class="lineNum">     866 </span><span class="lineNoCov">          0 :         rv = apr_socket_sendfile(s, fd, NULL, &amp;file_offset, &amp;n, 0);</span>
+<span class="lineNum">     867 </span><span class="lineNoCov">          0 :         if (rv == APR_SUCCESS) {</span>
+<span class="lineNum">     868 </span><span class="lineNoCov">          0 :             bytes_written += n;</span>
+<span class="lineNum">     869 </span><span class="lineNoCov">          0 :             file_offset += n;</span>
+<span class="lineNum">     870 </span>            :         }
+<span class="lineNum">     871 </span><span class="lineNoCov">          0 :         arv = apr_socket_timeout_set(s, old_timeout);</span>
+<span class="lineNum">     872 </span><span class="lineNoCov">          0 :         if ((arv != APR_SUCCESS) &amp;&amp; (rv == APR_SUCCESS)) {</span>
+<span class="lineNum">     873 </span><span class="lineNoCov">          0 :             rv = arv;</span>
+<span class="lineNum">     874 </span>            :         }
+<span class="lineNum">     875 </span>            :     }
+<span class="lineNum">     876 </span><span class="lineNoCov">          0 :     if ((ap__logio_add_bytes_out != NULL) &amp;&amp; (bytes_written &gt; 0)) {</span>
+<span class="lineNum">     877 </span><span class="lineNoCov">          0 :         ap__logio_add_bytes_out(c, bytes_written);</span>
+<span class="lineNum">     878 </span>            :     }
+<span class="lineNum">     879 </span><span class="lineNoCov">          0 :     *cumulative_bytes_written += bytes_written;</span>
+<span class="lineNum">     880 </span><span class="lineNoCov">          0 :     if ((bytes_written &lt; file_length) &amp;&amp; (bytes_written &gt; 0)) {</span>
+<span class="lineNum">     881 </span><span class="lineNoCov">          0 :         apr_bucket_split(bucket, bytes_written);</span>
+<span class="lineNum">     882 </span><span class="lineNoCov">          0 :         apr_bucket_delete(bucket);</span>
+<span class="lineNum">     883 </span>            :     }
+<span class="lineNum">     884 </span><span class="lineNoCov">          0 :     else if (bytes_written == file_length) {</span>
+<span class="lineNum">     885 </span><span class="lineNoCov">          0 :         apr_bucket_delete(bucket);</span>
+<span class="lineNum">     886 </span>            :     }
+<span class="lineNum">     887 </span><span class="lineNoCov">          0 :     return rv;</span>
+<span class="lineNum">     888 </span>            : }
+<span class="lineNum">     889 </span>            : 
+<span class="lineNum">     890 </span>            : #endif
+</pre>
+      </td>
+    </tr>
+  </table>
+  <br>
+
+  <table width="100%" border=0 cellspacing=0 cellpadding=0>
+    <tr><td class="ruler"><img src="../glass.png" width=3 height=3 alt=""></td></tr>
+    <tr><td class="versionInfo">Generated by: <a href="http://ltp.sourceforge.net/coverage/lcov.php" target="_parent">LCOV version 1.11</a></td></tr>
+  </table>
+  <br>
+
+</body>
+</html>

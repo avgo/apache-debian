@@ -1,0 +1,617 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+
+<html lang="en">
+
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <title>LCOV - apptest.info - os/unix/unixd.c</title>
+  <link rel="stylesheet" type="text/css" href="../../gcov.css">
+</head>
+
+<body>
+
+  <table width="100%" border=0 cellspacing=0 cellpadding=0>
+    <tr><td class="title">LCOV - code coverage report</td></tr>
+    <tr><td class="ruler"><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
+
+    <tr>
+      <td width="100%">
+        <table cellpadding=1 border=0 width="100%">
+          <tr>
+            <td width="10%" class="headerItem">Current view:</td>
+            <td width="35%" class="headerValue"><a href="../../index.html">top level</a> - <a href="index.html">os/unix</a> - unixd.c<span style="font-size: 80%;"> (source / <a href="unixd.c.func-sort-c.html">functions</a>)</span></td>
+            <td width="5%"></td>
+            <td width="15%"></td>
+            <td width="10%" class="headerCovTableHead">Hit</td>
+            <td width="10%" class="headerCovTableHead">Total</td>
+            <td width="15%" class="headerCovTableHead">Coverage</td>
+          </tr>
+          <tr>
+            <td class="headerItem">Test:</td>
+            <td class="headerValue">apptest.info</td>
+            <td></td>
+            <td class="headerItem">Lines:</td>
+            <td class="headerCovTableEntry">10</td>
+            <td class="headerCovTableEntry">110</td>
+            <td class="headerCovTableEntryLo">9.1 %</td>
+          </tr>
+          <tr>
+            <td class="headerItem">Date:</td>
+            <td class="headerValue">2017-01-31 22:58:06</td>
+            <td></td>
+            <td class="headerItem">Functions:</td>
+            <td class="headerCovTableEntry">1</td>
+            <td class="headerCovTableEntry">10</td>
+            <td class="headerCovTableEntryLo">10.0 %</td>
+          </tr>
+          <tr><td><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
+        </table>
+      </td>
+    </tr>
+
+    <tr><td class="ruler"><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
+  </table>
+
+  <table cellpadding=0 cellspacing=0 border=0>
+    <tr>
+      <td><br></td>
+    </tr>
+    <tr>
+      <td>
+<pre class="sourceHeading">          Line data    Source code</pre>
+<pre class="source">
+<a name="1"><span class="lineNum">       1 </span>            : /* Licensed to the Apache Software Foundation (ASF) under one or more</a>
+<span class="lineNum">       2 </span>            :  * contributor license agreements.  See the NOTICE file distributed with
+<span class="lineNum">       3 </span>            :  * this work for additional information regarding copyright ownership.
+<span class="lineNum">       4 </span>            :  * The ASF licenses this file to You under the Apache License, Version 2.0
+<span class="lineNum">       5 </span>            :  * (the &quot;License&quot;); you may not use this file except in compliance with
+<span class="lineNum">       6 </span>            :  * the License.  You may obtain a copy of the License at
+<span class="lineNum">       7 </span>            :  *
+<span class="lineNum">       8 </span>            :  *     http://www.apache.org/licenses/LICENSE-2.0
+<span class="lineNum">       9 </span>            :  *
+<span class="lineNum">      10 </span>            :  * Unless required by applicable law or agreed to in writing, software
+<span class="lineNum">      11 </span>            :  * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+<span class="lineNum">      12 </span>            :  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+<span class="lineNum">      13 </span>            :  * See the License for the specific language governing permissions and
+<span class="lineNum">      14 </span>            :  * limitations under the License.
+<span class="lineNum">      15 </span>            :  */
+<span class="lineNum">      16 </span>            : 
+<span class="lineNum">      17 </span>            : #include &quot;ap_config.h&quot;
+<span class="lineNum">      18 </span>            : #include &quot;httpd.h&quot;
+<span class="lineNum">      19 </span>            : #include &quot;http_config.h&quot;
+<span class="lineNum">      20 </span>            : #include &quot;http_main.h&quot;
+<span class="lineNum">      21 </span>            : #include &quot;http_log.h&quot;
+<span class="lineNum">      22 </span>            : #include &quot;unixd.h&quot;
+<span class="lineNum">      23 </span>            : #include &quot;mpm_common.h&quot;
+<span class="lineNum">      24 </span>            : #include &quot;os.h&quot;
+<span class="lineNum">      25 </span>            : #include &quot;ap_mpm.h&quot;
+<span class="lineNum">      26 </span>            : #include &quot;apr_thread_proc.h&quot;
+<span class="lineNum">      27 </span>            : #include &quot;apr_strings.h&quot;
+<span class="lineNum">      28 </span>            : #include &quot;apr_portable.h&quot;
+<span class="lineNum">      29 </span>            : #ifdef HAVE_PWD_H
+<span class="lineNum">      30 </span>            : #include &lt;pwd.h&gt;
+<span class="lineNum">      31 </span>            : #endif
+<span class="lineNum">      32 </span>            : #ifdef HAVE_SYS_RESOURCE_H
+<span class="lineNum">      33 </span>            : #include &lt;sys/resource.h&gt;
+<span class="lineNum">      34 </span>            : #endif
+<span class="lineNum">      35 </span>            : /* XXX */
+<span class="lineNum">      36 </span>            : #include &lt;sys/stat.h&gt;
+<span class="lineNum">      37 </span>            : #ifdef HAVE_UNISTD_H
+<span class="lineNum">      38 </span>            : #include &lt;unistd.h&gt;
+<span class="lineNum">      39 </span>            : #endif
+<span class="lineNum">      40 </span>            : #ifdef HAVE_GRP_H
+<span class="lineNum">      41 </span>            : #include &lt;grp.h&gt;
+<span class="lineNum">      42 </span>            : #endif
+<span class="lineNum">      43 </span>            : #ifdef HAVE_STRINGS_H
+<span class="lineNum">      44 </span>            : #include &lt;strings.h&gt;
+<span class="lineNum">      45 </span>            : #endif
+<span class="lineNum">      46 </span>            : #ifdef HAVE_SYS_SEM_H
+<span class="lineNum">      47 </span>            : #include &lt;sys/sem.h&gt;
+<span class="lineNum">      48 </span>            : #endif
+<span class="lineNum">      49 </span>            : #ifdef HAVE_SYS_PRCTL_H
+<span class="lineNum">      50 </span>            : #include &lt;sys/prctl.h&gt;
+<span class="lineNum">      51 </span>            : #endif
+<span class="lineNum">      52 </span>            : 
+<span class="lineNum">      53 </span>            : unixd_config_rec ap_unixd_config;
+<span class="lineNum">      54 </span>            : 
+<a name="55"><span class="lineNum">      55 </span>            : APLOG_USE_MODULE(core);</a>
+<span class="lineNum">      56 </span>            : 
+<span class="lineNum">      57 </span><span class="lineNoCov">          0 : AP_DECLARE(void) ap_unixd_set_rlimit(cmd_parms *cmd, struct rlimit **plimit,</span>
+<span class="lineNum">      58 </span>            :                                      const char *arg,
+<span class="lineNum">      59 </span>            :                                      const char * arg2, int type)
+<span class="lineNum">      60 </span>            : {
+<span class="lineNum">      61 </span>            : #if (defined(RLIMIT_CPU) || defined(RLIMIT_DATA) || defined(RLIMIT_VMEM) || defined(RLIMIT_NPROC) || defined(RLIMIT_AS)) &amp;&amp; APR_HAVE_STRUCT_RLIMIT &amp;&amp; APR_HAVE_GETRLIMIT
+<span class="lineNum">      62 </span>            :     char *str;
+<span class="lineNum">      63 </span>            :     struct rlimit *limit;
+<span class="lineNum">      64 </span>            :     /* If your platform doesn't define rlim_t then typedef it in ap_config.h */
+<span class="lineNum">      65 </span><span class="lineNoCov">          0 :     rlim_t cur = 0;</span>
+<span class="lineNum">      66 </span><span class="lineNoCov">          0 :     rlim_t max = 0;</span>
+<span class="lineNum">      67 </span>            : 
+<span class="lineNum">      68 </span><span class="lineNoCov">          0 :     *plimit = (struct rlimit *)apr_pcalloc(cmd-&gt;pool, sizeof(**plimit));</span>
+<span class="lineNum">      69 </span><span class="lineNoCov">          0 :     limit = *plimit;</span>
+<span class="lineNum">      70 </span><span class="lineNoCov">          0 :     if ((getrlimit(type, limit)) != 0)  {</span>
+<span class="lineNum">      71 </span><span class="lineNoCov">          0 :         *plimit = NULL;</span>
+<span class="lineNum">      72 </span><span class="lineNoCov">          0 :         ap_log_error(APLOG_MARK, APLOG_ERR, errno, cmd-&gt;server, APLOGNO(02172)</span>
+<span class="lineNum">      73 </span>            :                      &quot;%s: getrlimit failed&quot;, cmd-&gt;cmd-&gt;name);
+<span class="lineNum">      74 </span><span class="lineNoCov">          0 :         return;</span>
+<span class="lineNum">      75 </span>            :     }
+<span class="lineNum">      76 </span>            : 
+<span class="lineNum">      77 </span><span class="lineNoCov">          0 :     if (*(str = ap_getword_conf(cmd-&gt;pool, &amp;arg)) != '\0') {</span>
+<span class="lineNum">      78 </span><span class="lineNoCov">          0 :         if (!strcasecmp(str, &quot;max&quot;)) {</span>
+<span class="lineNum">      79 </span><span class="lineNoCov">          0 :             cur = limit-&gt;rlim_max;</span>
+<span class="lineNum">      80 </span>            :         }
+<span class="lineNum">      81 </span>            :         else {
+<span class="lineNum">      82 </span><span class="lineNoCov">          0 :             cur = atol(str);</span>
+<span class="lineNum">      83 </span>            :         }
+<span class="lineNum">      84 </span>            :     }
+<span class="lineNum">      85 </span>            :     else {
+<span class="lineNum">      86 </span><span class="lineNoCov">          0 :         ap_log_error(APLOG_MARK, APLOG_ERR, 0, cmd-&gt;server, APLOGNO(02173)</span>
+<span class="lineNum">      87 </span>            :                      &quot;Invalid parameters for %s&quot;, cmd-&gt;cmd-&gt;name);
+<span class="lineNum">      88 </span><span class="lineNoCov">          0 :         return;</span>
+<span class="lineNum">      89 </span>            :     }
+<span class="lineNum">      90 </span>            : 
+<span class="lineNum">      91 </span><span class="lineNoCov">          0 :     if (arg2 &amp;&amp; (*(str = ap_getword_conf(cmd-&gt;pool, &amp;arg2)) != '\0')) {</span>
+<span class="lineNum">      92 </span><span class="lineNoCov">          0 :         max = atol(str);</span>
+<span class="lineNum">      93 </span>            :     }
+<span class="lineNum">      94 </span>            : 
+<span class="lineNum">      95 </span>            :     /* if we aren't running as root, cannot increase max */
+<span class="lineNum">      96 </span><span class="lineNoCov">          0 :     if (geteuid()) {</span>
+<span class="lineNum">      97 </span><span class="lineNoCov">          0 :         limit-&gt;rlim_cur = cur;</span>
+<span class="lineNum">      98 </span><span class="lineNoCov">          0 :         if (max &amp;&amp; (max &gt; limit-&gt;rlim_max)) {</span>
+<span class="lineNum">      99 </span><span class="lineNoCov">          0 :             ap_log_error(APLOG_MARK, APLOG_ERR, 0, cmd-&gt;server, APLOGNO(02174)</span>
+<span class="lineNum">     100 </span>            :                          &quot;Must be uid 0 to raise maximum %s&quot;, cmd-&gt;cmd-&gt;name);
+<span class="lineNum">     101 </span>            :         }
+<span class="lineNum">     102 </span><span class="lineNoCov">          0 :         else if (max) {</span>
+<span class="lineNum">     103 </span><span class="lineNoCov">          0 :             limit-&gt;rlim_max = max;</span>
+<span class="lineNum">     104 </span>            :         }
+<span class="lineNum">     105 </span>            :     }
+<span class="lineNum">     106 </span>            :     else {
+<span class="lineNum">     107 </span><span class="lineNoCov">          0 :         if (cur) {</span>
+<span class="lineNum">     108 </span><span class="lineNoCov">          0 :             limit-&gt;rlim_cur = cur;</span>
+<span class="lineNum">     109 </span>            :         }
+<span class="lineNum">     110 </span><span class="lineNoCov">          0 :         if (max) {</span>
+<span class="lineNum">     111 </span><span class="lineNoCov">          0 :             limit-&gt;rlim_max = max;</span>
+<span class="lineNum">     112 </span>            :         }
+<span class="lineNum">     113 </span>            :     }
+<span class="lineNum">     114 </span>            : #else
+<span class="lineNum">     115 </span>            : 
+<span class="lineNum">     116 </span>            :     ap_log_error(APLOG_MARK, APLOG_ERR, 0, cmd-&gt;server, APLOGNO(02175)
+<span class="lineNum">     117 </span>            :                  &quot;Platform does not support rlimit for %s&quot;, cmd-&gt;cmd-&gt;name);
+<span class="lineNum">     118 </span>            : #endif
+<span class="lineNum">     119 </span>            : }
+<span class="lineNum">     120 </span>            : 
+<span class="lineNum">     121 </span>            : APR_HOOK_STRUCT(
+<span class="lineNum">     122 </span>            :                APR_HOOK_LINK(get_suexec_identity)
+<a name="123"><span class="lineNum">     123 </span>            : )</a>
+<span class="lineNum">     124 </span>            : 
+<span class="lineNum">     125 </span><span class="lineNoCov">          0 : AP_IMPLEMENT_HOOK_RUN_FIRST(ap_unix_identity_t *, get_suexec_identity,</span>
+<a name="126"><span class="lineNum">     126 </span>            :                          (const request_rec *r), (r), NULL)</a>
+<span class="lineNum">     127 </span>            : 
+<span class="lineNum">     128 </span><span class="lineNoCov">          0 : static apr_status_t ap_unix_create_privileged_process(</span>
+<span class="lineNum">     129 </span>            :                               apr_proc_t *newproc, const char *progname,
+<span class="lineNum">     130 </span>            :                               const char * const *args,
+<span class="lineNum">     131 </span>            :                               const char * const *env,
+<span class="lineNum">     132 </span>            :                               apr_procattr_t *attr, ap_unix_identity_t *ugid,
+<span class="lineNum">     133 </span>            :                               apr_pool_t *p)
+<span class="lineNum">     134 </span>            : {
+<span class="lineNum">     135 </span><span class="lineNoCov">          0 :     int i = 0;</span>
+<span class="lineNum">     136 </span>            :     const char **newargs;
+<span class="lineNum">     137 </span>            :     char *newprogname;
+<span class="lineNum">     138 </span>            :     char *execuser, *execgroup;
+<span class="lineNum">     139 </span>            :     const char *argv0;
+<span class="lineNum">     140 </span>            : 
+<span class="lineNum">     141 </span><span class="lineNoCov">          0 :     if (!ap_unixd_config.suexec_enabled) {</span>
+<span class="lineNum">     142 </span><span class="lineNoCov">          0 :         return apr_proc_create(newproc, progname, args, env, attr, p);</span>
+<span class="lineNum">     143 </span>            :     }
+<span class="lineNum">     144 </span>            : 
+<span class="lineNum">     145 </span><span class="lineNoCov">          0 :     argv0 = ap_strrchr_c(progname, '/');</span>
+<span class="lineNum">     146 </span>            :     /* Allow suexec's &quot;/&quot; check to succeed */
+<span class="lineNum">     147 </span><span class="lineNoCov">          0 :     if (argv0 != NULL) {</span>
+<span class="lineNum">     148 </span><span class="lineNoCov">          0 :         argv0++;</span>
+<span class="lineNum">     149 </span>            :     }
+<span class="lineNum">     150 </span>            :     else {
+<span class="lineNum">     151 </span><span class="lineNoCov">          0 :         argv0 = progname;</span>
+<span class="lineNum">     152 </span>            :     }
+<span class="lineNum">     153 </span>            : 
+<span class="lineNum">     154 </span>            : 
+<span class="lineNum">     155 </span><span class="lineNoCov">          0 :     if (ugid-&gt;userdir) {</span>
+<span class="lineNum">     156 </span><span class="lineNoCov">          0 :         execuser = apr_psprintf(p, &quot;~%ld&quot;, (long) ugid-&gt;uid);</span>
+<span class="lineNum">     157 </span>            :     }
+<span class="lineNum">     158 </span>            :     else {
+<span class="lineNum">     159 </span><span class="lineNoCov">          0 :         execuser = apr_psprintf(p, &quot;%ld&quot;, (long) ugid-&gt;uid);</span>
+<span class="lineNum">     160 </span>            :     }
+<span class="lineNum">     161 </span><span class="lineNoCov">          0 :     execgroup = apr_psprintf(p, &quot;%ld&quot;, (long) ugid-&gt;gid);</span>
+<span class="lineNum">     162 </span>            : 
+<span class="lineNum">     163 </span><span class="lineNoCov">          0 :     if (!execuser || !execgroup) {</span>
+<span class="lineNum">     164 </span><span class="lineNoCov">          0 :         return APR_ENOMEM;</span>
+<span class="lineNum">     165 </span>            :     }
+<span class="lineNum">     166 </span>            : 
+<span class="lineNum">     167 </span><span class="lineNoCov">          0 :     i = 0;</span>
+<span class="lineNum">     168 </span><span class="lineNoCov">          0 :     while (args[i])</span>
+<span class="lineNum">     169 </span><span class="lineNoCov">          0 :         i++;</span>
+<span class="lineNum">     170 </span>            :     /* allocate space for 4 new args, the input args, and a null terminator */
+<span class="lineNum">     171 </span><span class="lineNoCov">          0 :     newargs = apr_palloc(p, sizeof(char *) * (i + 4));</span>
+<span class="lineNum">     172 </span><span class="lineNoCov">          0 :     newprogname = SUEXEC_BIN;</span>
+<span class="lineNum">     173 </span><span class="lineNoCov">          0 :     newargs[0] = SUEXEC_BIN;</span>
+<span class="lineNum">     174 </span><span class="lineNoCov">          0 :     newargs[1] = execuser;</span>
+<span class="lineNum">     175 </span><span class="lineNoCov">          0 :     newargs[2] = execgroup;</span>
+<span class="lineNum">     176 </span><span class="lineNoCov">          0 :     newargs[3] = apr_pstrdup(p, argv0);</span>
+<span class="lineNum">     177 </span>            : 
+<span class="lineNum">     178 </span>            :     /*
+<span class="lineNum">     179 </span>            :     ** using a shell to execute suexec makes no sense thus
+<span class="lineNum">     180 </span>            :     ** we force everything to be APR_PROGRAM, and never
+<span class="lineNum">     181 </span>            :     ** APR_SHELLCMD
+<span class="lineNum">     182 </span>            :     */
+<span class="lineNum">     183 </span><span class="lineNoCov">          0 :     if(apr_procattr_cmdtype_set(attr, APR_PROGRAM) != APR_SUCCESS) {</span>
+<span class="lineNum">     184 </span><span class="lineNoCov">          0 :         return APR_EGENERAL;</span>
+<span class="lineNum">     185 </span>            :     }
+<span class="lineNum">     186 </span>            : 
+<span class="lineNum">     187 </span><span class="lineNoCov">          0 :     i = 1;</span>
+<span class="lineNum">     188 </span>            :     do {
+<span class="lineNum">     189 </span><span class="lineNoCov">          0 :         newargs[i + 3] = args[i];</span>
+<span class="lineNum">     190 </span><span class="lineNoCov">          0 :     } while (args[i++]);</span>
+<span class="lineNum">     191 </span>            : 
+<span class="lineNum">     192 </span><span class="lineNoCov">          0 :     return apr_proc_create(newproc, newprogname, newargs, env, attr, p);</span>
+<a name="193"><span class="lineNum">     193 </span>            : }</a>
+<span class="lineNum">     194 </span>            : 
+<span class="lineNum">     195 </span><span class="lineNoCov">          0 : AP_DECLARE(apr_status_t) ap_os_create_privileged_process(</span>
+<span class="lineNum">     196 </span>            :     const request_rec *r,
+<span class="lineNum">     197 </span>            :     apr_proc_t *newproc, const char *progname,
+<span class="lineNum">     198 </span>            :     const char * const *args,
+<span class="lineNum">     199 </span>            :     const char * const *env,
+<span class="lineNum">     200 </span>            :     apr_procattr_t *attr, apr_pool_t *p)
+<span class="lineNum">     201 </span>            : {
+<span class="lineNum">     202 </span><span class="lineNoCov">          0 :     ap_unix_identity_t *ugid = ap_run_get_suexec_identity(r);</span>
+<span class="lineNum">     203 </span>            : 
+<span class="lineNum">     204 </span><span class="lineNoCov">          0 :     if (ugid == NULL) {</span>
+<span class="lineNum">     205 </span><span class="lineNoCov">          0 :         return apr_proc_create(newproc, progname, args, env, attr, p);</span>
+<span class="lineNum">     206 </span>            :     }
+<span class="lineNum">     207 </span>            : 
+<span class="lineNum">     208 </span><span class="lineNoCov">          0 :     return ap_unix_create_privileged_process(newproc, progname, args, env,</span>
+<span class="lineNum">     209 </span>            :                                               attr, ugid, p);
+<span class="lineNum">     210 </span>            : }
+<a name="211"><span class="lineNum">     211 </span>            : </a>
+<span class="lineNum">     212 </span>            : /* XXX move to APR and externalize (but implement differently :) ) */
+<span class="lineNum">     213 </span><span class="lineNoCov">          0 : static apr_lockmech_e proc_mutex_mech(apr_proc_mutex_t *pmutex)</span>
+<span class="lineNum">     214 </span>            : {
+<span class="lineNum">     215 </span><span class="lineNoCov">          0 :     const char *mechname = apr_proc_mutex_name(pmutex);</span>
+<span class="lineNum">     216 </span>            : 
+<span class="lineNum">     217 </span><span class="lineNoCov">          0 :     if (!strcmp(mechname, &quot;sysvsem&quot;)) {</span>
+<span class="lineNum">     218 </span><span class="lineNoCov">          0 :         return APR_LOCK_SYSVSEM;</span>
+<span class="lineNum">     219 </span>            :     }
+<span class="lineNum">     220 </span><span class="lineNoCov">          0 :     else if (!strcmp(mechname, &quot;flock&quot;)) {</span>
+<span class="lineNum">     221 </span><span class="lineNoCov">          0 :         return APR_LOCK_FLOCK;</span>
+<span class="lineNum">     222 </span>            :     }
+<span class="lineNum">     223 </span><span class="lineNoCov">          0 :     return APR_LOCK_DEFAULT;</span>
+<a name="224"><span class="lineNum">     224 </span>            : }</a>
+<span class="lineNum">     225 </span>            : 
+<span class="lineNum">     226 </span><span class="lineNoCov">          0 : AP_DECLARE(apr_status_t) ap_unixd_set_proc_mutex_perms(apr_proc_mutex_t *pmutex)</span>
+<span class="lineNum">     227 </span>            : {
+<span class="lineNum">     228 </span><span class="lineNoCov">          0 :     if (!geteuid()) {</span>
+<span class="lineNum">     229 </span><span class="lineNoCov">          0 :         apr_lockmech_e mech = proc_mutex_mech(pmutex);</span>
+<span class="lineNum">     230 </span>            : 
+<span class="lineNum">     231 </span><span class="lineNoCov">          0 :         switch(mech) {</span>
+<span class="lineNum">     232 </span>            : #if APR_HAS_SYSVSEM_SERIALIZE
+<span class="lineNum">     233 </span>            :         case APR_LOCK_SYSVSEM:
+<span class="lineNum">     234 </span>            :         {
+<span class="lineNum">     235 </span>            :             apr_os_proc_mutex_t ospmutex;
+<span class="lineNum">     236 </span>            : #if !APR_HAVE_UNION_SEMUN
+<span class="lineNum">     237 </span>            :             union semun {
+<span class="lineNum">     238 </span>            :                 long val;
+<span class="lineNum">     239 </span>            :                 struct semid_ds *buf;
+<span class="lineNum">     240 </span>            :                 unsigned short *array;
+<span class="lineNum">     241 </span>            :             };
+<span class="lineNum">     242 </span>            : #endif
+<span class="lineNum">     243 </span>            :             union semun ick;
+<span class="lineNum">     244 </span><span class="lineNoCov">          0 :             struct semid_ds buf = { { 0 } };</span>
+<span class="lineNum">     245 </span>            : 
+<span class="lineNum">     246 </span><span class="lineNoCov">          0 :             apr_os_proc_mutex_get(&amp;ospmutex, pmutex);</span>
+<span class="lineNum">     247 </span><span class="lineNoCov">          0 :             buf.sem_perm.uid = ap_unixd_config.user_id;</span>
+<span class="lineNum">     248 </span><span class="lineNoCov">          0 :             buf.sem_perm.gid = ap_unixd_config.group_id;</span>
+<span class="lineNum">     249 </span><span class="lineNoCov">          0 :             buf.sem_perm.mode = 0600;</span>
+<span class="lineNum">     250 </span><span class="lineNoCov">          0 :             ick.buf = &amp;buf;</span>
+<span class="lineNum">     251 </span><span class="lineNoCov">          0 :             if (semctl(ospmutex.crossproc, 0, IPC_SET, ick) &lt; 0) {</span>
+<span class="lineNum">     252 </span><span class="lineNoCov">          0 :                 return errno;</span>
+<span class="lineNum">     253 </span>            :             }
+<span class="lineNum">     254 </span>            :         }
+<span class="lineNum">     255 </span><span class="lineNoCov">          0 :         break;</span>
+<span class="lineNum">     256 </span>            : #endif
+<span class="lineNum">     257 </span>            : #if APR_HAS_FLOCK_SERIALIZE
+<span class="lineNum">     258 </span>            :         case APR_LOCK_FLOCK:
+<span class="lineNum">     259 </span>            :         {
+<span class="lineNum">     260 </span><span class="lineNoCov">          0 :             const char *lockfile = apr_proc_mutex_lockfile(pmutex);</span>
+<span class="lineNum">     261 </span>            : 
+<span class="lineNum">     262 </span><span class="lineNoCov">          0 :             if (lockfile) {</span>
+<span class="lineNum">     263 </span><span class="lineNoCov">          0 :                 if (chown(lockfile, ap_unixd_config.user_id,</span>
+<span class="lineNum">     264 </span>            :                           -1 /* no gid change */) &lt; 0) {
+<span class="lineNum">     265 </span><span class="lineNoCov">          0 :                     return errno;</span>
+<span class="lineNum">     266 </span>            :                 }
+<span class="lineNum">     267 </span>            :             }
+<span class="lineNum">     268 </span>            :         }
+<span class="lineNum">     269 </span><span class="lineNoCov">          0 :         break;</span>
+<span class="lineNum">     270 </span>            : #endif
+<span class="lineNum">     271 </span>            :         default:
+<span class="lineNum">     272 </span>            :             /* do nothing */
+<span class="lineNum">     273 </span><span class="lineNoCov">          0 :             break;</span>
+<span class="lineNum">     274 </span>            :         }
+<span class="lineNum">     275 </span>            :     }
+<span class="lineNum">     276 </span><span class="lineNoCov">          0 :     return APR_SUCCESS;</span>
+<a name="277"><span class="lineNum">     277 </span>            : }</a>
+<span class="lineNum">     278 </span>            : 
+<span class="lineNum">     279 </span><span class="lineNoCov">          0 : AP_DECLARE(apr_status_t) ap_unixd_set_global_mutex_perms(apr_global_mutex_t *gmutex)</span>
+<span class="lineNum">     280 </span>            : {
+<span class="lineNum">     281 </span>            : #if !APR_PROC_MUTEX_IS_GLOBAL
+<span class="lineNum">     282 </span>            :     apr_os_global_mutex_t osgmutex;
+<span class="lineNum">     283 </span><span class="lineNoCov">          0 :     apr_os_global_mutex_get(&amp;osgmutex, gmutex);</span>
+<span class="lineNum">     284 </span><span class="lineNoCov">          0 :     return ap_unixd_set_proc_mutex_perms(osgmutex.proc_mutex);</span>
+<span class="lineNum">     285 </span>            : #else  /* APR_PROC_MUTEX_IS_GLOBAL */
+<span class="lineNum">     286 </span>            :     /* In this case, apr_proc_mutex_t and apr_global_mutex_t are the same. */
+<span class="lineNum">     287 </span>            :     return ap_unixd_set_proc_mutex_perms(gmutex);
+<span class="lineNum">     288 </span>            : #endif /* APR_PROC_MUTEX_IS_GLOBAL */
+<a name="289"><span class="lineNum">     289 </span>            : }</a>
+<span class="lineNum">     290 </span>            : 
+<span class="lineNum">     291 </span><span class="lineCov">          3 : AP_DECLARE(apr_status_t) ap_unixd_accept(void **accepted, ap_listen_rec *lr,</span>
+<span class="lineNum">     292 </span>            :                                          apr_pool_t *ptrans)
+<span class="lineNum">     293 </span>            : {
+<span class="lineNum">     294 </span>            :     apr_socket_t *csd;
+<span class="lineNum">     295 </span>            :     apr_status_t status;
+<span class="lineNum">     296 </span>            : #ifdef _OSD_POSIX
+<span class="lineNum">     297 </span>            :     int sockdes;
+<span class="lineNum">     298 </span>            : #endif
+<span class="lineNum">     299 </span>            : 
+<span class="lineNum">     300 </span><span class="lineCov">          3 :     *accepted = NULL;</span>
+<span class="lineNum">     301 </span><span class="lineCov">          3 :     status = apr_socket_accept(&amp;csd, lr-&gt;sd, ptrans);</span>
+<span class="lineNum">     302 </span><span class="lineCov">          3 :     if (status == APR_SUCCESS) {</span>
+<span class="lineNum">     303 </span><span class="lineCov">          1 :         *accepted = csd;</span>
+<span class="lineNum">     304 </span>            : #ifdef _OSD_POSIX
+<span class="lineNum">     305 </span>            :         apr_os_sock_get(&amp;sockdes, csd);
+<span class="lineNum">     306 </span>            :         if (sockdes &gt;= FD_SETSIZE) {
+<span class="lineNum">     307 </span>            :             ap_log_error(APLOG_MARK, APLOG_WARNING, 0, ap_server_conf, APLOGNO(02176)
+<span class="lineNum">     308 </span>            :                          &quot;new file descriptor %d is too large; you probably need &quot;
+<span class="lineNum">     309 </span>            :                          &quot;to rebuild Apache with a larger FD_SETSIZE &quot;
+<span class="lineNum">     310 </span>            :                          &quot;(currently %d)&quot;,
+<span class="lineNum">     311 </span>            :                          sockdes, FD_SETSIZE);
+<span class="lineNum">     312 </span>            :             apr_socket_close(csd);
+<span class="lineNum">     313 </span>            :             return APR_EINTR;
+<span class="lineNum">     314 </span>            :         }
+<span class="lineNum">     315 </span>            : #endif
+<span class="lineNum">     316 </span><span class="lineCov">          1 :         return APR_SUCCESS;</span>
+<span class="lineNum">     317 </span>            :     }
+<span class="lineNum">     318 </span>            : 
+<span class="lineNum">     319 </span><span class="lineCov">          2 :     if (APR_STATUS_IS_EINTR(status)) {</span>
+<span class="lineNum">     320 </span><span class="lineNoCov">          0 :         return status;</span>
+<span class="lineNum">     321 </span>            :     }
+<span class="lineNum">     322 </span>            :     /* Our old behaviour here was to continue after accept()
+<span class="lineNum">     323 </span>            :      * errors.  But this leads us into lots of troubles
+<span class="lineNum">     324 </span>            :      * because most of the errors are quite fatal.  For
+<span class="lineNum">     325 </span>            :      * example, EMFILE can be caused by slow descriptor
+<span class="lineNum">     326 </span>            :      * leaks (say in a 3rd party module, or libc).  It's
+<span class="lineNum">     327 </span>            :      * foolish for us to continue after an EMFILE.  We also
+<span class="lineNum">     328 </span>            :      * seem to tickle kernel bugs on some platforms which
+<span class="lineNum">     329 </span>            :      * lead to never-ending loops here.  So it seems best
+<span class="lineNum">     330 </span>            :      * to just exit in most cases.
+<span class="lineNum">     331 </span>            :      */
+<span class="lineNum">     332 </span><span class="lineCov">          2 :     switch (status) {</span>
+<span class="lineNum">     333 </span>            : #if defined(HPUX11) &amp;&amp; defined(ENOBUFS)
+<span class="lineNum">     334 </span>            :         /* On HPUX 11.x, the 'ENOBUFS, No buffer space available'
+<span class="lineNum">     335 </span>            :          * error occurs because the accept() cannot complete.
+<span class="lineNum">     336 </span>            :          * You will not see ENOBUFS with 10.20 because the kernel
+<span class="lineNum">     337 </span>            :          * hides any occurrence from being returned to user space.
+<span class="lineNum">     338 </span>            :          * ENOBUFS with 11.x's TCP/IP stack is possible, and could
+<span class="lineNum">     339 </span>            :          * occur intermittently. As a work-around, we are going to
+<span class="lineNum">     340 </span>            :          * ignore ENOBUFS.
+<span class="lineNum">     341 </span>            :          */
+<span class="lineNum">     342 </span>            :         case ENOBUFS:
+<span class="lineNum">     343 </span>            : #endif
+<span class="lineNum">     344 </span>            : 
+<span class="lineNum">     345 </span>            : #ifdef EPROTO
+<span class="lineNum">     346 </span>            :         /* EPROTO on certain older kernels really means
+<span class="lineNum">     347 </span>            :          * ECONNABORTED, so we need to ignore it for them.
+<span class="lineNum">     348 </span>            :          * See discussion in new-httpd archives nh.9701
+<span class="lineNum">     349 </span>            :          * search for EPROTO.
+<span class="lineNum">     350 </span>            :          *
+<span class="lineNum">     351 </span>            :          * Also see nh.9603, search for EPROTO:
+<span class="lineNum">     352 </span>            :          * There is potentially a bug in Solaris 2.x x&lt;6,
+<span class="lineNum">     353 </span>            :          * and other boxes that implement tcp sockets in
+<span class="lineNum">     354 </span>            :          * userland (i.e. on top of STREAMS).  On these
+<span class="lineNum">     355 </span>            :          * systems, EPROTO can actually result in a fatal
+<span class="lineNum">     356 </span>            :          * loop.  See PR#981 for example.  It's hard to
+<span class="lineNum">     357 </span>            :          * handle both uses of EPROTO.
+<span class="lineNum">     358 </span>            :          */
+<span class="lineNum">     359 </span>            :         case EPROTO:
+<span class="lineNum">     360 </span>            : #endif
+<span class="lineNum">     361 </span>            : #ifdef ECONNABORTED
+<span class="lineNum">     362 </span>            :         case ECONNABORTED:
+<span class="lineNum">     363 </span>            : #endif
+<span class="lineNum">     364 </span>            :         /* Linux generates the rest of these, other tcp
+<span class="lineNum">     365 </span>            :          * stacks (i.e. bsd) tend to hide them behind
+<span class="lineNum">     366 </span>            :          * getsockopt() interfaces.  They occur when
+<span class="lineNum">     367 </span>            :          * the net goes sour or the client disconnects
+<span class="lineNum">     368 </span>            :          * after the three-way handshake has been done
+<span class="lineNum">     369 </span>            :          * in the kernel but before userland has picked
+<span class="lineNum">     370 </span>            :          * up the socket.
+<span class="lineNum">     371 </span>            :          */
+<span class="lineNum">     372 </span>            : #ifdef ECONNRESET
+<span class="lineNum">     373 </span>            :         case ECONNRESET:
+<span class="lineNum">     374 </span>            : #endif
+<span class="lineNum">     375 </span>            : #ifdef ETIMEDOUT
+<span class="lineNum">     376 </span>            :         case ETIMEDOUT:
+<span class="lineNum">     377 </span>            : #endif
+<span class="lineNum">     378 </span>            : #ifdef EHOSTUNREACH
+<span class="lineNum">     379 </span>            :         case EHOSTUNREACH:
+<span class="lineNum">     380 </span>            : #endif
+<span class="lineNum">     381 </span>            : #ifdef ENETUNREACH
+<span class="lineNum">     382 </span>            :         case ENETUNREACH:
+<span class="lineNum">     383 </span>            : #endif
+<span class="lineNum">     384 </span>            :         /* EAGAIN/EWOULDBLOCK can be returned on BSD-derived
+<span class="lineNum">     385 </span>            :          * TCP stacks when the connection is aborted before
+<span class="lineNum">     386 </span>            :          * we call connect, but only because our listener
+<span class="lineNum">     387 </span>            :          * sockets are non-blocking (AP_NONBLOCK_WHEN_MULTI_LISTEN)
+<span class="lineNum">     388 </span>            :          */
+<span class="lineNum">     389 </span>            : #ifdef EAGAIN
+<span class="lineNum">     390 </span>            :         case EAGAIN:
+<span class="lineNum">     391 </span>            : #endif
+<span class="lineNum">     392 </span>            : #ifdef EWOULDBLOCK
+<span class="lineNum">     393 </span>            : #if !defined(EAGAIN) || EAGAIN != EWOULDBLOCK
+<span class="lineNum">     394 </span>            :         case EWOULDBLOCK:
+<span class="lineNum">     395 </span>            : #endif
+<span class="lineNum">     396 </span>            : #endif
+<span class="lineNum">     397 </span><span class="lineCov">          2 :             break;</span>
+<span class="lineNum">     398 </span>            : #ifdef ENETDOWN
+<span class="lineNum">     399 </span>            :         case ENETDOWN:
+<span class="lineNum">     400 </span>            :             /*
+<span class="lineNum">     401 </span>            :              * When the network layer has been shut down, there
+<span class="lineNum">     402 </span>            :              * is not much use in simply exiting: the parent
+<span class="lineNum">     403 </span>            :              * would simply re-create us (and we'd fail again).
+<span class="lineNum">     404 </span>            :              * Use the CHILDFATAL code to tear the server down.
+<span class="lineNum">     405 </span>            :              * @@@ Martin's idea for possible improvement:
+<span class="lineNum">     406 </span>            :              * A different approach would be to define
+<span class="lineNum">     407 </span>            :              * a new APEXIT_NETDOWN exit code, the reception
+<span class="lineNum">     408 </span>            :              * of which would make the parent shutdown all
+<span class="lineNum">     409 </span>            :              * children, then idle-loop until it detected that
+<span class="lineNum">     410 </span>            :              * the network is up again, and restart the children.
+<span class="lineNum">     411 </span>            :              * Ben Hyde noted that temporary ENETDOWN situations
+<span class="lineNum">     412 </span>            :              * occur in mobile IP.
+<span class="lineNum">     413 </span>            :              */
+<span class="lineNum">     414 </span><span class="lineNoCov">          0 :             ap_log_error(APLOG_MARK, APLOG_EMERG, status, ap_server_conf, APLOGNO(02177)</span>
+<span class="lineNum">     415 </span>            :                          &quot;apr_socket_accept: giving up.&quot;);
+<span class="lineNum">     416 </span><span class="lineNoCov">          0 :             return APR_EGENERAL;</span>
+<span class="lineNum">     417 </span>            : #endif /*ENETDOWN*/
+<span class="lineNum">     418 </span>            : 
+<span class="lineNum">     419 </span>            :         default:
+<span class="lineNum">     420 </span>            :             /* If the socket has been closed in ap_close_listeners()
+<span class="lineNum">     421 </span>            :              * by the restart/stop action, we may get EBADF.
+<span class="lineNum">     422 </span>            :              * Do not print an error in this case.
+<span class="lineNum">     423 </span>            :              */
+<span class="lineNum">     424 </span><span class="lineNoCov">          0 :             if (!lr-&gt;active) {</span>
+<span class="lineNum">     425 </span><span class="lineNoCov">          0 :                 ap_log_error(APLOG_MARK, APLOG_DEBUG, status, ap_server_conf, APLOGNO(02178)</span>
+<span class="lineNum">     426 </span>            :                              &quot;apr_socket_accept failed for inactive listener&quot;);
+<span class="lineNum">     427 </span><span class="lineNoCov">          0 :                 return status;</span>
+<span class="lineNum">     428 </span>            :             }
+<span class="lineNum">     429 </span><span class="lineNoCov">          0 :             ap_log_error(APLOG_MARK, APLOG_ERR, status, ap_server_conf, APLOGNO(02179)</span>
+<span class="lineNum">     430 </span>            :                          &quot;apr_socket_accept: (client socket)&quot;);
+<span class="lineNum">     431 </span><span class="lineNoCov">          0 :             return APR_EGENERAL;</span>
+<span class="lineNum">     432 </span>            :     }
+<span class="lineNum">     433 </span><span class="lineCov">          2 :     return status;</span>
+<span class="lineNum">     434 </span>            : }
+<span class="lineNum">     435 </span>            : 
+<span class="lineNum">     436 </span>            : 
+<span class="lineNum">     437 </span>            : #ifdef _OSD_POSIX
+<span class="lineNum">     438 </span>            : 
+<span class="lineNum">     439 </span>            : #include &quot;apr_lib.h&quot;
+<span class="lineNum">     440 </span>            : 
+<span class="lineNum">     441 </span>            : #define USER_LEN 8
+<span class="lineNum">     442 </span>            : 
+<span class="lineNum">     443 </span>            : typedef enum
+<span class="lineNum">     444 </span>            : {
+<span class="lineNum">     445 </span>            :     bs2_unknown,     /* not initialized yet. */
+<span class="lineNum">     446 </span>            :     bs2_noFORK,      /* no fork() because -X flag was specified */
+<span class="lineNum">     447 </span>            :     bs2_FORK,        /* only fork() because uid != 0 */
+<span class="lineNum">     448 </span>            :     bs2_UFORK        /* Normally, ufork() is used to switch identities. */
+<span class="lineNum">     449 </span>            : } bs2_ForkType;
+<span class="lineNum">     450 </span>            : 
+<span class="lineNum">     451 </span>            : static bs2_ForkType forktype = bs2_unknown;
+<span class="lineNum">     452 </span>            : 
+<span class="lineNum">     453 </span>            : /* Determine the method for forking off a child in such a way as to
+<span class="lineNum">     454 </span>            :  * set both the POSIX and BS2000 user id's to the unprivileged user.
+<span class="lineNum">     455 </span>            :  */
+<span class="lineNum">     456 </span>            : static bs2_ForkType os_forktype(int one_process)
+<span class="lineNum">     457 </span>            : {
+<span class="lineNum">     458 </span>            :     /* have we checked the OS version before? If yes return the previous
+<span class="lineNum">     459 </span>            :      * result - the OS release isn't going to change suddenly!
+<span class="lineNum">     460 </span>            :      */
+<span class="lineNum">     461 </span>            :     if (forktype == bs2_unknown) {
+<span class="lineNum">     462 </span>            :         /* not initialized yet */
+<span class="lineNum">     463 </span>            : 
+<span class="lineNum">     464 </span>            :         /* No fork if the one_process option was set */
+<span class="lineNum">     465 </span>            :         if (one_process) {
+<span class="lineNum">     466 </span>            :             forktype = bs2_noFORK;
+<span class="lineNum">     467 </span>            :         }
+<span class="lineNum">     468 </span>            :         /* If the user is unprivileged, use the normal fork() only. */
+<span class="lineNum">     469 </span>            :         else if (getuid() != 0) {
+<span class="lineNum">     470 </span>            :             forktype = bs2_FORK;
+<span class="lineNum">     471 </span>            :         }
+<span class="lineNum">     472 </span>            :         else
+<span class="lineNum">     473 </span>            :             forktype = bs2_UFORK;
+<span class="lineNum">     474 </span>            :     }
+<span class="lineNum">     475 </span>            :     return forktype;
+<span class="lineNum">     476 </span>            : }
+<span class="lineNum">     477 </span>            : 
+<span class="lineNum">     478 </span>            : 
+<span class="lineNum">     479 </span>            : 
+<span class="lineNum">     480 </span>            : /* This routine complements the setuid() call: it causes the BS2000 job
+<span class="lineNum">     481 </span>            :  * environment to be switched to the target user's user id.
+<span class="lineNum">     482 </span>            :  * That is important if CGI scripts try to execute native BS2000 commands.
+<span class="lineNum">     483 </span>            :  */
+<span class="lineNum">     484 </span>            : int os_init_job_environment(server_rec *server, const char *user_name, int one_process)
+<span class="lineNum">     485 </span>            : {
+<span class="lineNum">     486 </span>            :     bs2_ForkType            type = os_forktype(one_process);
+<span class="lineNum">     487 </span>            : 
+<span class="lineNum">     488 </span>            :     /* We can be sure that no change to uid==0 is possible because of
+<span class="lineNum">     489 </span>            :      * the checks in http_core.c:set_user()
+<span class="lineNum">     490 </span>            :      */
+<span class="lineNum">     491 </span>            : 
+<span class="lineNum">     492 </span>            :     if (one_process) {
+<span class="lineNum">     493 </span>            : 
+<span class="lineNum">     494 </span>            :         type = forktype = bs2_noFORK;
+<span class="lineNum">     495 </span>            : 
+<span class="lineNum">     496 </span>            :         ap_log_error(APLOG_MARK, APLOG_ERR, 0, server, APLOGNO(02180)
+<span class="lineNum">     497 </span>            :                      &quot;The debug mode of Apache should only &quot;
+<span class="lineNum">     498 </span>            :                      &quot;be started by an unprivileged user!&quot;);
+<span class="lineNum">     499 </span>            :         return 0;
+<span class="lineNum">     500 </span>            :     }
+<span class="lineNum">     501 </span>            : 
+<span class="lineNum">     502 </span>            :     return 0;
+<span class="lineNum">     503 </span>            : }
+<span class="lineNum">     504 </span>            : 
+<span class="lineNum">     505 </span>            : /* BS2000 requires a &quot;special&quot; version of fork() before a setuid() call */
+<span class="lineNum">     506 </span>            : pid_t os_fork(const char *user)
+<span class="lineNum">     507 </span>            : {
+<span class="lineNum">     508 </span>            :     pid_t pid;
+<span class="lineNum">     509 </span>            :     char  username[USER_LEN+1];
+<span class="lineNum">     510 </span>            : 
+<span class="lineNum">     511 </span>            :     switch (os_forktype(0)) {
+<span class="lineNum">     512 </span>            : 
+<span class="lineNum">     513 </span>            :       case bs2_FORK:
+<span class="lineNum">     514 </span>            :         pid = fork();
+<span class="lineNum">     515 </span>            :         break;
+<span class="lineNum">     516 </span>            : 
+<span class="lineNum">     517 </span>            :       case bs2_UFORK:
+<span class="lineNum">     518 </span>            :         apr_cpystrn(username, user, sizeof username);
+<span class="lineNum">     519 </span>            : 
+<span class="lineNum">     520 </span>            :         /* Make user name all upper case - for some versions of ufork() */
+<span class="lineNum">     521 </span>            :         ap_str_toupper(username);
+<span class="lineNum">     522 </span>            : 
+<span class="lineNum">     523 </span>            :         pid = ufork(username);
+<span class="lineNum">     524 </span>            :         if (pid == -1 &amp;&amp; errno == EPERM) {
+<span class="lineNum">     525 </span>            :             ap_log_error(APLOG_MARK, APLOG_EMERG, errno, ap_server_conf,
+<span class="lineNum">     526 </span>            :                          APLOGNO(02181) &quot;ufork: Possible mis-configuration &quot;
+<span class="lineNum">     527 </span>            :                          &quot;for user %s - Aborting.&quot;, user);
+<span class="lineNum">     528 </span>            :             exit(1);
+<span class="lineNum">     529 </span>            :         }
+<span class="lineNum">     530 </span>            :         break;
+<span class="lineNum">     531 </span>            : 
+<span class="lineNum">     532 </span>            :       default:
+<span class="lineNum">     533 </span>            :         pid = 0;
+<span class="lineNum">     534 </span>            :         break;
+<span class="lineNum">     535 </span>            :     }
+<span class="lineNum">     536 </span>            : 
+<span class="lineNum">     537 </span>            :     return pid;
+<span class="lineNum">     538 </span>            : }
+<span class="lineNum">     539 </span>            : 
+<span class="lineNum">     540 </span>            : #endif /* _OSD_POSIX */
+<span class="lineNum">     541 </span>            : 
+</pre>
+      </td>
+    </tr>
+  </table>
+  <br>
+
+  <table width="100%" border=0 cellspacing=0 cellpadding=0>
+    <tr><td class="ruler"><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
+    <tr><td class="versionInfo">Generated by: <a href="http://ltp.sourceforge.net/coverage/lcov.php" target="_parent">LCOV version 1.11</a></td></tr>
+  </table>
+  <br>
+
+</body>
+</html>

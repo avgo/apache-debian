@@ -1,0 +1,799 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+
+<html lang="en">
+
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <title>LCOV - apptest.info - server/listen.c</title>
+  <link rel="stylesheet" type="text/css" href="../gcov.css">
+</head>
+
+<body>
+
+  <table width="100%" border=0 cellspacing=0 cellpadding=0>
+    <tr><td class="title">LCOV - code coverage report</td></tr>
+    <tr><td class="ruler"><img src="../glass.png" width=3 height=3 alt=""></td></tr>
+
+    <tr>
+      <td width="100%">
+        <table cellpadding=1 border=0 width="100%">
+          <tr>
+            <td width="10%" class="headerItem">Current view:</td>
+            <td width="35%" class="headerValue"><a href="../index.html">top level</a> - <a href="index.html">server</a> - listen.c<span style="font-size: 80%;"> (source / <a href="listen.c.func-sort-c.html">functions</a>)</span></td>
+            <td width="5%"></td>
+            <td width="15%"></td>
+            <td width="10%" class="headerCovTableHead">Hit</td>
+            <td width="10%" class="headerCovTableHead">Total</td>
+            <td width="15%" class="headerCovTableHead">Coverage</td>
+          </tr>
+          <tr>
+            <td class="headerItem">Test:</td>
+            <td class="headerValue">apptest.info</td>
+            <td></td>
+            <td class="headerItem">Lines:</td>
+            <td class="headerCovTableEntry">159</td>
+            <td class="headerCovTableEntry">264</td>
+            <td class="headerCovTableEntryLo">60.2 %</td>
+          </tr>
+          <tr>
+            <td class="headerItem">Date:</td>
+            <td class="headerValue">2017-01-31 22:58:06</td>
+            <td></td>
+            <td class="headerItem">Functions:</td>
+            <td class="headerCovTableEntry">9</td>
+            <td class="headerCovTableEntry">14</td>
+            <td class="headerCovTableEntryLo">64.3 %</td>
+          </tr>
+          <tr><td><img src="../glass.png" width=3 height=3 alt=""></td></tr>
+        </table>
+      </td>
+    </tr>
+
+    <tr><td class="ruler"><img src="../glass.png" width=3 height=3 alt=""></td></tr>
+  </table>
+
+  <table cellpadding=0 cellspacing=0 border=0>
+    <tr>
+      <td><br></td>
+    </tr>
+    <tr>
+      <td>
+<pre class="sourceHeading">          Line data    Source code</pre>
+<pre class="source">
+<a name="1"><span class="lineNum">       1 </span>            : /* Licensed to the Apache Software Foundation (ASF) under one or more</a>
+<span class="lineNum">       2 </span>            :  * contributor license agreements.  See the NOTICE file distributed with
+<span class="lineNum">       3 </span>            :  * this work for additional information regarding copyright ownership.
+<span class="lineNum">       4 </span>            :  * The ASF licenses this file to You under the Apache License, Version 2.0
+<span class="lineNum">       5 </span>            :  * (the &quot;License&quot;); you may not use this file except in compliance with
+<span class="lineNum">       6 </span>            :  * the License.  You may obtain a copy of the License at
+<span class="lineNum">       7 </span>            :  *
+<span class="lineNum">       8 </span>            :  *     http://www.apache.org/licenses/LICENSE-2.0
+<span class="lineNum">       9 </span>            :  *
+<span class="lineNum">      10 </span>            :  * Unless required by applicable law or agreed to in writing, software
+<span class="lineNum">      11 </span>            :  * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+<span class="lineNum">      12 </span>            :  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+<span class="lineNum">      13 </span>            :  * See the License for the specific language governing permissions and
+<span class="lineNum">      14 </span>            :  * limitations under the License.
+<span class="lineNum">      15 </span>            :  */
+<span class="lineNum">      16 </span>            : 
+<span class="lineNum">      17 </span>            : #include &quot;apr_network_io.h&quot;
+<span class="lineNum">      18 </span>            : #include &quot;apr_strings.h&quot;
+<span class="lineNum">      19 </span>            : 
+<span class="lineNum">      20 </span>            : #define APR_WANT_STRFUNC
+<span class="lineNum">      21 </span>            : #include &quot;apr_want.h&quot;
+<span class="lineNum">      22 </span>            : 
+<span class="lineNum">      23 </span>            : #include &quot;ap_config.h&quot;
+<span class="lineNum">      24 </span>            : #include &quot;httpd.h&quot;
+<span class="lineNum">      25 </span>            : #include &quot;http_config.h&quot;
+<span class="lineNum">      26 </span>            : #include &quot;http_core.h&quot;
+<span class="lineNum">      27 </span>            : #include &quot;ap_listen.h&quot;
+<span class="lineNum">      28 </span>            : #include &quot;http_log.h&quot;
+<span class="lineNum">      29 </span>            : #include &quot;mpm_common.h&quot;
+<span class="lineNum">      30 </span>            : 
+<span class="lineNum">      31 </span>            : /* we know core's module_index is 0 */
+<span class="lineNum">      32 </span>            : #undef APLOG_MODULE_INDEX
+<span class="lineNum">      33 </span>            : #define APLOG_MODULE_INDEX AP_CORE_MODULE_INDEX
+<span class="lineNum">      34 </span>            : 
+<span class="lineNum">      35 </span>            : AP_DECLARE_DATA ap_listen_rec *ap_listeners = NULL;
+<span class="lineNum">      36 </span>            : 
+<span class="lineNum">      37 </span>            : static ap_listen_rec *old_listeners;
+<span class="lineNum">      38 </span>            : static int ap_listenbacklog;
+<span class="lineNum">      39 </span>            : static int send_buffer_size;
+<span class="lineNum">      40 </span>            : static int receive_buffer_size;
+<a name="41"><span class="lineNum">      41 </span>            : </a>
+<span class="lineNum">      42 </span>            : /* TODO: make_sock is just begging and screaming for APR abstraction */
+<span class="lineNum">      43 </span><span class="lineCov">          2 : static apr_status_t make_sock(apr_pool_t *p, ap_listen_rec *server)</span>
+<span class="lineNum">      44 </span>            : {
+<span class="lineNum">      45 </span><span class="lineCov">          2 :     apr_socket_t *s = server-&gt;sd;</span>
+<span class="lineNum">      46 </span><span class="lineCov">          2 :     int one = 1;</span>
+<span class="lineNum">      47 </span>            : #if APR_HAVE_IPV6
+<span class="lineNum">      48 </span>            : #ifdef AP_ENABLE_V4_MAPPED
+<span class="lineNum">      49 </span><span class="lineCov">          2 :     int v6only_setting = 0;</span>
+<span class="lineNum">      50 </span>            : #else
+<span class="lineNum">      51 </span>            :     int v6only_setting = 1;
+<span class="lineNum">      52 </span>            : #endif
+<span class="lineNum">      53 </span>            : #endif
+<span class="lineNum">      54 </span>            :     apr_status_t stat;
+<span class="lineNum">      55 </span>            : 
+<span class="lineNum">      56 </span>            : #ifndef WIN32
+<span class="lineNum">      57 </span><span class="lineCov">          2 :     stat = apr_socket_opt_set(s, APR_SO_REUSEADDR, one);</span>
+<span class="lineNum">      58 </span><span class="lineCov">          2 :     if (stat != APR_SUCCESS &amp;&amp; stat != APR_ENOTIMPL) {</span>
+<span class="lineNum">      59 </span><span class="lineNoCov">          0 :         ap_log_perror(APLOG_MARK, APLOG_CRIT, stat, p, APLOGNO(00067)</span>
+<span class="lineNum">      60 </span>            :                       &quot;make_sock: for address %pI, apr_socket_opt_set: (SO_REUSEADDR)&quot;,
+<span class="lineNum">      61 </span>            :                       server-&gt;bind_addr);
+<span class="lineNum">      62 </span><span class="lineNoCov">          0 :         apr_socket_close(s);</span>
+<span class="lineNum">      63 </span><span class="lineNoCov">          0 :         return stat;</span>
+<span class="lineNum">      64 </span>            :     }
+<span class="lineNum">      65 </span>            : #endif
+<span class="lineNum">      66 </span>            : 
+<span class="lineNum">      67 </span><span class="lineCov">          2 :     stat = apr_socket_opt_set(s, APR_SO_KEEPALIVE, one);</span>
+<span class="lineNum">      68 </span><span class="lineCov">          2 :     if (stat != APR_SUCCESS &amp;&amp; stat != APR_ENOTIMPL) {</span>
+<span class="lineNum">      69 </span><span class="lineNoCov">          0 :         ap_log_perror(APLOG_MARK, APLOG_CRIT, stat, p, APLOGNO(00068)</span>
+<span class="lineNum">      70 </span>            :                       &quot;make_sock: for address %pI, apr_socket_opt_set: (SO_KEEPALIVE)&quot;,
+<span class="lineNum">      71 </span>            :                       server-&gt;bind_addr);
+<span class="lineNum">      72 </span><span class="lineNoCov">          0 :         apr_socket_close(s);</span>
+<span class="lineNum">      73 </span><span class="lineNoCov">          0 :         return stat;</span>
+<span class="lineNum">      74 </span>            :     }
+<span class="lineNum">      75 </span>            : 
+<span class="lineNum">      76 </span>            : #if APR_HAVE_IPV6
+<span class="lineNum">      77 </span><span class="lineCov">          2 :     if (server-&gt;bind_addr-&gt;family == APR_INET6) {</span>
+<span class="lineNum">      78 </span><span class="lineCov">          2 :         stat = apr_socket_opt_set(s, APR_IPV6_V6ONLY, v6only_setting);</span>
+<span class="lineNum">      79 </span><span class="lineCov">          2 :         if (stat != APR_SUCCESS &amp;&amp; stat != APR_ENOTIMPL) {</span>
+<span class="lineNum">      80 </span><span class="lineNoCov">          0 :             ap_log_perror(APLOG_MARK, APLOG_CRIT, stat, p, APLOGNO(00069)</span>
+<span class="lineNum">      81 </span>            :                           &quot;make_sock: for address %pI, apr_socket_opt_set: &quot;
+<span class="lineNum">      82 </span>            :                           &quot;(IPV6_V6ONLY)&quot;,
+<span class="lineNum">      83 </span>            :                           server-&gt;bind_addr);
+<span class="lineNum">      84 </span><span class="lineNoCov">          0 :             apr_socket_close(s);</span>
+<span class="lineNum">      85 </span><span class="lineNoCov">          0 :             return stat;</span>
+<span class="lineNum">      86 </span>            :         }
+<span class="lineNum">      87 </span>            :     }
+<span class="lineNum">      88 </span>            : #endif
+<span class="lineNum">      89 </span>            : 
+<span class="lineNum">      90 </span>            :     /*
+<span class="lineNum">      91 </span>            :      * To send data over high bandwidth-delay connections at full
+<span class="lineNum">      92 </span>            :      * speed we must force the TCP window to open wide enough to keep the
+<span class="lineNum">      93 </span>            :      * pipe full.  The default window size on many systems
+<span class="lineNum">      94 </span>            :      * is only 4kB.  Cross-country WAN connections of 100ms
+<span class="lineNum">      95 </span>            :      * at 1Mb/s are not impossible for well connected sites.
+<span class="lineNum">      96 </span>            :      * If we assume 100ms cross-country latency,
+<span class="lineNum">      97 </span>            :      * a 4kB buffer limits throughput to 40kB/s.
+<span class="lineNum">      98 </span>            :      *
+<span class="lineNum">      99 </span>            :      * To avoid this problem I've added the SendBufferSize directive
+<span class="lineNum">     100 </span>            :      * to allow the web master to configure send buffer size.
+<span class="lineNum">     101 </span>            :      *
+<span class="lineNum">     102 </span>            :      * The trade-off of larger buffers is that more kernel memory
+<span class="lineNum">     103 </span>            :      * is consumed.  YMMV, know your customers and your network!
+<span class="lineNum">     104 </span>            :      *
+<span class="lineNum">     105 </span>            :      * -John Heidemann &lt;johnh@isi.edu&gt; 25-Oct-96
+<span class="lineNum">     106 </span>            :      *
+<span class="lineNum">     107 </span>            :      * If no size is specified, use the kernel default.
+<span class="lineNum">     108 </span>            :      */
+<span class="lineNum">     109 </span><span class="lineCov">          2 :     if (send_buffer_size) {</span>
+<span class="lineNum">     110 </span><span class="lineNoCov">          0 :         stat = apr_socket_opt_set(s, APR_SO_SNDBUF,  send_buffer_size);</span>
+<span class="lineNum">     111 </span><span class="lineNoCov">          0 :         if (stat != APR_SUCCESS &amp;&amp; stat != APR_ENOTIMPL) {</span>
+<span class="lineNum">     112 </span><span class="lineNoCov">          0 :             ap_log_perror(APLOG_MARK, APLOG_WARNING, stat, p, APLOGNO(00070)</span>
+<span class="lineNum">     113 </span>            :                           &quot;make_sock: failed to set SendBufferSize for &quot;
+<span class="lineNum">     114 </span>            :                           &quot;address %pI, using default&quot;,
+<span class="lineNum">     115 </span>            :                           server-&gt;bind_addr);
+<span class="lineNum">     116 </span>            :             /* not a fatal error */
+<span class="lineNum">     117 </span>            :         }
+<span class="lineNum">     118 </span>            :     }
+<span class="lineNum">     119 </span><span class="lineCov">          2 :     if (receive_buffer_size) {</span>
+<span class="lineNum">     120 </span><span class="lineNoCov">          0 :         stat = apr_socket_opt_set(s, APR_SO_RCVBUF, receive_buffer_size);</span>
+<span class="lineNum">     121 </span><span class="lineNoCov">          0 :         if (stat != APR_SUCCESS &amp;&amp; stat != APR_ENOTIMPL) {</span>
+<span class="lineNum">     122 </span><span class="lineNoCov">          0 :             ap_log_perror(APLOG_MARK, APLOG_WARNING, stat, p, APLOGNO(00071)</span>
+<span class="lineNum">     123 </span>            :                           &quot;make_sock: failed to set ReceiveBufferSize for &quot;
+<span class="lineNum">     124 </span>            :                           &quot;address %pI, using default&quot;,
+<span class="lineNum">     125 </span>            :                           server-&gt;bind_addr);
+<span class="lineNum">     126 </span>            :             /* not a fatal error */
+<span class="lineNum">     127 </span>            :         }
+<span class="lineNum">     128 </span>            :     }
+<span class="lineNum">     129 </span>            : 
+<span class="lineNum">     130 </span>            : #if APR_TCP_NODELAY_INHERITED
+<span class="lineNum">     131 </span><span class="lineCov">          2 :     ap_sock_disable_nagle(s);</span>
+<span class="lineNum">     132 </span>            : #endif
+<span class="lineNum">     133 </span>            : 
+<span class="lineNum">     134 </span><span class="lineCov">          2 :     if ((stat = apr_socket_bind(s, server-&gt;bind_addr)) != APR_SUCCESS) {</span>
+<span class="lineNum">     135 </span><span class="lineNoCov">          0 :         ap_log_perror(APLOG_MARK, APLOG_STARTUP|APLOG_CRIT, stat, p, APLOGNO(00072)</span>
+<span class="lineNum">     136 </span>            :                       &quot;make_sock: could not bind to address %pI&quot;,
+<span class="lineNum">     137 </span>            :                       server-&gt;bind_addr);
+<span class="lineNum">     138 </span><span class="lineNoCov">          0 :         apr_socket_close(s);</span>
+<span class="lineNum">     139 </span><span class="lineNoCov">          0 :         return stat;</span>
+<span class="lineNum">     140 </span>            :     }
+<span class="lineNum">     141 </span>            : 
+<span class="lineNum">     142 </span><span class="lineCov">          2 :     if ((stat = apr_socket_listen(s, ap_listenbacklog)) != APR_SUCCESS) {</span>
+<span class="lineNum">     143 </span><span class="lineNoCov">          0 :         ap_log_perror(APLOG_MARK, APLOG_STARTUP|APLOG_ERR, stat, p, APLOGNO(00073)</span>
+<span class="lineNum">     144 </span>            :                       &quot;make_sock: unable to listen for connections &quot;
+<span class="lineNum">     145 </span>            :                       &quot;on address %pI&quot;,
+<span class="lineNum">     146 </span>            :                       server-&gt;bind_addr);
+<span class="lineNum">     147 </span><span class="lineNoCov">          0 :         apr_socket_close(s);</span>
+<span class="lineNum">     148 </span><span class="lineNoCov">          0 :         return stat;</span>
+<span class="lineNum">     149 </span>            :     }
+<span class="lineNum">     150 </span>            : 
+<span class="lineNum">     151 </span>            : #ifdef WIN32
+<span class="lineNum">     152 </span>            :     /* I seriously doubt that this would work on Unix; I have doubts that
+<span class="lineNum">     153 </span>            :      * it entirely solves the problem on Win32.  However, since setting
+<span class="lineNum">     154 </span>            :      * reuseaddr on the listener -prior- to binding the socket has allowed
+<span class="lineNum">     155 </span>            :      * us to attach to the same port as an already running instance of
+<span class="lineNum">     156 </span>            :      * Apache, or even another web server, we cannot identify that this
+<span class="lineNum">     157 </span>            :      * port was exclusively granted to this instance of Apache.
+<span class="lineNum">     158 </span>            :      *
+<span class="lineNum">     159 </span>            :      * So set reuseaddr, but do not attempt to do so until we have the
+<span class="lineNum">     160 </span>            :      * parent listeners successfully bound.
+<span class="lineNum">     161 </span>            :      */
+<span class="lineNum">     162 </span>            :     stat = apr_socket_opt_set(s, APR_SO_REUSEADDR, one);
+<span class="lineNum">     163 </span>            :     if (stat != APR_SUCCESS &amp;&amp; stat != APR_ENOTIMPL) {
+<span class="lineNum">     164 </span>            :         ap_log_perror(APLOG_MARK, APLOG_CRIT, stat, p, APLOGNO(00074)
+<span class="lineNum">     165 </span>            :                     &quot;make_sock: for address %pI, apr_socket_opt_set: (SO_REUSEADDR)&quot;,
+<span class="lineNum">     166 </span>            :                      server-&gt;bind_addr);
+<span class="lineNum">     167 </span>            :         apr_socket_close(s);
+<span class="lineNum">     168 </span>            :         return stat;
+<span class="lineNum">     169 </span>            :     }
+<span class="lineNum">     170 </span>            : #endif
+<span class="lineNum">     171 </span>            : 
+<span class="lineNum">     172 </span><span class="lineCov">          2 :     server-&gt;sd = s;</span>
+<span class="lineNum">     173 </span><span class="lineCov">          2 :     server-&gt;active = 1;</span>
+<span class="lineNum">     174 </span>            : 
+<span class="lineNum">     175 </span><span class="lineCov">          2 :     server-&gt;accept_func = NULL;</span>
+<span class="lineNum">     176 </span>            : 
+<span class="lineNum">     177 </span><span class="lineCov">          2 :     return APR_SUCCESS;</span>
+<a name="178"><span class="lineNum">     178 </span>            : }</a>
+<span class="lineNum">     179 </span>            : 
+<span class="lineNum">     180 </span><span class="lineCov">          3 : static const char* find_accf_name(server_rec *s, const char *proto)</span>
+<span class="lineNum">     181 </span>            : {
+<span class="lineNum">     182 </span>            :     const char* accf;
+<span class="lineNum">     183 </span><span class="lineCov">          3 :     core_server_config *conf = ap_get_core_module_config(s-&gt;module_config);</span>
+<span class="lineNum">     184 </span><span class="lineCov">          3 :     if (!proto) {</span>
+<span class="lineNum">     185 </span><span class="lineNoCov">          0 :         return NULL;</span>
+<span class="lineNum">     186 </span>            :     }
+<span class="lineNum">     187 </span>            : 
+<span class="lineNum">     188 </span><span class="lineCov">          3 :     accf = apr_table_get(conf-&gt;accf_map, proto);</span>
+<span class="lineNum">     189 </span>            : 
+<span class="lineNum">     190 </span><span class="lineCov">          3 :     if (accf &amp;&amp; !strcmp(&quot;none&quot;, accf)) {</span>
+<span class="lineNum">     191 </span><span class="lineNoCov">          0 :         return NULL;</span>
+<span class="lineNum">     192 </span>            :     }
+<span class="lineNum">     193 </span>            : 
+<span class="lineNum">     194 </span><span class="lineCov">          3 :     return accf;</span>
+<a name="195"><span class="lineNum">     195 </span>            : }</a>
+<span class="lineNum">     196 </span>            : 
+<span class="lineNum">     197 </span><span class="lineCov">          3 : static void ap_apply_accept_filter(apr_pool_t *p, ap_listen_rec *lis,</span>
+<span class="lineNum">     198 </span>            :                                            server_rec *server)
+<span class="lineNum">     199 </span>            : {
+<span class="lineNum">     200 </span><span class="lineCov">          3 :     apr_socket_t *s = lis-&gt;sd;</span>
+<span class="lineNum">     201 </span>            :     const char *accf;
+<span class="lineNum">     202 </span>            :     apr_status_t rv;
+<span class="lineNum">     203 </span>            :     const char *proto;
+<span class="lineNum">     204 </span>            : 
+<span class="lineNum">     205 </span><span class="lineCov">          3 :     proto = lis-&gt;protocol;</span>
+<span class="lineNum">     206 </span>            : 
+<span class="lineNum">     207 </span><span class="lineCov">          3 :     if (!proto) {</span>
+<span class="lineNum">     208 </span><span class="lineNoCov">          0 :         proto = ap_get_server_protocol(server);</span>
+<span class="lineNum">     209 </span>            :     }
+<span class="lineNum">     210 </span>            : 
+<span class="lineNum">     211 </span>            : 
+<span class="lineNum">     212 </span><span class="lineCov">          3 :     accf = find_accf_name(server, proto);</span>
+<span class="lineNum">     213 </span>            : 
+<span class="lineNum">     214 </span><span class="lineCov">          3 :     if (accf) {</span>
+<span class="lineNum">     215 </span>            : #if APR_HAS_SO_ACCEPTFILTER
+<span class="lineNum">     216 </span>            :         /* In APR 1.x, the 2nd and 3rd parameters are char * instead of 
+<span class="lineNum">     217 </span>            :          * const char *, so make a copy of those args here.
+<span class="lineNum">     218 </span>            :          */
+<span class="lineNum">     219 </span>            :         rv = apr_socket_accept_filter(s, apr_pstrdup(p, accf),
+<span class="lineNum">     220 </span>            :                                       apr_pstrdup(p, &quot;&quot;));
+<span class="lineNum">     221 </span>            :         if (rv != APR_SUCCESS &amp;&amp; !APR_STATUS_IS_ENOTIMPL(rv)) {
+<span class="lineNum">     222 </span>            :             ap_log_perror(APLOG_MARK, APLOG_WARNING, rv, p, APLOGNO(00075)
+<span class="lineNum">     223 </span>            :                           &quot;Failed to enable the '%s' Accept Filter&quot;,
+<span class="lineNum">     224 </span>            :                           accf);
+<span class="lineNum">     225 </span>            :         }
+<span class="lineNum">     226 </span>            : #else
+<span class="lineNum">     227 </span><span class="lineCov">          3 :         rv = apr_socket_opt_set(s, APR_TCP_DEFER_ACCEPT, 30);</span>
+<span class="lineNum">     228 </span><span class="lineCov">          3 :         if (rv != APR_SUCCESS &amp;&amp; !APR_STATUS_IS_ENOTIMPL(rv)) {</span>
+<span class="lineNum">     229 </span><span class="lineNoCov">          0 :             ap_log_perror(APLOG_MARK, APLOG_WARNING, rv, p, APLOGNO(00076)</span>
+<span class="lineNum">     230 </span>            :                               &quot;Failed to enable APR_TCP_DEFER_ACCEPT&quot;);
+<span class="lineNum">     231 </span>            :         }
+<span class="lineNum">     232 </span>            : #endif
+<span class="lineNum">     233 </span>            :     }
+<a name="234"><span class="lineNum">     234 </span><span class="lineCov">          3 : }</span></a>
+<span class="lineNum">     235 </span>            : 
+<span class="lineNum">     236 </span><span class="lineNoCov">          0 : static apr_status_t close_listeners_on_exec(void *v)</span>
+<span class="lineNum">     237 </span>            : {
+<span class="lineNum">     238 </span><span class="lineNoCov">          0 :     ap_close_listeners();</span>
+<span class="lineNum">     239 </span><span class="lineNoCov">          0 :     return APR_SUCCESS;</span>
+<a name="240"><span class="lineNum">     240 </span>            : }</a>
+<span class="lineNum">     241 </span>            : 
+<span class="lineNum">     242 </span><span class="lineCov">          3 : static const char *alloc_listener(process_rec *process, char *addr,</span>
+<span class="lineNum">     243 </span>            :                                   apr_port_t port, const char* proto,
+<span class="lineNum">     244 </span>            :                                   void *slave)
+<span class="lineNum">     245 </span>            : {
+<span class="lineNum">     246 </span>            :     ap_listen_rec **walk, *last;
+<span class="lineNum">     247 </span>            :     apr_status_t status;
+<span class="lineNum">     248 </span>            :     apr_sockaddr_t *sa;
+<span class="lineNum">     249 </span><span class="lineCov">          3 :     int found_listener = 0;</span>
+<span class="lineNum">     250 </span>            : 
+<span class="lineNum">     251 </span>            :     /* see if we've got an old listener for this address:port */
+<span class="lineNum">     252 </span><span class="lineCov">          7 :     for (walk = &amp;old_listeners; *walk;) {</span>
+<span class="lineNum">     253 </span><span class="lineCov">          1 :         sa = (*walk)-&gt;bind_addr;</span>
+<span class="lineNum">     254 </span>            :         /* Some listeners are not real so they will not have a bind_addr. */
+<span class="lineNum">     255 </span><span class="lineCov">          1 :         if (sa) {</span>
+<span class="lineNum">     256 </span>            :             ap_listen_rec *new;
+<span class="lineNum">     257 </span>            :             apr_port_t oldport;
+<span class="lineNum">     258 </span>            : 
+<span class="lineNum">     259 </span><span class="lineCov">          1 :             oldport = sa-&gt;port;</span>
+<span class="lineNum">     260 </span>            :             /* If both ports are equivalent, then if their names are equivalent,
+<span class="lineNum">     261 </span>            :              * then we will re-use the existing record.
+<span class="lineNum">     262 </span>            :              */
+<span class="lineNum">     263 </span><span class="lineCov">          1 :             if (port == oldport &amp;&amp;</span>
+<span class="lineNum">     264 </span><span class="lineCov">          1 :                 ((!addr &amp;&amp; !sa-&gt;hostname) ||</span>
+<span class="lineNum">     265 </span><span class="lineNoCov">          0 :                  ((addr &amp;&amp; sa-&gt;hostname) &amp;&amp; !strcmp(sa-&gt;hostname, addr)))) {</span>
+<span class="lineNum">     266 </span><span class="lineCov">          1 :                 new = *walk;</span>
+<span class="lineNum">     267 </span><span class="lineCov">          1 :                 *walk = new-&gt;next;</span>
+<span class="lineNum">     268 </span><span class="lineCov">          1 :                 new-&gt;next = ap_listeners;</span>
+<span class="lineNum">     269 </span><span class="lineCov">          1 :                 ap_listeners = new;</span>
+<span class="lineNum">     270 </span><span class="lineCov">          1 :                 found_listener = 1;</span>
+<span class="lineNum">     271 </span><span class="lineCov">          1 :                 continue;</span>
+<span class="lineNum">     272 </span>            :             }
+<span class="lineNum">     273 </span>            :         }
+<span class="lineNum">     274 </span>            : 
+<span class="lineNum">     275 </span><span class="lineNoCov">          0 :         walk = &amp;(*walk)-&gt;next;</span>
+<span class="lineNum">     276 </span>            :     }
+<span class="lineNum">     277 </span>            : 
+<span class="lineNum">     278 </span><span class="lineCov">          3 :     if (found_listener) {</span>
+<span class="lineNum">     279 </span><span class="lineCov">          1 :         if (ap_listeners-&gt;slave != slave) {</span>
+<span class="lineNum">     280 </span><span class="lineNoCov">          0 :             return &quot;Cannot define a slave on the same IP:port as a Listener&quot;;</span>
+<span class="lineNum">     281 </span>            :         }
+<span class="lineNum">     282 </span><span class="lineCov">          1 :         return NULL;</span>
+<span class="lineNum">     283 </span>            :     }
+<span class="lineNum">     284 </span>            : 
+<span class="lineNum">     285 </span><span class="lineCov">          2 :     if ((status = apr_sockaddr_info_get(&amp;sa, addr, APR_UNSPEC, port, 0,</span>
+<span class="lineNum">     286 </span>            :                                         process-&gt;pool))
+<span class="lineNum">     287 </span>            :         != APR_SUCCESS) {
+<span class="lineNum">     288 </span><span class="lineNoCov">          0 :         ap_log_perror(APLOG_MARK, APLOG_CRIT, status, process-&gt;pool, APLOGNO(00077)</span>
+<span class="lineNum">     289 </span>            :                       &quot;alloc_listener: failed to set up sockaddr for %s&quot;,
+<span class="lineNum">     290 </span>            :                       addr);
+<span class="lineNum">     291 </span><span class="lineNoCov">          0 :         return &quot;Listen setup failed&quot;;</span>
+<span class="lineNum">     292 </span>            :     }
+<span class="lineNum">     293 </span>            : 
+<span class="lineNum">     294 </span>            :     /* Initialize to our last configured ap_listener. */
+<span class="lineNum">     295 </span><span class="lineCov">          2 :     last = ap_listeners;</span>
+<span class="lineNum">     296 </span><span class="lineCov">          4 :     while (last &amp;&amp; last-&gt;next) {</span>
+<span class="lineNum">     297 </span><span class="lineNoCov">          0 :         last = last-&gt;next;</span>
+<span class="lineNum">     298 </span>            :     }
+<span class="lineNum">     299 </span>            : 
+<span class="lineNum">     300 </span><span class="lineCov">          8 :     while (sa) {</span>
+<span class="lineNum">     301 </span>            :         ap_listen_rec *new;
+<span class="lineNum">     302 </span>            : 
+<span class="lineNum">     303 </span>            :         /* this has to survive restarts */
+<span class="lineNum">     304 </span><span class="lineCov">          4 :         new = apr_palloc(process-&gt;pool, sizeof(ap_listen_rec));</span>
+<span class="lineNum">     305 </span><span class="lineCov">          4 :         new-&gt;active = 0;</span>
+<span class="lineNum">     306 </span><span class="lineCov">          4 :         new-&gt;next = 0;</span>
+<span class="lineNum">     307 </span><span class="lineCov">          4 :         new-&gt;bind_addr = sa;</span>
+<span class="lineNum">     308 </span><span class="lineCov">          4 :         new-&gt;protocol = apr_pstrdup(process-&gt;pool, proto);</span>
+<span class="lineNum">     309 </span>            : 
+<span class="lineNum">     310 </span>            :         /* Go to the next sockaddr. */
+<span class="lineNum">     311 </span><span class="lineCov">          4 :         sa = sa-&gt;next;</span>
+<span class="lineNum">     312 </span>            : 
+<span class="lineNum">     313 </span><span class="lineCov">          4 :         status = apr_socket_create(&amp;new-&gt;sd, new-&gt;bind_addr-&gt;family,</span>
+<span class="lineNum">     314 </span>            :                                     SOCK_STREAM, 0, process-&gt;pool);
+<span class="lineNum">     315 </span>            : 
+<span class="lineNum">     316 </span>            : #if APR_HAVE_IPV6
+<span class="lineNum">     317 </span>            :         /* What could happen is that we got an IPv6 address, but this system
+<span class="lineNum">     318 </span>            :          * doesn't actually support IPv6.  Try the next address.
+<span class="lineNum">     319 </span>            :          */
+<span class="lineNum">     320 </span><span class="lineCov">          4 :         if (status != APR_SUCCESS &amp;&amp; !addr &amp;&amp;</span>
+<span class="lineNum">     321 </span><span class="lineNoCov">          0 :             new-&gt;bind_addr-&gt;family == APR_INET6) {</span>
+<span class="lineNum">     322 </span><span class="lineNoCov">          0 :             continue;</span>
+<span class="lineNum">     323 </span>            :         }
+<span class="lineNum">     324 </span>            : #endif
+<span class="lineNum">     325 </span><span class="lineCov">          4 :         if (status != APR_SUCCESS) {</span>
+<span class="lineNum">     326 </span><span class="lineNoCov">          0 :             ap_log_perror(APLOG_MARK, APLOG_CRIT, status, process-&gt;pool, APLOGNO(00078)</span>
+<span class="lineNum">     327 </span>            :                           &quot;alloc_listener: failed to get a socket for %s&quot;,
+<span class="lineNum">     328 </span>            :                           addr);
+<span class="lineNum">     329 </span><span class="lineNoCov">          0 :             return &quot;Listen setup failed&quot;;</span>
+<span class="lineNum">     330 </span>            :         }
+<span class="lineNum">     331 </span>            : 
+<span class="lineNum">     332 </span>            :         /* We need to preserve the order returned by getaddrinfo() */
+<span class="lineNum">     333 </span><span class="lineCov">          4 :         if (last == NULL) {</span>
+<span class="lineNum">     334 </span><span class="lineCov">          2 :             ap_listeners = last = new;</span>
+<span class="lineNum">     335 </span>            :         } else {
+<span class="lineNum">     336 </span><span class="lineCov">          2 :             last-&gt;next = new;</span>
+<span class="lineNum">     337 </span><span class="lineCov">          2 :             last = new;</span>
+<span class="lineNum">     338 </span>            :         }
+<span class="lineNum">     339 </span><span class="lineCov">          4 :         new-&gt;slave = slave;</span>
+<span class="lineNum">     340 </span>            :     }
+<span class="lineNum">     341 </span>            : 
+<span class="lineNum">     342 </span><span class="lineCov">          2 :     return NULL;</span>
+<span class="lineNum">     343 </span>            : }
+<span class="lineNum">     344 </span>            : /* Evaluates to true if the (apr_sockaddr_t *) addr argument is the
+<span class="lineNum">     345 </span>            :  * IPv4 match-any-address, 0.0.0.0. */
+<span class="lineNum">     346 </span>            : #define IS_INADDR_ANY(addr) ((addr)-&gt;family == APR_INET \
+<span class="lineNum">     347 </span>            :                              &amp;&amp; (addr)-&gt;sa.sin.sin_addr.s_addr == INADDR_ANY)
+<span class="lineNum">     348 </span>            : 
+<span class="lineNum">     349 </span>            : /* Evaluates to true if the (apr_sockaddr_t *) addr argument is the
+<span class="lineNum">     350 </span>            :  * IPv6 match-any-address, [::]. */
+<span class="lineNum">     351 </span>            : #define IS_IN6ADDR_ANY(addr) ((addr)-&gt;family == APR_INET6 \
+<span class="lineNum">     352 </span>            :                               &amp;&amp; IN6_IS_ADDR_UNSPECIFIED(&amp;(addr)-&gt;sa.sin6.sin6_addr))
+<span class="lineNum">     353 </span>            : 
+<span class="lineNum">     354 </span>            : /**
+<span class="lineNum">     355 </span>            :  * Create, open, listen, and bind all sockets.
+<span class="lineNum">     356 </span>            :  * @param process The process record for the currently running server
+<a name="357"><span class="lineNum">     357 </span>            :  * @return The number of open sockets</a>
+<span class="lineNum">     358 </span>            :  */
+<span class="lineNum">     359 </span><span class="lineCov">          3 : static int open_listeners(apr_pool_t *pool)</span>
+<span class="lineNum">     360 </span>            : {
+<span class="lineNum">     361 </span>            :     ap_listen_rec *lr;
+<span class="lineNum">     362 </span>            :     ap_listen_rec *next;
+<span class="lineNum">     363 </span>            :     ap_listen_rec *previous;
+<span class="lineNum">     364 </span>            :     int num_open;
+<span class="lineNum">     365 </span><span class="lineCov">          3 :     const char *userdata_key = &quot;ap_open_listeners&quot;;</span>
+<span class="lineNum">     366 </span>            :     void *data;
+<span class="lineNum">     367 </span>            : #if AP_NONBLOCK_WHEN_MULTI_LISTEN
+<span class="lineNum">     368 </span>            :     int use_nonblock;
+<span class="lineNum">     369 </span>            : #endif
+<span class="lineNum">     370 </span>            : 
+<span class="lineNum">     371 </span>            :     /* Don't allocate a default listener.  If we need to listen to a
+<span class="lineNum">     372 </span>            :      * port, then the user needs to have a Listen directive in their
+<span class="lineNum">     373 </span>            :      * config file.
+<span class="lineNum">     374 </span>            :      */
+<span class="lineNum">     375 </span><span class="lineCov">          3 :     num_open = 0;</span>
+<span class="lineNum">     376 </span><span class="lineCov">          3 :     previous = NULL;</span>
+<span class="lineNum">     377 </span><span class="lineCov">          8 :     for (lr = ap_listeners; lr; previous = lr, lr = lr-&gt;next) {</span>
+<span class="lineNum">     378 </span><span class="lineCov">          5 :         if (lr-&gt;active) {</span>
+<span class="lineNum">     379 </span><span class="lineCov">          1 :             ++num_open;</span>
+<span class="lineNum">     380 </span>            :         }
+<span class="lineNum">     381 </span>            :         else {
+<span class="lineNum">     382 </span>            : #if APR_HAVE_IPV6
+<span class="lineNum">     383 </span>            :             ap_listen_rec *cur;
+<span class="lineNum">     384 </span>            :             int v6only_setting;
+<span class="lineNum">     385 </span><span class="lineCov">          4 :             int skip = 0;</span>
+<span class="lineNum">     386 </span>            : 
+<span class="lineNum">     387 </span>            :             /* If we have the unspecified IPv4 address (0.0.0.0) and
+<span class="lineNum">     388 </span>            :              * the unspecified IPv6 address (::) is next, we need to
+<span class="lineNum">     389 </span>            :              * swap the order of these in the list. We always try to
+<span class="lineNum">     390 </span>            :              * bind to IPv6 first, then IPv4, since an IPv6 socket
+<span class="lineNum">     391 </span>            :              * might be able to receive IPv4 packets if V6ONLY is not
+<span class="lineNum">     392 </span>            :              * enabled, but never the other way around.
+<span class="lineNum">     393 </span>            :              * Note: In some configurations, the unspecified IPv6 address
+<span class="lineNum">     394 </span>            :              * could be even later in the list.  This logic only corrects
+<span class="lineNum">     395 </span>            :              * the situation where it is next in the list, such as when
+<span class="lineNum">     396 </span>            :              * apr_sockaddr_info_get() returns an IPv4 and an IPv6 address,
+<span class="lineNum">     397 </span>            :              * in that order.
+<span class="lineNum">     398 </span>            :              */
+<span class="lineNum">     399 </span><span class="lineCov">          4 :             if (lr-&gt;next != NULL</span>
+<span class="lineNum">     400 </span><span class="lineCov">          2 :                 &amp;&amp; IS_INADDR_ANY(lr-&gt;bind_addr)</span>
+<span class="lineNum">     401 </span><span class="lineCov">          2 :                 &amp;&amp; lr-&gt;bind_addr-&gt;port == lr-&gt;next-&gt;bind_addr-&gt;port</span>
+<span class="lineNum">     402 </span><span class="lineCov">          2 :                 &amp;&amp; IS_IN6ADDR_ANY(lr-&gt;next-&gt;bind_addr)) {</span>
+<span class="lineNum">     403 </span>            :                 /* Exchange lr and lr-&gt;next */
+<span class="lineNum">     404 </span><span class="lineCov">          2 :                 next = lr-&gt;next;</span>
+<span class="lineNum">     405 </span><span class="lineCov">          2 :                 lr-&gt;next = next-&gt;next;</span>
+<span class="lineNum">     406 </span><span class="lineCov">          2 :                 next-&gt;next = lr;</span>
+<span class="lineNum">     407 </span><span class="lineCov">          2 :                 if (previous) {</span>
+<span class="lineNum">     408 </span><span class="lineNoCov">          0 :                     previous-&gt;next = next;</span>
+<span class="lineNum">     409 </span>            :                 }
+<span class="lineNum">     410 </span>            :                 else {
+<span class="lineNum">     411 </span><span class="lineCov">          2 :                     ap_listeners = next;</span>
+<span class="lineNum">     412 </span>            :                 }
+<span class="lineNum">     413 </span><span class="lineCov">          2 :                 lr = next;</span>
+<span class="lineNum">     414 </span>            :             }
+<span class="lineNum">     415 </span>            : 
+<span class="lineNum">     416 </span>            :             /* If we are trying to bind to 0.0.0.0 and a previous listener
+<span class="lineNum">     417 </span>            :              * was :: on the same port and in turn that socket does not have
+<span class="lineNum">     418 </span>            :              * the IPV6_V6ONLY flag set; we must skip the current attempt to
+<span class="lineNum">     419 </span>            :              * listen (which would generate an error). IPv4 will be handled
+<span class="lineNum">     420 </span>            :              * on the established IPv6 socket.
+<span class="lineNum">     421 </span>            :              */
+<span class="lineNum">     422 </span><span class="lineCov">          4 :             if (IS_INADDR_ANY(lr-&gt;bind_addr) &amp;&amp; previous) {</span>
+<span class="lineNum">     423 </span><span class="lineCov">          2 :                 for (cur = ap_listeners; cur != lr; cur = cur-&gt;next) {</span>
+<span class="lineNum">     424 </span><span class="lineCov">          2 :                     if (lr-&gt;bind_addr-&gt;port == cur-&gt;bind_addr-&gt;port</span>
+<span class="lineNum">     425 </span><span class="lineCov">          2 :                         &amp;&amp; IS_IN6ADDR_ANY(cur-&gt;bind_addr)</span>
+<span class="lineNum">     426 </span><span class="lineCov">          2 :                         &amp;&amp; apr_socket_opt_get(cur-&gt;sd, APR_IPV6_V6ONLY,</span>
+<span class="lineNum">     427 </span>            :                                               &amp;v6only_setting) == APR_SUCCESS
+<span class="lineNum">     428 </span><span class="lineCov">          2 :                         &amp;&amp; v6only_setting == 0) {</span>
+<span class="lineNum">     429 </span>            : 
+<span class="lineNum">     430 </span>            :                         /* Remove the current listener from the list */
+<span class="lineNum">     431 </span><span class="lineCov">          2 :                         previous-&gt;next = lr-&gt;next;</span>
+<span class="lineNum">     432 </span><span class="lineCov">          2 :                         lr = previous; /* maintain current value of previous after</span>
+<span class="lineNum">     433 </span>            :                                         * post-loop expression is evaluated
+<span class="lineNum">     434 </span>            :                                         */
+<span class="lineNum">     435 </span><span class="lineCov">          2 :                         skip = 1;</span>
+<span class="lineNum">     436 </span><span class="lineCov">          2 :                         break;</span>
+<span class="lineNum">     437 </span>            :                     }
+<span class="lineNum">     438 </span>            :                 }
+<span class="lineNum">     439 </span><span class="lineCov">          2 :                 if (skip) {</span>
+<span class="lineNum">     440 </span><span class="lineCov">          4 :                     continue;</span>
+<span class="lineNum">     441 </span>            :                 }
+<span class="lineNum">     442 </span>            :             }
+<span class="lineNum">     443 </span>            : #endif
+<span class="lineNum">     444 </span><span class="lineCov">          2 :             if (make_sock(pool, lr) == APR_SUCCESS) {</span>
+<span class="lineNum">     445 </span><span class="lineCov">          2 :                 ++num_open;</span>
+<span class="lineNum">     446 </span>            :             }
+<span class="lineNum">     447 </span>            :             else {
+<span class="lineNum">     448 </span>            : #if APR_HAVE_IPV6
+<span class="lineNum">     449 </span>            :                 /* If we tried to bind to ::, and the next listener is
+<span class="lineNum">     450 </span>            :                  * on 0.0.0.0 with the same port, don't give a fatal
+<span class="lineNum">     451 </span>            :                  * error. The user will still get a warning from make_sock
+<span class="lineNum">     452 </span>            :                  * though.
+<span class="lineNum">     453 </span>            :                  */
+<span class="lineNum">     454 </span><span class="lineNoCov">          0 :                 if (lr-&gt;next != NULL</span>
+<span class="lineNum">     455 </span><span class="lineNoCov">          0 :                     &amp;&amp; IS_IN6ADDR_ANY(lr-&gt;bind_addr)</span>
+<span class="lineNum">     456 </span><span class="lineNoCov">          0 :                     &amp;&amp; lr-&gt;bind_addr-&gt;port == lr-&gt;next-&gt;bind_addr-&gt;port</span>
+<span class="lineNum">     457 </span><span class="lineNoCov">          0 :                     &amp;&amp; IS_INADDR_ANY(lr-&gt;next-&gt;bind_addr)) {</span>
+<span class="lineNum">     458 </span>            : 
+<span class="lineNum">     459 </span>            :                     /* Remove the current listener from the list */
+<span class="lineNum">     460 </span><span class="lineNoCov">          0 :                     if (previous) {</span>
+<span class="lineNum">     461 </span><span class="lineNoCov">          0 :                         previous-&gt;next = lr-&gt;next;</span>
+<span class="lineNum">     462 </span>            :                     }
+<span class="lineNum">     463 </span>            :                     else {
+<span class="lineNum">     464 </span><span class="lineNoCov">          0 :                         ap_listeners = lr-&gt;next;</span>
+<span class="lineNum">     465 </span>            :                     }
+<span class="lineNum">     466 </span>            : 
+<span class="lineNum">     467 </span>            :                     /* Although we've removed ourselves from the list,
+<span class="lineNum">     468 </span>            :                      * we need to make sure that the next iteration won't
+<span class="lineNum">     469 </span>            :                      * consider &quot;previous&quot; a working IPv6 '::' socket.
+<span class="lineNum">     470 </span>            :                      * Changing the family is enough to make sure the
+<span class="lineNum">     471 </span>            :                      * conditions before make_sock() fail.
+<span class="lineNum">     472 </span>            :                      */
+<span class="lineNum">     473 </span><span class="lineNoCov">          0 :                     lr-&gt;bind_addr-&gt;family = AF_INET;</span>
+<span class="lineNum">     474 </span>            : 
+<span class="lineNum">     475 </span><span class="lineNoCov">          0 :                     continue;</span>
+<span class="lineNum">     476 </span>            :                 }
+<span class="lineNum">     477 </span>            : #endif
+<span class="lineNum">     478 </span>            :                 /* fatal error */
+<span class="lineNum">     479 </span><span class="lineNoCov">          0 :                 return -1;</span>
+<span class="lineNum">     480 </span>            :             }
+<span class="lineNum">     481 </span>            :         }
+<span class="lineNum">     482 </span>            :     }
+<span class="lineNum">     483 </span>            : 
+<span class="lineNum">     484 </span>            :     /* close the old listeners */
+<span class="lineNum">     485 </span><span class="lineCov">          3 :     for (lr = old_listeners; lr; lr = next) {</span>
+<span class="lineNum">     486 </span><span class="lineNoCov">          0 :         apr_socket_close(lr-&gt;sd);</span>
+<span class="lineNum">     487 </span><span class="lineNoCov">          0 :         lr-&gt;active = 0;</span>
+<span class="lineNum">     488 </span><span class="lineNoCov">          0 :         next = lr-&gt;next;</span>
+<span class="lineNum">     489 </span>            :     }
+<span class="lineNum">     490 </span><span class="lineCov">          3 :     old_listeners = NULL;</span>
+<span class="lineNum">     491 </span>            : 
+<span class="lineNum">     492 </span>            : #if AP_NONBLOCK_WHEN_MULTI_LISTEN
+<span class="lineNum">     493 </span>            :     /* if multiple listening sockets, make them non-blocking so that
+<span class="lineNum">     494 </span>            :      * if select()/poll() reports readability for a reset connection that
+<span class="lineNum">     495 </span>            :      * is already forgotten about by the time we call accept, we won't
+<span class="lineNum">     496 </span>            :      * be hung until another connection arrives on that port
+<span class="lineNum">     497 </span>            :      */
+<span class="lineNum">     498 </span><span class="lineCov">          3 :     use_nonblock = (ap_listeners &amp;&amp; ap_listeners-&gt;next);</span>
+<span class="lineNum">     499 </span><span class="lineCov">          6 :     for (lr = ap_listeners; lr; lr = lr-&gt;next) {</span>
+<span class="lineNum">     500 </span>            :         apr_status_t status;
+<span class="lineNum">     501 </span>            : 
+<span class="lineNum">     502 </span><span class="lineCov">          3 :         status = apr_socket_opt_set(lr-&gt;sd, APR_SO_NONBLOCK, use_nonblock);</span>
+<span class="lineNum">     503 </span><span class="lineCov">          3 :         if (status != APR_SUCCESS) {</span>
+<span class="lineNum">     504 </span><span class="lineNoCov">          0 :             ap_log_perror(APLOG_MARK, APLOG_STARTUP|APLOG_ERR, status, pool, APLOGNO(00079)</span>
+<span class="lineNum">     505 </span>            :                           &quot;unable to control socket non-blocking status&quot;);
+<span class="lineNum">     506 </span><span class="lineNoCov">          0 :             return -1;</span>
+<span class="lineNum">     507 </span>            :         }
+<span class="lineNum">     508 </span>            :     }
+<span class="lineNum">     509 </span>            : #endif /* AP_NONBLOCK_WHEN_MULTI_LISTEN */
+<span class="lineNum">     510 </span>            : 
+<span class="lineNum">     511 </span>            :     /* we come through here on both passes of the open logs phase
+<span class="lineNum">     512 </span>            :      * only register the cleanup once... otherwise we try to close
+<span class="lineNum">     513 </span>            :      * listening sockets twice when cleaning up prior to exec
+<span class="lineNum">     514 </span>            :      */
+<span class="lineNum">     515 </span><span class="lineCov">          3 :     apr_pool_userdata_get(&amp;data, userdata_key, pool);</span>
+<span class="lineNum">     516 </span><span class="lineCov">          3 :     if (!data) {</span>
+<span class="lineNum">     517 </span><span class="lineCov">          2 :         apr_pool_userdata_set((const void *)1, userdata_key,</span>
+<span class="lineNum">     518 </span>            :                               apr_pool_cleanup_null, pool);
+<span class="lineNum">     519 </span><span class="lineCov">          2 :         apr_pool_cleanup_register(pool, NULL, apr_pool_cleanup_null,</span>
+<span class="lineNum">     520 </span>            :                                   close_listeners_on_exec);
+<span class="lineNum">     521 </span>            :     }
+<span class="lineNum">     522 </span>            : 
+<span class="lineNum">     523 </span><span class="lineCov">          3 :     return num_open ? 0 : -1;</span>
+<a name="524"><span class="lineNum">     524 </span>            : }</a>
+<span class="lineNum">     525 </span>            : 
+<span class="lineNum">     526 </span><span class="lineCov">          3 : AP_DECLARE(int) ap_setup_listeners(server_rec *s)</span>
+<span class="lineNum">     527 </span>            : {
+<span class="lineNum">     528 </span>            :     server_rec *ls;
+<span class="lineNum">     529 </span>            :     server_addr_rec *addr;
+<span class="lineNum">     530 </span>            :     ap_listen_rec *lr;
+<span class="lineNum">     531 </span><span class="lineCov">          3 :     int num_listeners = 0;</span>
+<span class="lineNum">     532 </span>            :     const char* proto;
+<span class="lineNum">     533 </span>            :     int found;
+<span class="lineNum">     534 </span>            : 
+<span class="lineNum">     535 </span><span class="lineCov">          6 :     for (ls = s; ls; ls = ls-&gt;next) {</span>
+<span class="lineNum">     536 </span><span class="lineCov">          3 :         proto = ap_get_server_protocol(ls);</span>
+<span class="lineNum">     537 </span><span class="lineCov">          3 :         if (!proto) {</span>
+<span class="lineNum">     538 </span><span class="lineCov">          3 :             found = 0;</span>
+<span class="lineNum">     539 </span>            :             /* No protocol was set for this vhost,
+<span class="lineNum">     540 </span>            :              * use the default for this listener.
+<span class="lineNum">     541 </span>            :              */
+<span class="lineNum">     542 </span><span class="lineCov">          6 :             for (addr = ls-&gt;addrs; addr &amp;&amp; !found; addr = addr-&gt;next) {</span>
+<span class="lineNum">     543 </span><span class="lineCov">          8 :                 for (lr = ap_listeners; lr; lr = lr-&gt;next) {</span>
+<span class="lineNum">     544 </span><span class="lineCov">          7 :                     if (apr_sockaddr_equal(lr-&gt;bind_addr, addr-&gt;host_addr) &amp;&amp;</span>
+<span class="lineNum">     545 </span><span class="lineCov">          2 :                         lr-&gt;bind_addr-&gt;port == addr-&gt;host_port) {</span>
+<span class="lineNum">     546 </span><span class="lineNoCov">          0 :                         ap_set_server_protocol(ls, lr-&gt;protocol);</span>
+<span class="lineNum">     547 </span><span class="lineNoCov">          0 :                         found = 1;</span>
+<span class="lineNum">     548 </span><span class="lineNoCov">          0 :                         break;</span>
+<span class="lineNum">     549 </span>            :                     }
+<span class="lineNum">     550 </span>            :                 }
+<span class="lineNum">     551 </span>            :             }
+<span class="lineNum">     552 </span>            : 
+<span class="lineNum">     553 </span><span class="lineCov">          3 :             if (!found) {</span>
+<span class="lineNum">     554 </span>            :                 /* TODO: set protocol defaults per-Port, eg 25=smtp */
+<span class="lineNum">     555 </span><span class="lineCov">          3 :                 ap_set_server_protocol(ls, &quot;http&quot;);</span>
+<span class="lineNum">     556 </span>            :             }
+<span class="lineNum">     557 </span>            :         }
+<span class="lineNum">     558 </span>            :     }
+<span class="lineNum">     559 </span>            : 
+<span class="lineNum">     560 </span><span class="lineCov">          3 :     if (open_listeners(s-&gt;process-&gt;pool)) {</span>
+<span class="lineNum">     561 </span><span class="lineNoCov">          0 :        return 0;</span>
+<span class="lineNum">     562 </span>            :     }
+<span class="lineNum">     563 </span>            : 
+<span class="lineNum">     564 </span><span class="lineCov">          6 :     for (lr = ap_listeners; lr; lr = lr-&gt;next) {</span>
+<span class="lineNum">     565 </span><span class="lineCov">          3 :         num_listeners++;</span>
+<span class="lineNum">     566 </span><span class="lineCov">          3 :         found = 0;</span>
+<span class="lineNum">     567 </span><span class="lineCov">          6 :         for (ls = s; ls &amp;&amp; !found; ls = ls-&gt;next) {</span>
+<span class="lineNum">     568 </span><span class="lineCov">          6 :             for (addr = ls-&gt;addrs; addr &amp;&amp; !found; addr = addr-&gt;next) {</span>
+<span class="lineNum">     569 </span><span class="lineCov">          3 :                 if (apr_sockaddr_equal(lr-&gt;bind_addr, addr-&gt;host_addr) &amp;&amp;</span>
+<span class="lineNum">     570 </span><span class="lineNoCov">          0 :                     lr-&gt;bind_addr-&gt;port == addr-&gt;host_port) {</span>
+<span class="lineNum">     571 </span><span class="lineNoCov">          0 :                     found = 1;</span>
+<span class="lineNum">     572 </span><span class="lineNoCov">          0 :                     ap_apply_accept_filter(s-&gt;process-&gt;pool, lr, ls);</span>
+<span class="lineNum">     573 </span>            :                 }
+<span class="lineNum">     574 </span>            :             }
+<span class="lineNum">     575 </span>            :         }
+<span class="lineNum">     576 </span>            : 
+<span class="lineNum">     577 </span><span class="lineCov">          3 :         if (!found) {</span>
+<span class="lineNum">     578 </span><span class="lineCov">          3 :             ap_apply_accept_filter(s-&gt;process-&gt;pool, lr, s);</span>
+<span class="lineNum">     579 </span>            :         }
+<span class="lineNum">     580 </span>            :     }
+<span class="lineNum">     581 </span>            : 
+<span class="lineNum">     582 </span><span class="lineCov">          3 :     return num_listeners;</span>
+<a name="583"><span class="lineNum">     583 </span>            : }</a>
+<span class="lineNum">     584 </span>            : 
+<span class="lineNum">     585 </span><span class="lineCov">          3 : AP_DECLARE_NONSTD(void) ap_close_listeners(void)</span>
+<span class="lineNum">     586 </span>            : {
+<span class="lineNum">     587 </span>            :     ap_listen_rec *lr;
+<span class="lineNum">     588 </span>            : 
+<span class="lineNum">     589 </span><span class="lineCov">          6 :     for (lr = ap_listeners; lr; lr = lr-&gt;next) {</span>
+<span class="lineNum">     590 </span><span class="lineCov">          3 :         apr_socket_close(lr-&gt;sd);</span>
+<span class="lineNum">     591 </span><span class="lineCov">          3 :         lr-&gt;active = 0;</span>
+<a name="592"><span class="lineNum">     592 </span>            :     }</a>
+<span class="lineNum">     593 </span><span class="lineCov">          3 : }</span>
+<span class="lineNum">     594 </span><span class="lineNoCov">          0 : AP_DECLARE_NONSTD(int) ap_close_selected_listeners(ap_slave_t *slave)</span>
+<span class="lineNum">     595 </span>            : {
+<span class="lineNum">     596 </span>            :     ap_listen_rec *lr;
+<span class="lineNum">     597 </span><span class="lineNoCov">          0 :     int n = 0;</span>
+<span class="lineNum">     598 </span>            : 
+<span class="lineNum">     599 </span><span class="lineNoCov">          0 :     for (lr = ap_listeners; lr; lr = lr-&gt;next) {</span>
+<span class="lineNum">     600 </span><span class="lineNoCov">          0 :         if (lr-&gt;slave != slave) {</span>
+<span class="lineNum">     601 </span><span class="lineNoCov">          0 :             apr_socket_close(lr-&gt;sd);</span>
+<span class="lineNum">     602 </span><span class="lineNoCov">          0 :             lr-&gt;active = 0;</span>
+<span class="lineNum">     603 </span>            :         }
+<span class="lineNum">     604 </span>            :         else {
+<span class="lineNum">     605 </span><span class="lineNoCov">          0 :             ++n;</span>
+<span class="lineNum">     606 </span>            :         }
+<span class="lineNum">     607 </span>            :     }
+<span class="lineNum">     608 </span><span class="lineNoCov">          0 :     return n;</span>
+<a name="609"><span class="lineNum">     609 </span>            : }</a>
+<span class="lineNum">     610 </span>            : 
+<span class="lineNum">     611 </span><span class="lineCov">          3 : AP_DECLARE(void) ap_listen_pre_config(void)</span>
+<span class="lineNum">     612 </span>            : {
+<span class="lineNum">     613 </span><span class="lineCov">          3 :     old_listeners = ap_listeners;</span>
+<span class="lineNum">     614 </span><span class="lineCov">          3 :     ap_listeners = NULL;</span>
+<span class="lineNum">     615 </span><span class="lineCov">          3 :     ap_listenbacklog = DEFAULT_LISTENBACKLOG;</span>
+<a name="616"><span class="lineNum">     616 </span><span class="lineCov">          3 : }</span></a>
+<span class="lineNum">     617 </span>            : 
+<span class="lineNum">     618 </span><span class="lineCov">          3 : AP_DECLARE_NONSTD(const char *) ap_set_listener(cmd_parms *cmd, void *dummy,</span>
+<span class="lineNum">     619 </span>            :                                                 int argc, char *const argv[])
+<span class="lineNum">     620 </span>            : {
+<span class="lineNum">     621 </span>            :     char *host, *scope_id, *proto;
+<span class="lineNum">     622 </span>            :     apr_port_t port;
+<span class="lineNum">     623 </span>            :     apr_status_t rv;
+<span class="lineNum">     624 </span><span class="lineCov">          3 :     const char *err = ap_check_cmd_context(cmd, GLOBAL_ONLY);</span>
+<span class="lineNum">     625 </span>            : 
+<span class="lineNum">     626 </span><span class="lineCov">          3 :     if (err != NULL) {</span>
+<span class="lineNum">     627 </span><span class="lineNoCov">          0 :         return err;</span>
+<span class="lineNum">     628 </span>            :     }
+<span class="lineNum">     629 </span>            : 
+<span class="lineNum">     630 </span><span class="lineCov">          3 :     if (argc &lt; 1 || argc &gt; 2) {</span>
+<span class="lineNum">     631 </span><span class="lineNoCov">          0 :         return &quot;Listen requires 1 or 2 arguments.&quot;;</span>
+<span class="lineNum">     632 </span>            :     }
+<span class="lineNum">     633 </span>            : 
+<span class="lineNum">     634 </span><span class="lineCov">          3 :     rv = apr_parse_addr_port(&amp;host, &amp;scope_id, &amp;port, argv[0], cmd-&gt;pool);</span>
+<span class="lineNum">     635 </span><span class="lineCov">          3 :     if (rv != APR_SUCCESS) {</span>
+<span class="lineNum">     636 </span><span class="lineNoCov">          0 :         return &quot;Invalid address or port&quot;;</span>
+<span class="lineNum">     637 </span>            :     }
+<span class="lineNum">     638 </span>            : 
+<span class="lineNum">     639 </span><span class="lineCov">          3 :     if (host &amp;&amp; !strcmp(host, &quot;*&quot;)) {</span>
+<span class="lineNum">     640 </span><span class="lineNoCov">          0 :         host = NULL;</span>
+<span class="lineNum">     641 </span>            :     }
+<span class="lineNum">     642 </span>            : 
+<span class="lineNum">     643 </span><span class="lineCov">          3 :     if (scope_id) {</span>
+<span class="lineNum">     644 </span>            :         /* XXX scope id support is useful with link-local IPv6 addresses */
+<span class="lineNum">     645 </span><span class="lineNoCov">          0 :         return &quot;Scope id is not supported&quot;;</span>
+<span class="lineNum">     646 </span>            :     }
+<span class="lineNum">     647 </span>            : 
+<span class="lineNum">     648 </span><span class="lineCov">          3 :     if (!port) {</span>
+<span class="lineNum">     649 </span><span class="lineNoCov">          0 :         return &quot;Port must be specified&quot;;</span>
+<span class="lineNum">     650 </span>            :     }
+<span class="lineNum">     651 </span>            : 
+<span class="lineNum">     652 </span><span class="lineCov">          3 :     if (argc != 2) {</span>
+<span class="lineNum">     653 </span><span class="lineCov">          3 :         if (port == 443) {</span>
+<span class="lineNum">     654 </span><span class="lineNoCov">          0 :             proto = &quot;https&quot;;</span>
+<span class="lineNum">     655 </span>            :         } else {
+<span class="lineNum">     656 </span><span class="lineCov">          3 :             proto = &quot;http&quot;;</span>
+<span class="lineNum">     657 </span>            :         }
+<span class="lineNum">     658 </span>            :     }
+<span class="lineNum">     659 </span>            :     else {
+<span class="lineNum">     660 </span><span class="lineNoCov">          0 :         proto = apr_pstrdup(cmd-&gt;pool, argv[1]);</span>
+<span class="lineNum">     661 </span><span class="lineNoCov">          0 :         ap_str_tolower(proto);</span>
+<span class="lineNum">     662 </span>            :     }
+<span class="lineNum">     663 </span>            : 
+<span class="lineNum">     664 </span><span class="lineCov">          3 :     return alloc_listener(cmd-&gt;server-&gt;process, host, port, proto, NULL);</span>
+<a name="665"><span class="lineNum">     665 </span>            : }</a>
+<span class="lineNum">     666 </span>            : 
+<span class="lineNum">     667 </span><span class="lineNoCov">          0 : AP_DECLARE_NONSTD(const char *) ap_set_listenbacklog(cmd_parms *cmd,</span>
+<span class="lineNum">     668 </span>            :                                                      void *dummy,
+<span class="lineNum">     669 </span>            :                                                      const char *arg)
+<span class="lineNum">     670 </span>            : {
+<span class="lineNum">     671 </span>            :     int b;
+<span class="lineNum">     672 </span><span class="lineNoCov">          0 :     const char *err = ap_check_cmd_context(cmd, GLOBAL_ONLY);</span>
+<span class="lineNum">     673 </span>            : 
+<span class="lineNum">     674 </span><span class="lineNoCov">          0 :     if (err != NULL) {</span>
+<span class="lineNum">     675 </span><span class="lineNoCov">          0 :         return err;</span>
+<span class="lineNum">     676 </span>            :     }
+<span class="lineNum">     677 </span>            : 
+<span class="lineNum">     678 </span><span class="lineNoCov">          0 :     b = atoi(arg);</span>
+<span class="lineNum">     679 </span><span class="lineNoCov">          0 :     if (b &lt; 1) {</span>
+<span class="lineNum">     680 </span><span class="lineNoCov">          0 :         return &quot;ListenBacklog must be &gt; 0&quot;;</span>
+<span class="lineNum">     681 </span>            :     }
+<span class="lineNum">     682 </span>            : 
+<span class="lineNum">     683 </span><span class="lineNoCov">          0 :     ap_listenbacklog = b;</span>
+<span class="lineNum">     684 </span><span class="lineNoCov">          0 :     return NULL;</span>
+<a name="685"><span class="lineNum">     685 </span>            : }</a>
+<span class="lineNum">     686 </span>            : 
+<span class="lineNum">     687 </span><span class="lineNoCov">          0 : AP_DECLARE_NONSTD(const char *) ap_set_send_buffer_size(cmd_parms *cmd,</span>
+<span class="lineNum">     688 </span>            :                                                         void *dummy,
+<span class="lineNum">     689 </span>            :                                                         const char *arg)
+<span class="lineNum">     690 </span>            : {
+<span class="lineNum">     691 </span><span class="lineNoCov">          0 :     int s = atoi(arg);</span>
+<span class="lineNum">     692 </span><span class="lineNoCov">          0 :     const char *err = ap_check_cmd_context(cmd, GLOBAL_ONLY);</span>
+<span class="lineNum">     693 </span>            : 
+<span class="lineNum">     694 </span><span class="lineNoCov">          0 :     if (err != NULL) {</span>
+<span class="lineNum">     695 </span><span class="lineNoCov">          0 :         return err;</span>
+<span class="lineNum">     696 </span>            :     }
+<span class="lineNum">     697 </span>            : 
+<span class="lineNum">     698 </span><span class="lineNoCov">          0 :     if (s &lt; 512 &amp;&amp; s != 0) {</span>
+<span class="lineNum">     699 </span><span class="lineNoCov">          0 :         return &quot;SendBufferSize must be &gt;= 512 bytes, or 0 for system default.&quot;;</span>
+<span class="lineNum">     700 </span>            :     }
+<span class="lineNum">     701 </span>            : 
+<span class="lineNum">     702 </span><span class="lineNoCov">          0 :     send_buffer_size = s;</span>
+<span class="lineNum">     703 </span><span class="lineNoCov">          0 :     return NULL;</span>
+<a name="704"><span class="lineNum">     704 </span>            : }</a>
+<span class="lineNum">     705 </span>            : 
+<span class="lineNum">     706 </span><span class="lineNoCov">          0 : AP_DECLARE_NONSTD(const char *) ap_set_receive_buffer_size(cmd_parms *cmd,</span>
+<span class="lineNum">     707 </span>            :                                                            void *dummy,
+<span class="lineNum">     708 </span>            :                                                            const char *arg)
+<span class="lineNum">     709 </span>            : {
+<span class="lineNum">     710 </span><span class="lineNoCov">          0 :     int s = atoi(arg);</span>
+<span class="lineNum">     711 </span><span class="lineNoCov">          0 :     const char *err = ap_check_cmd_context(cmd, GLOBAL_ONLY);</span>
+<span class="lineNum">     712 </span>            : 
+<span class="lineNum">     713 </span><span class="lineNoCov">          0 :     if (err != NULL) {</span>
+<span class="lineNum">     714 </span><span class="lineNoCov">          0 :         return err;</span>
+<span class="lineNum">     715 </span>            :     }
+<span class="lineNum">     716 </span>            : 
+<span class="lineNum">     717 </span><span class="lineNoCov">          0 :     if (s &lt; 512 &amp;&amp; s != 0) {</span>
+<span class="lineNum">     718 </span><span class="lineNoCov">          0 :         return &quot;ReceiveBufferSize must be &gt;= 512 bytes, or 0 for system default.&quot;;</span>
+<span class="lineNum">     719 </span>            :     }
+<span class="lineNum">     720 </span>            : 
+<span class="lineNum">     721 </span><span class="lineNoCov">          0 :     receive_buffer_size = s;</span>
+<span class="lineNum">     722 </span><span class="lineNoCov">          0 :     return NULL;</span>
+<span class="lineNum">     723 </span>            : }
+</pre>
+      </td>
+    </tr>
+  </table>
+  <br>
+
+  <table width="100%" border=0 cellspacing=0 cellpadding=0>
+    <tr><td class="ruler"><img src="../glass.png" width=3 height=3 alt=""></td></tr>
+    <tr><td class="versionInfo">Generated by: <a href="http://ltp.sourceforge.net/coverage/lcov.php" target="_parent">LCOV version 1.11</a></td></tr>
+  </table>
+  <br>
+
+</body>
+</html>

@@ -1,0 +1,2206 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+
+<html lang="en">
+
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <title>LCOV - apptest.info - server/util_expr_parse.c</title>
+  <link rel="stylesheet" type="text/css" href="../gcov.css">
+</head>
+
+<body>
+
+  <table width="100%" border=0 cellspacing=0 cellpadding=0>
+    <tr><td class="title">LCOV - code coverage report</td></tr>
+    <tr><td class="ruler"><img src="../glass.png" width=3 height=3 alt=""></td></tr>
+
+    <tr>
+      <td width="100%">
+        <table cellpadding=1 border=0 width="100%">
+          <tr>
+            <td width="10%" class="headerItem">Current view:</td>
+            <td width="35%" class="headerValue"><a href="../index.html">top level</a> - <a href="index.html">server</a> - util_expr_parse.c<span style="font-size: 80%;"> (source / <a href="util_expr_parse.c.func-sort-c.html">functions</a>)</span></td>
+            <td width="5%"></td>
+            <td width="15%"></td>
+            <td width="10%" class="headerCovTableHead">Hit</td>
+            <td width="10%" class="headerCovTableHead">Total</td>
+            <td width="15%" class="headerCovTableHead">Coverage</td>
+          </tr>
+          <tr>
+            <td class="headerItem">Test:</td>
+            <td class="headerValue">apptest.info</td>
+            <td></td>
+            <td class="headerItem">Lines:</td>
+            <td class="headerCovTableEntry">0</td>
+            <td class="headerCovTableEntry">218</td>
+            <td class="headerCovTableEntryLo">0.0 %</td>
+          </tr>
+          <tr>
+            <td class="headerItem">Date:</td>
+            <td class="headerValue">2017-01-31 22:58:06</td>
+            <td></td>
+            <td class="headerItem">Functions:</td>
+            <td class="headerCovTableEntry">0</td>
+            <td class="headerCovTableEntry">4</td>
+            <td class="headerCovTableEntryLo">0.0 %</td>
+          </tr>
+          <tr><td><img src="../glass.png" width=3 height=3 alt=""></td></tr>
+        </table>
+      </td>
+    </tr>
+
+    <tr><td class="ruler"><img src="../glass.png" width=3 height=3 alt=""></td></tr>
+  </table>
+
+  <table cellpadding=0 cellspacing=0 border=0>
+    <tr>
+      <td><br></td>
+    </tr>
+    <tr>
+      <td>
+<pre class="sourceHeading">          Line data    Source code</pre>
+<pre class="source">
+<a name="1"><span class="lineNum">       1 </span>            : /* A Bison parser, made by GNU Bison 2.5.  */</a>
+<span class="lineNum">       2 </span>            : 
+<span class="lineNum">       3 </span>            : /* Bison implementation for Yacc-like parsers in C
+<span class="lineNum">       4 </span>            :    
+<span class="lineNum">       5 </span>            :       Copyright (C) 1984, 1989-1990, 2000-2011 Free Software Foundation, Inc.
+<span class="lineNum">       6 </span>            :    
+<span class="lineNum">       7 </span>            :    This program is free software: you can redistribute it and/or modify
+<span class="lineNum">       8 </span>            :    it under the terms of the GNU General Public License as published by
+<span class="lineNum">       9 </span>            :    the Free Software Foundation, either version 3 of the License, or
+<span class="lineNum">      10 </span>            :    (at your option) any later version.
+<span class="lineNum">      11 </span>            :    
+<span class="lineNum">      12 </span>            :    This program is distributed in the hope that it will be useful,
+<span class="lineNum">      13 </span>            :    but WITHOUT ANY WARRANTY; without even the implied warranty of
+<span class="lineNum">      14 </span>            :    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+<span class="lineNum">      15 </span>            :    GNU General Public License for more details.
+<span class="lineNum">      16 </span>            :    
+<span class="lineNum">      17 </span>            :    You should have received a copy of the GNU General Public License
+<span class="lineNum">      18 </span>            :    along with this program.  If not, see &lt;http://www.gnu.org/licenses/&gt;.  */
+<span class="lineNum">      19 </span>            : 
+<span class="lineNum">      20 </span>            : /* As a special exception, you may create a larger work that contains
+<span class="lineNum">      21 </span>            :    part or all of the Bison parser skeleton and distribute that work
+<span class="lineNum">      22 </span>            :    under terms of your choice, so long as that work isn't itself a
+<span class="lineNum">      23 </span>            :    parser generator using the skeleton or a modified version thereof
+<span class="lineNum">      24 </span>            :    as a parser skeleton.  Alternatively, if you modify or redistribute
+<span class="lineNum">      25 </span>            :    the parser skeleton itself, you may (at your option) remove this
+<span class="lineNum">      26 </span>            :    special exception, which will cause the skeleton and the resulting
+<span class="lineNum">      27 </span>            :    Bison output files to be licensed under the GNU General Public
+<span class="lineNum">      28 </span>            :    License without this special exception.
+<span class="lineNum">      29 </span>            :    
+<span class="lineNum">      30 </span>            :    This special exception was added by the Free Software Foundation in
+<span class="lineNum">      31 </span>            :    version 2.2 of Bison.  */
+<span class="lineNum">      32 </span>            : 
+<span class="lineNum">      33 </span>            : /* C LALR(1) parser skeleton written by Richard Stallman, by
+<span class="lineNum">      34 </span>            :    simplifying the original so-called &quot;semantic&quot; parser.  */
+<span class="lineNum">      35 </span>            : 
+<span class="lineNum">      36 </span>            : /* All symbols defined below should begin with yy or YY, to avoid
+<span class="lineNum">      37 </span>            :    infringing on user name space.  This should be done even for local
+<span class="lineNum">      38 </span>            :    variables, as they might otherwise be expanded by user macros.
+<span class="lineNum">      39 </span>            :    There are some unavoidable exceptions within include files to
+<span class="lineNum">      40 </span>            :    define necessary library symbols; they are noted &quot;INFRINGES ON
+<span class="lineNum">      41 </span>            :    USER NAME SPACE&quot; below.  */
+<span class="lineNum">      42 </span>            : 
+<span class="lineNum">      43 </span>            : /* Identify Bison output.  */
+<span class="lineNum">      44 </span>            : #define YYBISON 1
+<span class="lineNum">      45 </span>            : 
+<span class="lineNum">      46 </span>            : /* Bison version.  */
+<span class="lineNum">      47 </span>            : #define YYBISON_VERSION &quot;2.5&quot;
+<span class="lineNum">      48 </span>            : 
+<span class="lineNum">      49 </span>            : /* Skeleton name.  */
+<span class="lineNum">      50 </span>            : #define YYSKELETON_NAME &quot;yacc.c&quot;
+<span class="lineNum">      51 </span>            : 
+<span class="lineNum">      52 </span>            : /* Pure parsers.  */
+<span class="lineNum">      53 </span>            : #define YYPURE 1
+<span class="lineNum">      54 </span>            : 
+<span class="lineNum">      55 </span>            : /* Push parsers.  */
+<span class="lineNum">      56 </span>            : #define YYPUSH 0
+<span class="lineNum">      57 </span>            : 
+<span class="lineNum">      58 </span>            : /* Pull parsers.  */
+<span class="lineNum">      59 </span>            : #define YYPULL 1
+<span class="lineNum">      60 </span>            : 
+<span class="lineNum">      61 </span>            : /* Using locations.  */
+<span class="lineNum">      62 </span>            : #define YYLSP_NEEDED 0
+<span class="lineNum">      63 </span>            : 
+<span class="lineNum">      64 </span>            : /* Substitute the variable and function names.  */
+<span class="lineNum">      65 </span>            : #define yyparse         ap_expr_yyparse
+<span class="lineNum">      66 </span>            : #define yylex           ap_expr_yylex
+<span class="lineNum">      67 </span>            : #define yyerror         ap_expr_yyerror
+<span class="lineNum">      68 </span>            : #define yylval          ap_expr_yylval
+<span class="lineNum">      69 </span>            : #define yychar          ap_expr_yychar
+<span class="lineNum">      70 </span>            : #define yydebug         ap_expr_yydebug
+<span class="lineNum">      71 </span>            : #define yynerrs         ap_expr_yynerrs
+<span class="lineNum">      72 </span>            : 
+<span class="lineNum">      73 </span>            : 
+<span class="lineNum">      74 </span>            : /* Copy the first part of user declarations.  */
+<span class="lineNum">      75 </span>            : 
+<span class="lineNum">      76 </span>            : /* Line 268 of yacc.c  */
+<span class="lineNum">      77 </span>            : #line 31 &quot;util_expr_parse.y&quot;
+<span class="lineNum">      78 </span>            : 
+<span class="lineNum">      79 </span>            : #include &quot;util_expr_private.h&quot;
+<span class="lineNum">      80 </span>            : 
+<span class="lineNum">      81 </span>            : 
+<span class="lineNum">      82 </span>            : /* Line 268 of yacc.c  */
+<span class="lineNum">      83 </span>            : #line 84 &quot;util_expr_parse.c&quot;
+<span class="lineNum">      84 </span>            : 
+<span class="lineNum">      85 </span>            : /* Enabling traces.  */
+<span class="lineNum">      86 </span>            : #ifndef YYDEBUG
+<span class="lineNum">      87 </span>            : # define YYDEBUG 0
+<span class="lineNum">      88 </span>            : #endif
+<span class="lineNum">      89 </span>            : 
+<span class="lineNum">      90 </span>            : /* Enabling verbose error messages.  */
+<span class="lineNum">      91 </span>            : #ifdef YYERROR_VERBOSE
+<span class="lineNum">      92 </span>            : # undef YYERROR_VERBOSE
+<span class="lineNum">      93 </span>            : # define YYERROR_VERBOSE 1
+<span class="lineNum">      94 </span>            : #else
+<span class="lineNum">      95 </span>            : # define YYERROR_VERBOSE 1
+<span class="lineNum">      96 </span>            : #endif
+<span class="lineNum">      97 </span>            : 
+<span class="lineNum">      98 </span>            : /* Enabling the token table.  */
+<span class="lineNum">      99 </span>            : #ifndef YYTOKEN_TABLE
+<span class="lineNum">     100 </span>            : # define YYTOKEN_TABLE 0
+<span class="lineNum">     101 </span>            : #endif
+<span class="lineNum">     102 </span>            : 
+<span class="lineNum">     103 </span>            : 
+<span class="lineNum">     104 </span>            : /* Tokens.  */
+<span class="lineNum">     105 </span>            : #ifndef YYTOKENTYPE
+<span class="lineNum">     106 </span>            : # define YYTOKENTYPE
+<span class="lineNum">     107 </span>            :    /* Put the tokens into the symbol table, so that GDB and other debuggers
+<span class="lineNum">     108 </span>            :       know about them.  */
+<span class="lineNum">     109 </span>            :    enum yytokentype {
+<span class="lineNum">     110 </span>            :      T_TRUE = 258,
+<span class="lineNum">     111 </span>            :      T_FALSE = 259,
+<span class="lineNum">     112 </span>            :      T_EXPR_BOOL = 260,
+<span class="lineNum">     113 </span>            :      T_EXPR_STRING = 261,
+<span class="lineNum">     114 </span>            :      T_ERROR = 262,
+<span class="lineNum">     115 </span>            :      T_DIGIT = 263,
+<span class="lineNum">     116 </span>            :      T_ID = 264,
+<span class="lineNum">     117 </span>            :      T_STRING = 265,
+<span class="lineNum">     118 </span>            :      T_REGEX = 266,
+<span class="lineNum">     119 </span>            :      T_REGEX_I = 267,
+<span class="lineNum">     120 </span>            :      T_REGEX_BACKREF = 268,
+<span class="lineNum">     121 </span>            :      T_OP_UNARY = 269,
+<span class="lineNum">     122 </span>            :      T_OP_BINARY = 270,
+<span class="lineNum">     123 </span>            :      T_STR_BEGIN = 271,
+<span class="lineNum">     124 </span>            :      T_STR_END = 272,
+<span class="lineNum">     125 </span>            :      T_VAR_BEGIN = 273,
+<span class="lineNum">     126 </span>            :      T_VAR_END = 274,
+<span class="lineNum">     127 </span>            :      T_OP_EQ = 275,
+<span class="lineNum">     128 </span>            :      T_OP_NE = 276,
+<span class="lineNum">     129 </span>            :      T_OP_LT = 277,
+<span class="lineNum">     130 </span>            :      T_OP_LE = 278,
+<span class="lineNum">     131 </span>            :      T_OP_GT = 279,
+<span class="lineNum">     132 </span>            :      T_OP_GE = 280,
+<span class="lineNum">     133 </span>            :      T_OP_REG = 281,
+<span class="lineNum">     134 </span>            :      T_OP_NRE = 282,
+<span class="lineNum">     135 </span>            :      T_OP_IN = 283,
+<span class="lineNum">     136 </span>            :      T_OP_STR_EQ = 284,
+<span class="lineNum">     137 </span>            :      T_OP_STR_NE = 285,
+<span class="lineNum">     138 </span>            :      T_OP_STR_LT = 286,
+<span class="lineNum">     139 </span>            :      T_OP_STR_LE = 287,
+<span class="lineNum">     140 </span>            :      T_OP_STR_GT = 288,
+<span class="lineNum">     141 </span>            :      T_OP_STR_GE = 289,
+<span class="lineNum">     142 </span>            :      T_OP_CONCAT = 290,
+<span class="lineNum">     143 </span>            :      T_OP_OR = 291,
+<span class="lineNum">     144 </span>            :      T_OP_AND = 292,
+<span class="lineNum">     145 </span>            :      T_OP_NOT = 293
+<span class="lineNum">     146 </span>            :    };
+<span class="lineNum">     147 </span>            : #endif
+<span class="lineNum">     148 </span>            : 
+<span class="lineNum">     149 </span>            : 
+<span class="lineNum">     150 </span>            : 
+<span class="lineNum">     151 </span>            : #if ! defined YYSTYPE &amp;&amp; ! defined YYSTYPE_IS_DECLARED
+<span class="lineNum">     152 </span>            : typedef union YYSTYPE
+<span class="lineNum">     153 </span>            : {
+<span class="lineNum">     154 </span>            : 
+<span class="lineNum">     155 </span>            : /* Line 293 of yacc.c  */
+<span class="lineNum">     156 </span>            : #line 35 &quot;util_expr_parse.y&quot;
+<span class="lineNum">     157 </span>            : 
+<span class="lineNum">     158 </span>            :     char      *cpVal;
+<span class="lineNum">     159 </span>            :     ap_expr_t *exVal;
+<span class="lineNum">     160 </span>            :     int        num;
+<span class="lineNum">     161 </span>            : 
+<span class="lineNum">     162 </span>            : 
+<span class="lineNum">     163 </span>            : 
+<span class="lineNum">     164 </span>            : /* Line 293 of yacc.c  */
+<span class="lineNum">     165 </span>            : #line 166 &quot;util_expr_parse.c&quot;
+<span class="lineNum">     166 </span>            : } YYSTYPE;
+<span class="lineNum">     167 </span>            : # define YYSTYPE_IS_TRIVIAL 1
+<span class="lineNum">     168 </span>            : # define yystype YYSTYPE /* obsolescent; will be withdrawn */
+<span class="lineNum">     169 </span>            : # define YYSTYPE_IS_DECLARED 1
+<span class="lineNum">     170 </span>            : #endif
+<span class="lineNum">     171 </span>            : 
+<span class="lineNum">     172 </span>            : 
+<span class="lineNum">     173 </span>            : /* Copy the second part of user declarations.  */
+<span class="lineNum">     174 </span>            : 
+<span class="lineNum">     175 </span>            : /* Line 343 of yacc.c  */
+<span class="lineNum">     176 </span>            : #line 102 &quot;util_expr_parse.y&quot;
+<span class="lineNum">     177 </span>            : 
+<span class="lineNum">     178 </span>            : #include &quot;util_expr_private.h&quot;
+<span class="lineNum">     179 </span>            : #define yyscanner ctx-&gt;scanner
+<span class="lineNum">     180 </span>            : 
+<span class="lineNum">     181 </span>            : int ap_expr_yylex(YYSTYPE *lvalp, void *scanner);
+<span class="lineNum">     182 </span>            : 
+<span class="lineNum">     183 </span>            : 
+<span class="lineNum">     184 </span>            : /* Line 343 of yacc.c  */
+<span class="lineNum">     185 </span>            : #line 186 &quot;util_expr_parse.c&quot;
+<span class="lineNum">     186 </span>            : 
+<span class="lineNum">     187 </span>            : #ifdef short
+<span class="lineNum">     188 </span>            : # undef short
+<span class="lineNum">     189 </span>            : #endif
+<span class="lineNum">     190 </span>            : 
+<span class="lineNum">     191 </span>            : #ifdef YYTYPE_UINT8
+<span class="lineNum">     192 </span>            : typedef YYTYPE_UINT8 yytype_uint8;
+<span class="lineNum">     193 </span>            : #else
+<span class="lineNum">     194 </span>            : typedef unsigned char yytype_uint8;
+<span class="lineNum">     195 </span>            : #endif
+<span class="lineNum">     196 </span>            : 
+<span class="lineNum">     197 </span>            : #ifdef YYTYPE_INT8
+<span class="lineNum">     198 </span>            : typedef YYTYPE_INT8 yytype_int8;
+<span class="lineNum">     199 </span>            : #elif (defined __STDC__ || defined __C99__FUNC__ \
+<span class="lineNum">     200 </span>            :      || defined __cplusplus || defined _MSC_VER)
+<span class="lineNum">     201 </span>            : typedef signed char yytype_int8;
+<span class="lineNum">     202 </span>            : #else
+<span class="lineNum">     203 </span>            : typedef short int yytype_int8;
+<span class="lineNum">     204 </span>            : #endif
+<span class="lineNum">     205 </span>            : 
+<span class="lineNum">     206 </span>            : #ifdef YYTYPE_UINT16
+<span class="lineNum">     207 </span>            : typedef YYTYPE_UINT16 yytype_uint16;
+<span class="lineNum">     208 </span>            : #else
+<span class="lineNum">     209 </span>            : typedef unsigned short int yytype_uint16;
+<span class="lineNum">     210 </span>            : #endif
+<span class="lineNum">     211 </span>            : 
+<span class="lineNum">     212 </span>            : #ifdef YYTYPE_INT16
+<span class="lineNum">     213 </span>            : typedef YYTYPE_INT16 yytype_int16;
+<span class="lineNum">     214 </span>            : #else
+<span class="lineNum">     215 </span>            : typedef short int yytype_int16;
+<span class="lineNum">     216 </span>            : #endif
+<span class="lineNum">     217 </span>            : 
+<span class="lineNum">     218 </span>            : #ifndef YYSIZE_T
+<span class="lineNum">     219 </span>            : # ifdef __SIZE_TYPE__
+<span class="lineNum">     220 </span>            : #  define YYSIZE_T __SIZE_TYPE__
+<span class="lineNum">     221 </span>            : # elif defined size_t
+<span class="lineNum">     222 </span>            : #  define YYSIZE_T size_t
+<span class="lineNum">     223 </span>            : # elif ! defined YYSIZE_T &amp;&amp; (defined __STDC__ || defined __C99__FUNC__ \
+<span class="lineNum">     224 </span>            :      || defined __cplusplus || defined _MSC_VER)
+<span class="lineNum">     225 </span>            : #  include &lt;stddef.h&gt; /* INFRINGES ON USER NAME SPACE */
+<span class="lineNum">     226 </span>            : #  define YYSIZE_T size_t
+<span class="lineNum">     227 </span>            : # else
+<span class="lineNum">     228 </span>            : #  define YYSIZE_T unsigned int
+<span class="lineNum">     229 </span>            : # endif
+<span class="lineNum">     230 </span>            : #endif
+<span class="lineNum">     231 </span>            : 
+<span class="lineNum">     232 </span>            : #define YYSIZE_MAXIMUM ((YYSIZE_T) -1)
+<span class="lineNum">     233 </span>            : 
+<span class="lineNum">     234 </span>            : #ifndef YY_
+<span class="lineNum">     235 </span>            : # if defined YYENABLE_NLS &amp;&amp; YYENABLE_NLS
+<span class="lineNum">     236 </span>            : #  if ENABLE_NLS
+<span class="lineNum">     237 </span>            : #   include &lt;libintl.h&gt; /* INFRINGES ON USER NAME SPACE */
+<span class="lineNum">     238 </span>            : #   define YY_(msgid) dgettext (&quot;bison-runtime&quot;, msgid)
+<span class="lineNum">     239 </span>            : #  endif
+<span class="lineNum">     240 </span>            : # endif
+<span class="lineNum">     241 </span>            : # ifndef YY_
+<span class="lineNum">     242 </span>            : #  define YY_(msgid) msgid
+<span class="lineNum">     243 </span>            : # endif
+<span class="lineNum">     244 </span>            : #endif
+<span class="lineNum">     245 </span>            : 
+<span class="lineNum">     246 </span>            : /* Suppress unused-variable warnings by &quot;using&quot; E.  */
+<span class="lineNum">     247 </span>            : #if ! defined lint || defined __GNUC__
+<span class="lineNum">     248 </span>            : # define YYUSE(e) ((void) (e))
+<span class="lineNum">     249 </span>            : #else
+<span class="lineNum">     250 </span>            : # define YYUSE(e) /* empty */
+<span class="lineNum">     251 </span>            : #endif
+<span class="lineNum">     252 </span>            : 
+<span class="lineNum">     253 </span>            : /* Identity function, used to suppress warnings about constant conditions.  */
+<span class="lineNum">     254 </span>            : #ifndef lint
+<span class="lineNum">     255 </span>            : # define YYID(n) (n)
+<span class="lineNum">     256 </span>            : #else
+<span class="lineNum">     257 </span>            : #if (defined __STDC__ || defined __C99__FUNC__ \
+<span class="lineNum">     258 </span>            :      || defined __cplusplus || defined _MSC_VER)
+<span class="lineNum">     259 </span>            : static int
+<span class="lineNum">     260 </span>            : YYID (int yyi)
+<span class="lineNum">     261 </span>            : #else
+<span class="lineNum">     262 </span>            : static int
+<span class="lineNum">     263 </span>            : YYID (yyi)
+<span class="lineNum">     264 </span>            :     int yyi;
+<span class="lineNum">     265 </span>            : #endif
+<span class="lineNum">     266 </span>            : {
+<span class="lineNum">     267 </span>            :   return yyi;
+<span class="lineNum">     268 </span>            : }
+<span class="lineNum">     269 </span>            : #endif
+<span class="lineNum">     270 </span>            : 
+<span class="lineNum">     271 </span>            : #if ! defined yyoverflow || YYERROR_VERBOSE
+<span class="lineNum">     272 </span>            : 
+<span class="lineNum">     273 </span>            : /* The parser invokes alloca or malloc; define the necessary symbols.  */
+<span class="lineNum">     274 </span>            : 
+<span class="lineNum">     275 </span>            : # ifdef YYSTACK_USE_ALLOCA
+<span class="lineNum">     276 </span>            : #  if YYSTACK_USE_ALLOCA
+<span class="lineNum">     277 </span>            : #   ifdef __GNUC__
+<span class="lineNum">     278 </span>            : #    define YYSTACK_ALLOC __builtin_alloca
+<span class="lineNum">     279 </span>            : #   elif defined __BUILTIN_VA_ARG_INCR
+<span class="lineNum">     280 </span>            : #    include &lt;alloca.h&gt; /* INFRINGES ON USER NAME SPACE */
+<span class="lineNum">     281 </span>            : #   elif defined _AIX
+<span class="lineNum">     282 </span>            : #    define YYSTACK_ALLOC __alloca
+<span class="lineNum">     283 </span>            : #   elif defined _MSC_VER
+<span class="lineNum">     284 </span>            : #    include &lt;malloc.h&gt; /* INFRINGES ON USER NAME SPACE */
+<span class="lineNum">     285 </span>            : #    define alloca _alloca
+<span class="lineNum">     286 </span>            : #   else
+<span class="lineNum">     287 </span>            : #    define YYSTACK_ALLOC alloca
+<span class="lineNum">     288 </span>            : #    if ! defined _ALLOCA_H &amp;&amp; ! defined EXIT_SUCCESS &amp;&amp; (defined __STDC__ || defined __C99__FUNC__ \
+<span class="lineNum">     289 </span>            :      || defined __cplusplus || defined _MSC_VER)
+<span class="lineNum">     290 </span>            : #     include &lt;stdlib.h&gt; /* INFRINGES ON USER NAME SPACE */
+<span class="lineNum">     291 </span>            : #     ifndef EXIT_SUCCESS
+<span class="lineNum">     292 </span>            : #      define EXIT_SUCCESS 0
+<span class="lineNum">     293 </span>            : #     endif
+<span class="lineNum">     294 </span>            : #    endif
+<span class="lineNum">     295 </span>            : #   endif
+<span class="lineNum">     296 </span>            : #  endif
+<span class="lineNum">     297 </span>            : # endif
+<span class="lineNum">     298 </span>            : 
+<span class="lineNum">     299 </span>            : # ifdef YYSTACK_ALLOC
+<span class="lineNum">     300 </span>            :    /* Pacify GCC's `empty if-body' warning.  */
+<span class="lineNum">     301 </span>            : #  define YYSTACK_FREE(Ptr) do { /* empty */; } while (YYID (0))
+<span class="lineNum">     302 </span>            : #  ifndef YYSTACK_ALLOC_MAXIMUM
+<span class="lineNum">     303 </span>            :     /* The OS might guarantee only one guard page at the bottom of the stack,
+<span class="lineNum">     304 </span>            :        and a page size can be as small as 4096 bytes.  So we cannot safely
+<span class="lineNum">     305 </span>            :        invoke alloca (N) if N exceeds 4096.  Use a slightly smaller number
+<span class="lineNum">     306 </span>            :        to allow for a few compiler-allocated temporary stack slots.  */
+<span class="lineNum">     307 </span>            : #   define YYSTACK_ALLOC_MAXIMUM 4032 /* reasonable circa 2006 */
+<span class="lineNum">     308 </span>            : #  endif
+<span class="lineNum">     309 </span>            : # else
+<span class="lineNum">     310 </span>            : #  define YYSTACK_ALLOC YYMALLOC
+<span class="lineNum">     311 </span>            : #  define YYSTACK_FREE YYFREE
+<span class="lineNum">     312 </span>            : #  ifndef YYSTACK_ALLOC_MAXIMUM
+<span class="lineNum">     313 </span>            : #   define YYSTACK_ALLOC_MAXIMUM YYSIZE_MAXIMUM
+<span class="lineNum">     314 </span>            : #  endif
+<span class="lineNum">     315 </span>            : #  if (defined __cplusplus &amp;&amp; ! defined EXIT_SUCCESS \
+<span class="lineNum">     316 </span>            :        &amp;&amp; ! ((defined YYMALLOC || defined malloc) \
+<span class="lineNum">     317 </span>            :              &amp;&amp; (defined YYFREE || defined free)))
+<span class="lineNum">     318 </span>            : #   include &lt;stdlib.h&gt; /* INFRINGES ON USER NAME SPACE */
+<span class="lineNum">     319 </span>            : #   ifndef EXIT_SUCCESS
+<span class="lineNum">     320 </span>            : #    define EXIT_SUCCESS 0
+<span class="lineNum">     321 </span>            : #   endif
+<span class="lineNum">     322 </span>            : #  endif
+<span class="lineNum">     323 </span>            : #  ifndef YYMALLOC
+<span class="lineNum">     324 </span>            : #   define YYMALLOC malloc
+<span class="lineNum">     325 </span>            : #   if ! defined malloc &amp;&amp; ! defined EXIT_SUCCESS &amp;&amp; (defined __STDC__ || defined __C99__FUNC__ \
+<span class="lineNum">     326 </span>            :      || defined __cplusplus || defined _MSC_VER)
+<span class="lineNum">     327 </span>            : void *malloc (YYSIZE_T); /* INFRINGES ON USER NAME SPACE */
+<span class="lineNum">     328 </span>            : #   endif
+<span class="lineNum">     329 </span>            : #  endif
+<span class="lineNum">     330 </span>            : #  ifndef YYFREE
+<span class="lineNum">     331 </span>            : #   define YYFREE free
+<span class="lineNum">     332 </span>            : #   if ! defined free &amp;&amp; ! defined EXIT_SUCCESS &amp;&amp; (defined __STDC__ || defined __C99__FUNC__ \
+<span class="lineNum">     333 </span>            :      || defined __cplusplus || defined _MSC_VER)
+<span class="lineNum">     334 </span>            : void free (void *); /* INFRINGES ON USER NAME SPACE */
+<span class="lineNum">     335 </span>            : #   endif
+<span class="lineNum">     336 </span>            : #  endif
+<span class="lineNum">     337 </span>            : # endif
+<span class="lineNum">     338 </span>            : #endif /* ! defined yyoverflow || YYERROR_VERBOSE */
+<span class="lineNum">     339 </span>            : 
+<span class="lineNum">     340 </span>            : 
+<span class="lineNum">     341 </span>            : #if (! defined yyoverflow \
+<span class="lineNum">     342 </span>            :      &amp;&amp; (! defined __cplusplus \
+<span class="lineNum">     343 </span>            :          || (defined YYSTYPE_IS_TRIVIAL &amp;&amp; YYSTYPE_IS_TRIVIAL)))
+<span class="lineNum">     344 </span>            : 
+<span class="lineNum">     345 </span>            : /* A type that is properly aligned for any stack member.  */
+<span class="lineNum">     346 </span>            : union yyalloc
+<span class="lineNum">     347 </span>            : {
+<span class="lineNum">     348 </span>            :   yytype_int16 yyss_alloc;
+<span class="lineNum">     349 </span>            :   YYSTYPE yyvs_alloc;
+<span class="lineNum">     350 </span>            : };
+<span class="lineNum">     351 </span>            : 
+<span class="lineNum">     352 </span>            : /* The size of the maximum gap between one aligned stack and the next.  */
+<span class="lineNum">     353 </span>            : # define YYSTACK_GAP_MAXIMUM (sizeof (union yyalloc) - 1)
+<span class="lineNum">     354 </span>            : 
+<span class="lineNum">     355 </span>            : /* The size of an array large to enough to hold all stacks, each with
+<span class="lineNum">     356 </span>            :    N elements.  */
+<span class="lineNum">     357 </span>            : # define YYSTACK_BYTES(N) \
+<span class="lineNum">     358 </span>            :      ((N) * (sizeof (yytype_int16) + sizeof (YYSTYPE)) \
+<span class="lineNum">     359 </span>            :       + YYSTACK_GAP_MAXIMUM)
+<span class="lineNum">     360 </span>            : 
+<span class="lineNum">     361 </span>            : # define YYCOPY_NEEDED 1
+<span class="lineNum">     362 </span>            : 
+<span class="lineNum">     363 </span>            : /* Relocate STACK from its old location to the new one.  The
+<span class="lineNum">     364 </span>            :    local variables YYSIZE and YYSTACKSIZE give the old and new number of
+<span class="lineNum">     365 </span>            :    elements in the stack, and YYPTR gives the new location of the
+<span class="lineNum">     366 </span>            :    stack.  Advance YYPTR to a properly aligned location for the next
+<span class="lineNum">     367 </span>            :    stack.  */
+<span class="lineNum">     368 </span>            : # define YYSTACK_RELOCATE(Stack_alloc, Stack)                           \
+<span class="lineNum">     369 </span>            :     do                                                                  \
+<span class="lineNum">     370 </span>            :       {                                                                 \
+<span class="lineNum">     371 </span>            :         YYSIZE_T yynewbytes;                                            \
+<span class="lineNum">     372 </span>            :         YYCOPY (&amp;yyptr-&gt;Stack_alloc, Stack, yysize);                     \
+<span class="lineNum">     373 </span>            :         Stack = &amp;yyptr-&gt;Stack_alloc;                                     \
+<span class="lineNum">     374 </span>            :         yynewbytes = yystacksize * sizeof (*Stack) + YYSTACK_GAP_MAXIMUM; \
+<span class="lineNum">     375 </span>            :         yyptr += yynewbytes / sizeof (*yyptr);                          \
+<span class="lineNum">     376 </span>            :       }                                                                 \
+<span class="lineNum">     377 </span>            :     while (YYID (0))
+<span class="lineNum">     378 </span>            : 
+<span class="lineNum">     379 </span>            : #endif
+<span class="lineNum">     380 </span>            : 
+<span class="lineNum">     381 </span>            : #if defined YYCOPY_NEEDED &amp;&amp; YYCOPY_NEEDED
+<span class="lineNum">     382 </span>            : /* Copy COUNT objects from FROM to TO.  The source and destination do
+<span class="lineNum">     383 </span>            :    not overlap.  */
+<span class="lineNum">     384 </span>            : # ifndef YYCOPY
+<span class="lineNum">     385 </span>            : #  if defined __GNUC__ &amp;&amp; 1 &lt; __GNUC__
+<span class="lineNum">     386 </span>            : #   define YYCOPY(To, From, Count) \
+<span class="lineNum">     387 </span>            :       __builtin_memcpy (To, From, (Count) * sizeof (*(From)))
+<span class="lineNum">     388 </span>            : #  else
+<span class="lineNum">     389 </span>            : #   define YYCOPY(To, From, Count)              \
+<span class="lineNum">     390 </span>            :       do                                        \
+<span class="lineNum">     391 </span>            :         {                                       \
+<span class="lineNum">     392 </span>            :           YYSIZE_T yyi;                         \
+<span class="lineNum">     393 </span>            :           for (yyi = 0; yyi &lt; (Count); yyi++)        \
+<span class="lineNum">     394 </span>            :             (To)[yyi] = (From)[yyi];            \
+<span class="lineNum">     395 </span>            :         }                                       \
+<span class="lineNum">     396 </span>            :       while (YYID (0))
+<span class="lineNum">     397 </span>            : #  endif
+<span class="lineNum">     398 </span>            : # endif
+<span class="lineNum">     399 </span>            : #endif /* !YYCOPY_NEEDED */
+<span class="lineNum">     400 </span>            : 
+<span class="lineNum">     401 </span>            : /* YYFINAL -- State number of the termination state.  */
+<span class="lineNum">     402 </span>            : #define YYFINAL  28
+<span class="lineNum">     403 </span>            : /* YYLAST -- Last index in YYTABLE.  */
+<span class="lineNum">     404 </span>            : #define YYLAST   128
+<span class="lineNum">     405 </span>            : 
+<span class="lineNum">     406 </span>            : /* YYNTOKENS -- Number of terminals.  */
+<span class="lineNum">     407 </span>            : #define YYNTOKENS  45
+<span class="lineNum">     408 </span>            : /* YYNNTS -- Number of nonterminals.  */
+<span class="lineNum">     409 </span>            : #define YYNNTS  14
+<span class="lineNum">     410 </span>            : /* YYNRULES -- Number of rules.  */
+<span class="lineNum">     411 </span>            : #define YYNRULES  53
+<span class="lineNum">     412 </span>            : /* YYNRULES -- Number of states.  */
+<span class="lineNum">     413 </span>            : #define YYNSTATES  96
+<span class="lineNum">     414 </span>            : 
+<span class="lineNum">     415 </span>            : /* YYTRANSLATE(YYLEX) -- Bison symbol number corresponding to YYLEX.  */
+<span class="lineNum">     416 </span>            : #define YYUNDEFTOK  2
+<span class="lineNum">     417 </span>            : #define YYMAXUTOK   293
+<span class="lineNum">     418 </span>            : 
+<span class="lineNum">     419 </span>            : #define YYTRANSLATE(YYX)                                                \
+<span class="lineNum">     420 </span>            :   ((unsigned int) (YYX) &lt;= YYMAXUTOK ? yytranslate[YYX] : YYUNDEFTOK)
+<span class="lineNum">     421 </span>            : 
+<span class="lineNum">     422 </span>            : /* YYTRANSLATE[YYLEX] -- Bison symbol number corresponding to YYLEX.  */
+<span class="lineNum">     423 </span>            : static const yytype_uint8 yytranslate[] =
+<span class="lineNum">     424 </span>            : {
+<span class="lineNum">     425 </span>            :        0,     2,     2,     2,     2,     2,     2,     2,     2,     2,
+<span class="lineNum">     426 </span>            :        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
+<span class="lineNum">     427 </span>            :        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
+<span class="lineNum">     428 </span>            :        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
+<span class="lineNum">     429 </span>            :       39,    40,     2,     2,    43,     2,     2,     2,     2,     2,
+<span class="lineNum">     430 </span>            :        2,     2,     2,     2,     2,     2,     2,     2,    44,     2,
+<span class="lineNum">     431 </span>            :        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
+<span class="lineNum">     432 </span>            :        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
+<span class="lineNum">     433 </span>            :        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
+<span class="lineNum">     434 </span>            :        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
+<span class="lineNum">     435 </span>            :        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
+<span class="lineNum">     436 </span>            :        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
+<span class="lineNum">     437 </span>            :        2,     2,     2,    41,     2,    42,     2,     2,     2,     2,
+<span class="lineNum">     438 </span>            :        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
+<span class="lineNum">     439 </span>            :        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
+<span class="lineNum">     440 </span>            :        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
+<span class="lineNum">     441 </span>            :        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
+<span class="lineNum">     442 </span>            :        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
+<span class="lineNum">     443 </span>            :        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
+<span class="lineNum">     444 </span>            :        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
+<span class="lineNum">     445 </span>            :        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
+<span class="lineNum">     446 </span>            :        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
+<span class="lineNum">     447 </span>            :        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
+<span class="lineNum">     448 </span>            :        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
+<span class="lineNum">     449 </span>            :        2,     2,     2,     2,     2,     2,     2,     2,     2,     2,
+<span class="lineNum">     450 </span>            :        2,     2,     2,     2,     2,     2,     1,     2,     3,     4,
+<span class="lineNum">     451 </span>            :        5,     6,     7,     8,     9,    10,    11,    12,    13,    14,
+<span class="lineNum">     452 </span>            :       15,    16,    17,    18,    19,    20,    21,    22,    23,    24,
+<span class="lineNum">     453 </span>            :       25,    26,    27,    28,    29,    30,    31,    32,    33,    34,
+<span class="lineNum">     454 </span>            :       35,    36,    37,    38
+<span class="lineNum">     455 </span>            : };
+<span class="lineNum">     456 </span>            : 
+<span class="lineNum">     457 </span>            : #if YYDEBUG
+<span class="lineNum">     458 </span>            : /* YYPRHS[YYN] -- Index of the first RHS symbol of rule number YYN in
+<span class="lineNum">     459 </span>            :    YYRHS.  */
+<span class="lineNum">     460 </span>            : static const yytype_uint8 yyprhs[] =
+<span class="lineNum">     461 </span>            : {
+<span class="lineNum">     462 </span>            :        0,     0,     3,     6,     9,    11,    13,    15,    18,    22,
+<span class="lineNum">     463 </span>            :       26,    28,    31,    35,    39,    41,    45,    49,    53,    57,
+<span class="lineNum">     464 </span>            :       61,    65,    69,    73,    77,    81,    85,    89,    93,    97,
+<span class="lineNum">     465 </span>            :      101,   103,   107,   109,   113,   116,   118,   120,   122,   124,
+<span class="lineNum">     466 </span>            :      126,   130,   136,   138,   142,   144,   146,   148,   152,   155,
+<span class="lineNum">     467 </span>            :      157,   159,   161,   166
+<span class="lineNum">     468 </span>            : };
+<span class="lineNum">     469 </span>            : 
+<span class="lineNum">     470 </span>            : /* YYRHS -- A `-1'-separated list of the rules' RHS.  */
+<span class="lineNum">     471 </span>            : static const yytype_int8 yyrhs[] =
+<span class="lineNum">     472 </span>            : {
+<span class="lineNum">     473 </span>            :       46,     0,    -1,     5,    47,    -1,     6,    51,    -1,     7,
+<span class="lineNum">     474 </span>            :       -1,     3,    -1,     4,    -1,    38,    47,    -1,    47,    36,
+<span class="lineNum">     475 </span>            :       47,    -1,    47,    37,    47,    -1,    48,    -1,    14,    54,
+<span class="lineNum">     476 </span>            :       -1,    54,    15,    54,    -1,    39,    47,    40,    -1,     7,
+<span class="lineNum">     477 </span>            :       -1,    54,    20,    54,    -1,    54,    21,    54,    -1,    54,
+<span class="lineNum">     478 </span>            :       22,    54,    -1,    54,    23,    54,    -1,    54,    24,    54,
+<span class="lineNum">     479 </span>            :       -1,    54,    25,    54,    -1,    54,    29,    54,    -1,    54,
+<span class="lineNum">     480 </span>            :       30,    54,    -1,    54,    31,    54,    -1,    54,    32,    54,
+<span class="lineNum">     481 </span>            :       -1,    54,    33,    54,    -1,    54,    34,    54,    -1,    54,
+<span class="lineNum">     482 </span>            :       28,    49,    -1,    54,    26,    55,    -1,    54,    27,    55,
+<span class="lineNum">     483 </span>            :       -1,    57,    -1,    41,    50,    42,    -1,    54,    -1,    50,
+<span class="lineNum">     484 </span>            :       43,    54,    -1,    51,    52,    -1,    52,    -1,     7,    -1,
+<span class="lineNum">     485 </span>            :       10,    -1,    53,    -1,    56,    -1,    18,     9,    19,    -1,
+<span class="lineNum">     486 </span>            :       18,     9,    44,    51,    19,    -1,     8,    -1,    54,    35,
+<span class="lineNum">     487 </span>            :       54,    -1,    53,    -1,    56,    -1,    58,    -1,    16,    51,
+<span class="lineNum">     488 </span>            :       17,    -1,    16,    17,    -1,    11,    -1,    12,    -1,    13,
+<span class="lineNum">     489 </span>            :       -1,     9,    39,    54,    40,    -1,     9,    39,    54,    40,
+<span class="lineNum">     490 </span>            :       -1
+<span class="lineNum">     491 </span>            : };
+<span class="lineNum">     492 </span>            : 
+<span class="lineNum">     493 </span>            : /* YYRLINE[YYN] -- source line where rule number YYN was defined.  */
+<span class="lineNum">     494 </span>            : static const yytype_uint8 yyrline[] =
+<span class="lineNum">     495 </span>            : {
+<span class="lineNum">     496 </span>            :        0,   112,   112,   113,   114,   117,   118,   119,   120,   121,
+<span class="lineNum">     497 </span>            :      122,   123,   124,   125,   126,   129,   130,   131,   132,   133,
+<span class="lineNum">     498 </span>            :      134,   135,   136,   137,   138,   139,   140,   141,   142,   143,
+<span class="lineNum">     499 </span>            :      146,   147,   150,   151,   154,   155,   156,   159,   160,   161,
+<span class="lineNum">     500 </span>            :      164,   165,   168,   169,   170,   171,   172,   173,   174,   177,
+<span class="lineNum">     501 </span>            :      186,   197,   204,   207
+<span class="lineNum">     502 </span>            : };
+<span class="lineNum">     503 </span>            : #endif
+<span class="lineNum">     504 </span>            : 
+<span class="lineNum">     505 </span>            : #if YYDEBUG || YYERROR_VERBOSE || YYTOKEN_TABLE
+<span class="lineNum">     506 </span>            : /* YYTNAME[SYMBOL-NUM] -- String name of the symbol SYMBOL-NUM.
+<span class="lineNum">     507 </span>            :    First, the terminals, then, starting at YYNTOKENS, nonterminals.  */
+<span class="lineNum">     508 </span>            : static const char *const yytname[] =
+<span class="lineNum">     509 </span>            : {
+<span class="lineNum">     510 </span>            :   &quot;$end&quot;, &quot;error&quot;, &quot;$undefined&quot;, &quot;T_TRUE&quot;, &quot;T_FALSE&quot;, &quot;T_EXPR_BOOL&quot;,
+<span class="lineNum">     511 </span>            :   &quot;T_EXPR_STRING&quot;, &quot;T_ERROR&quot;, &quot;T_DIGIT&quot;, &quot;T_ID&quot;, &quot;T_STRING&quot;, &quot;T_REGEX&quot;,
+<span class="lineNum">     512 </span>            :   &quot;T_REGEX_I&quot;, &quot;T_REGEX_BACKREF&quot;, &quot;T_OP_UNARY&quot;, &quot;T_OP_BINARY&quot;,
+<span class="lineNum">     513 </span>            :   &quot;T_STR_BEGIN&quot;, &quot;T_STR_END&quot;, &quot;T_VAR_BEGIN&quot;, &quot;T_VAR_END&quot;, &quot;T_OP_EQ&quot;,
+<span class="lineNum">     514 </span>            :   &quot;T_OP_NE&quot;, &quot;T_OP_LT&quot;, &quot;T_OP_LE&quot;, &quot;T_OP_GT&quot;, &quot;T_OP_GE&quot;, &quot;T_OP_REG&quot;,
+<span class="lineNum">     515 </span>            :   &quot;T_OP_NRE&quot;, &quot;T_OP_IN&quot;, &quot;T_OP_STR_EQ&quot;, &quot;T_OP_STR_NE&quot;, &quot;T_OP_STR_LT&quot;,
+<span class="lineNum">     516 </span>            :   &quot;T_OP_STR_LE&quot;, &quot;T_OP_STR_GT&quot;, &quot;T_OP_STR_GE&quot;, &quot;T_OP_CONCAT&quot;, &quot;T_OP_OR&quot;,
+<span class="lineNum">     517 </span>            :   &quot;T_OP_AND&quot;, &quot;T_OP_NOT&quot;, &quot;'('&quot;, &quot;')'&quot;, &quot;'{'&quot;, &quot;'}'&quot;, &quot;','&quot;, &quot;':'&quot;,
+<span class="lineNum">     518 </span>            :   &quot;$accept&quot;, &quot;root&quot;, &quot;expr&quot;, &quot;comparison&quot;, &quot;wordlist&quot;, &quot;words&quot;, &quot;string&quot;,
+<span class="lineNum">     519 </span>            :   &quot;strpart&quot;, &quot;var&quot;, &quot;word&quot;, &quot;regex&quot;, &quot;backref&quot;, &quot;lstfunccall&quot;,
+<span class="lineNum">     520 </span>            :   &quot;strfunccall&quot;, 0
+<span class="lineNum">     521 </span>            : };
+<span class="lineNum">     522 </span>            : #endif
+<span class="lineNum">     523 </span>            : 
+<span class="lineNum">     524 </span>            : # ifdef YYPRINT
+<span class="lineNum">     525 </span>            : /* YYTOKNUM[YYLEX-NUM] -- Internal token number corresponding to
+<span class="lineNum">     526 </span>            :    token YYLEX-NUM.  */
+<span class="lineNum">     527 </span>            : static const yytype_uint16 yytoknum[] =
+<span class="lineNum">     528 </span>            : {
+<span class="lineNum">     529 </span>            :        0,   256,   257,   258,   259,   260,   261,   262,   263,   264,
+<span class="lineNum">     530 </span>            :      265,   266,   267,   268,   269,   270,   271,   272,   273,   274,
+<span class="lineNum">     531 </span>            :      275,   276,   277,   278,   279,   280,   281,   282,   283,   284,
+<span class="lineNum">     532 </span>            :      285,   286,   287,   288,   289,   290,   291,   292,   293,    40,
+<span class="lineNum">     533 </span>            :       41,   123,   125,    44,    58
+<span class="lineNum">     534 </span>            : };
+<span class="lineNum">     535 </span>            : # endif
+<span class="lineNum">     536 </span>            : 
+<span class="lineNum">     537 </span>            : /* YYR1[YYN] -- Symbol number of symbol that rule YYN derives.  */
+<span class="lineNum">     538 </span>            : static const yytype_uint8 yyr1[] =
+<span class="lineNum">     539 </span>            : {
+<span class="lineNum">     540 </span>            :        0,    45,    46,    46,    46,    47,    47,    47,    47,    47,
+<span class="lineNum">     541 </span>            :       47,    47,    47,    47,    47,    48,    48,    48,    48,    48,
+<span class="lineNum">     542 </span>            :       48,    48,    48,    48,    48,    48,    48,    48,    48,    48,
+<span class="lineNum">     543 </span>            :       49,    49,    50,    50,    51,    51,    51,    52,    52,    52,
+<span class="lineNum">     544 </span>            :       53,    53,    54,    54,    54,    54,    54,    54,    54,    55,
+<span class="lineNum">     545 </span>            :       55,    56,    57,    58
+<span class="lineNum">     546 </span>            : };
+<span class="lineNum">     547 </span>            : 
+<span class="lineNum">     548 </span>            : /* YYR2[YYN] -- Number of symbols composing right hand side of rule YYN.  */
+<span class="lineNum">     549 </span>            : static const yytype_uint8 yyr2[] =
+<span class="lineNum">     550 </span>            : {
+<span class="lineNum">     551 </span>            :        0,     2,     2,     2,     1,     1,     1,     2,     3,     3,
+<span class="lineNum">     552 </span>            :        1,     2,     3,     3,     1,     3,     3,     3,     3,     3,
+<span class="lineNum">     553 </span>            :        3,     3,     3,     3,     3,     3,     3,     3,     3,     3,
+<span class="lineNum">     554 </span>            :        1,     3,     1,     3,     2,     1,     1,     1,     1,     1,
+<span class="lineNum">     555 </span>            :        3,     5,     1,     3,     1,     1,     1,     3,     2,     1,
+<span class="lineNum">     556 </span>            :        1,     1,     4,     4
+<span class="lineNum">     557 </span>            : };
+<span class="lineNum">     558 </span>            : 
+<span class="lineNum">     559 </span>            : /* YYDEFACT[STATE-NAME] -- Default reduction number in state STATE-NUM.
+<span class="lineNum">     560 </span>            :    Performed when YYTABLE doesn't specify something else to do.  Zero
+<span class="lineNum">     561 </span>            :    means the default is an error.  */
+<span class="lineNum">     562 </span>            : static const yytype_uint8 yydefact[] =
+<span class="lineNum">     563 </span>            : {
+<span class="lineNum">     564 </span>            :        0,     0,     0,     4,     0,     5,     6,    14,    42,     0,
+<span class="lineNum">     565 </span>            :       51,     0,     0,     0,     0,     0,     2,    10,    44,     0,
+<span class="lineNum">     566 </span>            :       45,    46,    36,    37,     3,    35,    38,    39,     1,     0,
+<span class="lineNum">     567 </span>            :       11,    48,     0,     0,     7,     0,     0,     0,     0,     0,
+<span class="lineNum">     568 </span>            :        0,     0,     0,     0,     0,     0,     0,     0,     0,     0,
+<span class="lineNum">     569 </span>            :        0,     0,     0,     0,     0,    34,     0,    47,    40,     0,
+<span class="lineNum">     570 </span>            :       13,     8,     9,    12,    15,    16,    17,    18,    19,    20,
+<span class="lineNum">     571 </span>            :       49,    50,    28,    29,     0,     0,    27,    30,    21,    22,
+<span class="lineNum">     572 </span>            :       23,    24,    25,    26,    43,    53,     0,     0,     0,    32,
+<span class="lineNum">     573 </span>            :       41,     0,    31,     0,    52,    33
+<span class="lineNum">     574 </span>            : };
+<span class="lineNum">     575 </span>            : 
+<span class="lineNum">     576 </span>            : /* YYDEFGOTO[NTERM-NUM].  */
+<span class="lineNum">     577 </span>            : static const yytype_int8 yydefgoto[] =
+<span class="lineNum">     578 </span>            : {
+<span class="lineNum">     579 </span>            :       -1,     4,    16,    17,    76,    88,    24,    25,    18,    19,
+<span class="lineNum">     580 </span>            :       72,    20,    77,    21
+<span class="lineNum">     581 </span>            : };
+<span class="lineNum">     582 </span>            : 
+<span class="lineNum">     583 </span>            : /* YYPACT[STATE-NUM] -- Index in YYTABLE of the portion describing
+<span class="lineNum">     584 </span>            :    STATE-NUM.  */
+<span class="lineNum">     585 </span>            : #define YYPACT_NINF -35
+<span class="lineNum">     586 </span>            : static const yytype_int8 yypact[] =
+<span class="lineNum">     587 </span>            : {
+<span class="lineNum">     588 </span>            :       48,    60,    73,   -35,     7,   -35,   -35,   -35,   -35,   -34,
+<span class="lineNum">     589 </span>            :      -35,    43,     8,    11,    60,    60,    86,   -35,   -35,    80,
+<span class="lineNum">     590 </span>            :      -35,   -35,   -35,   -35,   108,   -35,   -35,   -35,   -35,    43,
+<span class="lineNum">     591 </span>            :       25,   -35,    79,   -17,   -35,    -8,    60,    60,    43,    43,
+<span class="lineNum">     592 </span>            :       43,    43,    43,    43,    43,     5,     5,     0,    43,    43,
+<span class="lineNum">     593 </span>            :       43,    43,    43,    43,    43,   -35,   -27,   -35,   -35,    73,
+<span class="lineNum">     594 </span>            :      -35,    86,     3,    25,    25,    25,    25,    25,    25,    25,
+<span class="lineNum">     595 </span>            :      -35,   -35,   -35,   -35,    23,    43,   -35,   -35,    25,    25,
+<span class="lineNum">     596 </span>            :       25,    25,    25,    25,    25,   -35,   106,    43,    85,    25,
+<span class="lineNum">     597 </span>            :      -35,   -21,   -35,    43,   -35,    25
+<span class="lineNum">     598 </span>            : };
+<span class="lineNum">     599 </span>            : 
+<span class="lineNum">     600 </span>            : /* YYPGOTO[NTERM-NUM].  */
+<span class="lineNum">     601 </span>            : static const yytype_int8 yypgoto[] =
+<span class="lineNum">     602 </span>            : {
+<span class="lineNum">     603 </span>            :      -35,   -35,    57,   -35,   -35,   -35,    -9,   -20,    -2,    -5,
+<span class="lineNum">     604 </span>            :       -4,    -1,   -35,   -35
+<span class="lineNum">     605 </span>            : };
+<span class="lineNum">     606 </span>            : 
+<span class="lineNum">     607 </span>            : /* YYTABLE[YYPACT[STATE-NUM]].  What to do in state STATE-NUM.  If
+<span class="lineNum">     608 </span>            :    positive, shift that token.  If negative, reduce the rule which
+<span class="lineNum">     609 </span>            :    number is the opposite.  If YYTABLE_NINF, syntax error.  */
+<span class="lineNum">     610 </span>            : #define YYTABLE_NINF -1
+<span class="lineNum">     611 </span>            : static const yytype_uint8 yytable[] =
+<span class="lineNum">     612 </span>            : {
+<span class="lineNum">     613 </span>            :       26,    27,    58,    32,    55,    29,    30,    28,    54,    74,
+<span class="lineNum">     614 </span>            :       26,    27,    55,    85,    54,    22,    70,    71,    23,    94,
+<span class="lineNum">     615 </span>            :       33,    10,    26,    27,    56,    31,    13,    59,    36,    37,
+<span class="lineNum">     616 </span>            :       26,    27,    60,    63,    64,    65,    66,    67,    68,    69,
+<span class="lineNum">     617 </span>            :       37,    75,    73,    78,    79,    80,    81,    82,    83,    84,
+<span class="lineNum">     618 </span>            :       86,     8,     9,     1,     2,     3,    10,    26,    27,    12,
+<span class="lineNum">     619 </span>            :       54,    13,    87,     5,     6,     0,    55,     7,     8,     9,
+<span class="lineNum">     620 </span>            :       89,    34,    35,    10,    11,     0,    12,     0,    13,     0,
+<span class="lineNum">     621 </span>            :       22,     0,    91,    23,    26,    27,    10,     0,    95,    23,
+<span class="lineNum">     622 </span>            :        0,    13,    10,    61,    62,    38,    57,    13,    14,    15,
+<span class="lineNum">     623 </span>            :       39,    40,    41,    42,    43,    44,    45,    46,    47,    48,
+<span class="lineNum">     624 </span>            :       49,    50,    51,    52,    53,    54,    23,     0,    23,    10,
+<span class="lineNum">     625 </span>            :        0,    10,    36,    37,    13,    90,    13,    92,    93
+<span class="lineNum">     626 </span>            : };
+<span class="lineNum">     627 </span>            : 
+<span class="lineNum">     628 </span>            : #define yypact_value_is_default(yystate) \
+<span class="lineNum">     629 </span>            :   ((yystate) == (-35))
+<span class="lineNum">     630 </span>            : 
+<span class="lineNum">     631 </span>            : #define yytable_value_is_error(yytable_value) \
+<span class="lineNum">     632 </span>            :   YYID (0)
+<span class="lineNum">     633 </span>            : 
+<span class="lineNum">     634 </span>            : static const yytype_int8 yycheck[] =
+<span class="lineNum">     635 </span>            : {
+<span class="lineNum">     636 </span>            :        2,     2,    19,    12,    24,    39,    11,     0,    35,     9,
+<span class="lineNum">     637 </span>            :       12,    12,    32,    40,    35,     7,    11,    12,    10,    40,
+<span class="lineNum">     638 </span>            :        9,    13,    24,    24,    29,    17,    18,    44,    36,    37,
+<span class="lineNum">     639 </span>            :       32,    32,    40,    38,    39,    40,    41,    42,    43,    44,
+<span class="lineNum">     640 </span>            :       37,    41,    46,    48,    49,    50,    51,    52,    53,    54,
+<span class="lineNum">     641 </span>            :       59,     8,     9,     5,     6,     7,    13,    59,    59,    16,
+<span class="lineNum">     642 </span>            :       35,    18,    39,     3,     4,    -1,    86,     7,     8,     9,
+<span class="lineNum">     643 </span>            :       75,    14,    15,    13,    14,    -1,    16,    -1,    18,    -1,
+<span class="lineNum">     644 </span>            :        7,    -1,    87,    10,    86,    86,    13,    -1,    93,    10,
+<span class="lineNum">     645 </span>            :       -1,    18,    13,    36,    37,    15,    17,    18,    38,    39,
+<span class="lineNum">     646 </span>            :       20,    21,    22,    23,    24,    25,    26,    27,    28,    29,
+<span class="lineNum">     647 </span>            :       30,    31,    32,    33,    34,    35,    10,    -1,    10,    13,
+<span class="lineNum">     648 </span>            :       -1,    13,    36,    37,    18,    19,    18,    42,    43
+<span class="lineNum">     649 </span>            : };
+<span class="lineNum">     650 </span>            : 
+<span class="lineNum">     651 </span>            : /* YYSTOS[STATE-NUM] -- The (internal number of the) accessing
+<span class="lineNum">     652 </span>            :    symbol of state STATE-NUM.  */
+<span class="lineNum">     653 </span>            : static const yytype_uint8 yystos[] =
+<span class="lineNum">     654 </span>            : {
+<span class="lineNum">     655 </span>            :        0,     5,     6,     7,    46,     3,     4,     7,     8,     9,
+<span class="lineNum">     656 </span>            :       13,    14,    16,    18,    38,    39,    47,    48,    53,    54,
+<span class="lineNum">     657 </span>            :       56,    58,     7,    10,    51,    52,    53,    56,     0,    39,
+<span class="lineNum">     658 </span>            :       54,    17,    51,     9,    47,    47,    36,    37,    15,    20,
+<span class="lineNum">     659 </span>            :       21,    22,    23,    24,    25,    26,    27,    28,    29,    30,
+<span class="lineNum">     660 </span>            :       31,    32,    33,    34,    35,    52,    54,    17,    19,    44,
+<span class="lineNum">     661 </span>            :       40,    47,    47,    54,    54,    54,    54,    54,    54,    54,
+<span class="lineNum">     662 </span>            :       11,    12,    55,    55,     9,    41,    49,    57,    54,    54,
+<span class="lineNum">     663 </span>            :       54,    54,    54,    54,    54,    40,    51,    39,    50,    54,
+<span class="lineNum">     664 </span>            :       19,    54,    42,    43,    40,    54
+<span class="lineNum">     665 </span>            : };
+<span class="lineNum">     666 </span>            : 
+<span class="lineNum">     667 </span>            : #define yyerrok         (yyerrstatus = 0)
+<span class="lineNum">     668 </span>            : #define yyclearin       (yychar = YYEMPTY)
+<span class="lineNum">     669 </span>            : #define YYEMPTY         (-2)
+<span class="lineNum">     670 </span>            : #define YYEOF           0
+<span class="lineNum">     671 </span>            : 
+<span class="lineNum">     672 </span>            : #define YYACCEPT        goto yyacceptlab
+<span class="lineNum">     673 </span>            : #define YYABORT         goto yyabortlab
+<span class="lineNum">     674 </span>            : #define YYERROR         goto yyerrorlab
+<span class="lineNum">     675 </span>            : 
+<span class="lineNum">     676 </span>            : 
+<span class="lineNum">     677 </span>            : /* Like YYERROR except do call yyerror.  This remains here temporarily
+<span class="lineNum">     678 </span>            :    to ease the transition to the new meaning of YYERROR, for GCC.
+<span class="lineNum">     679 </span>            :    Once GCC version 2 has supplanted version 1, this can go.  However,
+<span class="lineNum">     680 </span>            :    YYFAIL appears to be in use.  Nevertheless, it is formally deprecated
+<span class="lineNum">     681 </span>            :    in Bison 2.4.2's NEWS entry, where a plan to phase it out is
+<span class="lineNum">     682 </span>            :    discussed.  */
+<span class="lineNum">     683 </span>            : 
+<span class="lineNum">     684 </span>            : #define YYFAIL          goto yyerrlab
+<span class="lineNum">     685 </span>            : #if defined YYFAIL
+<span class="lineNum">     686 </span>            :   /* This is here to suppress warnings from the GCC cpp's
+<span class="lineNum">     687 </span>            :      -Wunused-macros.  Normally we don't worry about that warning, but
+<span class="lineNum">     688 </span>            :      some users do, and we want to make it easy for users to remove
+<span class="lineNum">     689 </span>            :      YYFAIL uses, which will produce warnings from Bison 2.5.  */
+<span class="lineNum">     690 </span>            : #endif
+<span class="lineNum">     691 </span>            : 
+<span class="lineNum">     692 </span>            : #define YYRECOVERING()  (!!yyerrstatus)
+<span class="lineNum">     693 </span>            : 
+<span class="lineNum">     694 </span>            : #define YYBACKUP(Token, Value)                                  \
+<span class="lineNum">     695 </span>            : do                                                              \
+<span class="lineNum">     696 </span>            :   if (yychar == YYEMPTY &amp;&amp; yylen == 1)                          \
+<span class="lineNum">     697 </span>            :     {                                                           \
+<span class="lineNum">     698 </span>            :       yychar = (Token);                                         \
+<span class="lineNum">     699 </span>            :       yylval = (Value);                                         \
+<span class="lineNum">     700 </span>            :       YYPOPSTACK (1);                                           \
+<span class="lineNum">     701 </span>            :       goto yybackup;                                            \
+<span class="lineNum">     702 </span>            :     }                                                           \
+<span class="lineNum">     703 </span>            :   else                                                          \
+<span class="lineNum">     704 </span>            :     {                                                           \
+<span class="lineNum">     705 </span>            :       yyerror (ctx, YY_(&quot;syntax error: cannot back up&quot;)); \
+<span class="lineNum">     706 </span>            :       YYERROR;                                                  \
+<span class="lineNum">     707 </span>            :     }                                                           \
+<span class="lineNum">     708 </span>            : while (YYID (0))
+<span class="lineNum">     709 </span>            : 
+<span class="lineNum">     710 </span>            : 
+<span class="lineNum">     711 </span>            : #define YYTERROR        1
+<span class="lineNum">     712 </span>            : #define YYERRCODE       256
+<span class="lineNum">     713 </span>            : 
+<span class="lineNum">     714 </span>            : 
+<span class="lineNum">     715 </span>            : /* YYLLOC_DEFAULT -- Set CURRENT to span from RHS[1] to RHS[N].
+<span class="lineNum">     716 </span>            :    If N is 0, then set CURRENT to the empty location which ends
+<span class="lineNum">     717 </span>            :    the previous symbol: RHS[0] (always defined).  */
+<span class="lineNum">     718 </span>            : 
+<span class="lineNum">     719 </span>            : #define YYRHSLOC(Rhs, K) ((Rhs)[K])
+<span class="lineNum">     720 </span>            : #ifndef YYLLOC_DEFAULT
+<span class="lineNum">     721 </span>            : # define YYLLOC_DEFAULT(Current, Rhs, N)                                \
+<span class="lineNum">     722 </span>            :     do                                                                  \
+<span class="lineNum">     723 </span>            :       if (YYID (N))                                                    \
+<span class="lineNum">     724 </span>            :         {                                                               \
+<span class="lineNum">     725 </span>            :           (Current).first_line   = YYRHSLOC (Rhs, 1).first_line;        \
+<span class="lineNum">     726 </span>            :           (Current).first_column = YYRHSLOC (Rhs, 1).first_column;      \
+<span class="lineNum">     727 </span>            :           (Current).last_line    = YYRHSLOC (Rhs, N).last_line;         \
+<span class="lineNum">     728 </span>            :           (Current).last_column  = YYRHSLOC (Rhs, N).last_column;       \
+<span class="lineNum">     729 </span>            :         }                                                               \
+<span class="lineNum">     730 </span>            :       else                                                              \
+<span class="lineNum">     731 </span>            :         {                                                               \
+<span class="lineNum">     732 </span>            :           (Current).first_line   = (Current).last_line   =              \
+<span class="lineNum">     733 </span>            :             YYRHSLOC (Rhs, 0).last_line;                                \
+<span class="lineNum">     734 </span>            :           (Current).first_column = (Current).last_column =              \
+<span class="lineNum">     735 </span>            :             YYRHSLOC (Rhs, 0).last_column;                              \
+<span class="lineNum">     736 </span>            :         }                                                               \
+<span class="lineNum">     737 </span>            :     while (YYID (0))
+<span class="lineNum">     738 </span>            : #endif
+<span class="lineNum">     739 </span>            : 
+<span class="lineNum">     740 </span>            : 
+<span class="lineNum">     741 </span>            : /* This macro is provided for backward compatibility. */
+<span class="lineNum">     742 </span>            : 
+<span class="lineNum">     743 </span>            : #ifndef YY_LOCATION_PRINT
+<span class="lineNum">     744 </span>            : # define YY_LOCATION_PRINT(File, Loc) ((void) 0)
+<span class="lineNum">     745 </span>            : #endif
+<span class="lineNum">     746 </span>            : 
+<span class="lineNum">     747 </span>            : 
+<span class="lineNum">     748 </span>            : /* YYLEX -- calling `yylex' with the right arguments.  */
+<span class="lineNum">     749 </span>            : 
+<span class="lineNum">     750 </span>            : #ifdef YYLEX_PARAM
+<span class="lineNum">     751 </span>            : # define YYLEX yylex (&amp;yylval, YYLEX_PARAM)
+<span class="lineNum">     752 </span>            : #else
+<span class="lineNum">     753 </span>            : # define YYLEX yylex (&amp;yylval, yyscanner)
+<span class="lineNum">     754 </span>            : #endif
+<span class="lineNum">     755 </span>            : 
+<span class="lineNum">     756 </span>            : /* Enable debugging if requested.  */
+<span class="lineNum">     757 </span>            : #if YYDEBUG
+<span class="lineNum">     758 </span>            : 
+<span class="lineNum">     759 </span>            : # ifndef YYFPRINTF
+<span class="lineNum">     760 </span>            : #  include &lt;stdio.h&gt; /* INFRINGES ON USER NAME SPACE */
+<span class="lineNum">     761 </span>            : #  define YYFPRINTF fprintf
+<span class="lineNum">     762 </span>            : # endif
+<span class="lineNum">     763 </span>            : 
+<span class="lineNum">     764 </span>            : # define YYDPRINTF(Args)                        \
+<span class="lineNum">     765 </span>            : do {                                            \
+<span class="lineNum">     766 </span>            :   if (yydebug)                                  \
+<span class="lineNum">     767 </span>            :     YYFPRINTF Args;                             \
+<span class="lineNum">     768 </span>            : } while (YYID (0))
+<span class="lineNum">     769 </span>            : 
+<span class="lineNum">     770 </span>            : # define YY_SYMBOL_PRINT(Title, Type, Value, Location)                    \
+<span class="lineNum">     771 </span>            : do {                                                                      \
+<span class="lineNum">     772 </span>            :   if (yydebug)                                                            \
+<span class="lineNum">     773 </span>            :     {                                                                     \
+<span class="lineNum">     774 </span>            :       YYFPRINTF (stderr, &quot;%s &quot;, Title);                                         \
+<span class="lineNum">     775 </span>            :       yy_symbol_print (stderr,                                            \
+<span class="lineNum">     776 </span>            :                   Type, Value, ctx); \
+<span class="lineNum">     777 </span>            :       YYFPRINTF (stderr, &quot;\n&quot;);                                                 \
+<span class="lineNum">     778 </span>            :     }                                                                     \
+<span class="lineNum">     779 </span>            : } while (YYID (0))
+<span class="lineNum">     780 </span>            : 
+<span class="lineNum">     781 </span>            : 
+<span class="lineNum">     782 </span>            : /*--------------------------------.
+<span class="lineNum">     783 </span>            : | Print this symbol on YYOUTPUT.  |
+<span class="lineNum">     784 </span>            : `--------------------------------*/
+<span class="lineNum">     785 </span>            : 
+<span class="lineNum">     786 </span>            : /*ARGSUSED*/
+<span class="lineNum">     787 </span>            : #if (defined __STDC__ || defined __C99__FUNC__ \
+<span class="lineNum">     788 </span>            :      || defined __cplusplus || defined _MSC_VER)
+<span class="lineNum">     789 </span>            : static void
+<span class="lineNum">     790 </span>            : yy_symbol_value_print (FILE *yyoutput, int yytype, YYSTYPE const * const yyvaluep, ap_expr_parse_ctx_t *ctx)
+<span class="lineNum">     791 </span>            : #else
+<span class="lineNum">     792 </span>            : static void
+<span class="lineNum">     793 </span>            : yy_symbol_value_print (yyoutput, yytype, yyvaluep, ctx)
+<span class="lineNum">     794 </span>            :     FILE *yyoutput;
+<span class="lineNum">     795 </span>            :     int yytype;
+<span class="lineNum">     796 </span>            :     YYSTYPE const * const yyvaluep;
+<span class="lineNum">     797 </span>            :     ap_expr_parse_ctx_t *ctx;
+<span class="lineNum">     798 </span>            : #endif
+<span class="lineNum">     799 </span>            : {
+<span class="lineNum">     800 </span>            :   if (!yyvaluep)
+<span class="lineNum">     801 </span>            :     return;
+<span class="lineNum">     802 </span>            :   YYUSE (ctx);
+<span class="lineNum">     803 </span>            : # ifdef YYPRINT
+<span class="lineNum">     804 </span>            :   if (yytype &lt; YYNTOKENS)
+<span class="lineNum">     805 </span>            :     YYPRINT (yyoutput, yytoknum[yytype], *yyvaluep);
+<span class="lineNum">     806 </span>            : # else
+<span class="lineNum">     807 </span>            :   YYUSE (yyoutput);
+<span class="lineNum">     808 </span>            : # endif
+<span class="lineNum">     809 </span>            :   switch (yytype)
+<span class="lineNum">     810 </span>            :     {
+<span class="lineNum">     811 </span>            :       default:
+<span class="lineNum">     812 </span>            :         break;
+<span class="lineNum">     813 </span>            :     }
+<span class="lineNum">     814 </span>            : }
+<span class="lineNum">     815 </span>            : 
+<span class="lineNum">     816 </span>            : 
+<span class="lineNum">     817 </span>            : /*--------------------------------.
+<span class="lineNum">     818 </span>            : | Print this symbol on YYOUTPUT.  |
+<span class="lineNum">     819 </span>            : `--------------------------------*/
+<span class="lineNum">     820 </span>            : 
+<span class="lineNum">     821 </span>            : #if (defined __STDC__ || defined __C99__FUNC__ \
+<span class="lineNum">     822 </span>            :      || defined __cplusplus || defined _MSC_VER)
+<span class="lineNum">     823 </span>            : static void
+<span class="lineNum">     824 </span>            : yy_symbol_print (FILE *yyoutput, int yytype, YYSTYPE const * const yyvaluep, ap_expr_parse_ctx_t *ctx)
+<span class="lineNum">     825 </span>            : #else
+<span class="lineNum">     826 </span>            : static void
+<span class="lineNum">     827 </span>            : yy_symbol_print (yyoutput, yytype, yyvaluep, ctx)
+<span class="lineNum">     828 </span>            :     FILE *yyoutput;
+<span class="lineNum">     829 </span>            :     int yytype;
+<span class="lineNum">     830 </span>            :     YYSTYPE const * const yyvaluep;
+<span class="lineNum">     831 </span>            :     ap_expr_parse_ctx_t *ctx;
+<span class="lineNum">     832 </span>            : #endif
+<span class="lineNum">     833 </span>            : {
+<span class="lineNum">     834 </span>            :   if (yytype &lt; YYNTOKENS)
+<span class="lineNum">     835 </span>            :     YYFPRINTF (yyoutput, &quot;token %s (&quot;, yytname[yytype]);
+<span class="lineNum">     836 </span>            :   else
+<span class="lineNum">     837 </span>            :     YYFPRINTF (yyoutput, &quot;nterm %s (&quot;, yytname[yytype]);
+<span class="lineNum">     838 </span>            : 
+<span class="lineNum">     839 </span>            :   yy_symbol_value_print (yyoutput, yytype, yyvaluep, ctx);
+<span class="lineNum">     840 </span>            :   YYFPRINTF (yyoutput, &quot;)&quot;);
+<span class="lineNum">     841 </span>            : }
+<span class="lineNum">     842 </span>            : 
+<span class="lineNum">     843 </span>            : /*------------------------------------------------------------------.
+<span class="lineNum">     844 </span>            : | yy_stack_print -- Print the state stack from its BOTTOM up to its |
+<span class="lineNum">     845 </span>            : | TOP (included).                                                   |
+<span class="lineNum">     846 </span>            : `------------------------------------------------------------------*/
+<span class="lineNum">     847 </span>            : 
+<span class="lineNum">     848 </span>            : #if (defined __STDC__ || defined __C99__FUNC__ \
+<span class="lineNum">     849 </span>            :      || defined __cplusplus || defined _MSC_VER)
+<span class="lineNum">     850 </span>            : static void
+<span class="lineNum">     851 </span>            : yy_stack_print (yytype_int16 *yybottom, yytype_int16 *yytop)
+<span class="lineNum">     852 </span>            : #else
+<span class="lineNum">     853 </span>            : static void
+<span class="lineNum">     854 </span>            : yy_stack_print (yybottom, yytop)
+<span class="lineNum">     855 </span>            :     yytype_int16 *yybottom;
+<span class="lineNum">     856 </span>            :     yytype_int16 *yytop;
+<span class="lineNum">     857 </span>            : #endif
+<span class="lineNum">     858 </span>            : {
+<span class="lineNum">     859 </span>            :   YYFPRINTF (stderr, &quot;Stack now&quot;);
+<span class="lineNum">     860 </span>            :   for (; yybottom &lt;= yytop; yybottom++)
+<span class="lineNum">     861 </span>            :     {
+<span class="lineNum">     862 </span>            :       int yybot = *yybottom;
+<span class="lineNum">     863 </span>            :       YYFPRINTF (stderr, &quot; %d&quot;, yybot);
+<span class="lineNum">     864 </span>            :     }
+<span class="lineNum">     865 </span>            :   YYFPRINTF (stderr, &quot;\n&quot;);
+<span class="lineNum">     866 </span>            : }
+<span class="lineNum">     867 </span>            : 
+<span class="lineNum">     868 </span>            : # define YY_STACK_PRINT(Bottom, Top)                            \
+<span class="lineNum">     869 </span>            : do {                                                            \
+<span class="lineNum">     870 </span>            :   if (yydebug)                                                  \
+<span class="lineNum">     871 </span>            :     yy_stack_print ((Bottom), (Top));                           \
+<span class="lineNum">     872 </span>            : } while (YYID (0))
+<span class="lineNum">     873 </span>            : 
+<span class="lineNum">     874 </span>            : 
+<span class="lineNum">     875 </span>            : /*------------------------------------------------.
+<span class="lineNum">     876 </span>            : | Report that the YYRULE is going to be reduced.  |
+<span class="lineNum">     877 </span>            : `------------------------------------------------*/
+<span class="lineNum">     878 </span>            : 
+<span class="lineNum">     879 </span>            : #if (defined __STDC__ || defined __C99__FUNC__ \
+<span class="lineNum">     880 </span>            :      || defined __cplusplus || defined _MSC_VER)
+<span class="lineNum">     881 </span>            : static void
+<span class="lineNum">     882 </span>            : yy_reduce_print (YYSTYPE *yyvsp, int yyrule, ap_expr_parse_ctx_t *ctx)
+<span class="lineNum">     883 </span>            : #else
+<span class="lineNum">     884 </span>            : static void
+<span class="lineNum">     885 </span>            : yy_reduce_print (yyvsp, yyrule, ctx)
+<span class="lineNum">     886 </span>            :     YYSTYPE *yyvsp;
+<span class="lineNum">     887 </span>            :     int yyrule;
+<span class="lineNum">     888 </span>            :     ap_expr_parse_ctx_t *ctx;
+<span class="lineNum">     889 </span>            : #endif
+<span class="lineNum">     890 </span>            : {
+<span class="lineNum">     891 </span>            :   int yynrhs = yyr2[yyrule];
+<span class="lineNum">     892 </span>            :   int yyi;
+<span class="lineNum">     893 </span>            :   unsigned long int yylno = yyrline[yyrule];
+<span class="lineNum">     894 </span>            :   YYFPRINTF (stderr, &quot;Reducing stack by rule %d (line %lu):\n&quot;,
+<span class="lineNum">     895 </span>            :              yyrule - 1, yylno);
+<span class="lineNum">     896 </span>            :   /* The symbols being reduced.  */
+<span class="lineNum">     897 </span>            :   for (yyi = 0; yyi &lt; yynrhs; yyi++)
+<span class="lineNum">     898 </span>            :     {
+<span class="lineNum">     899 </span>            :       YYFPRINTF (stderr, &quot;   $%d = &quot;, yyi + 1);
+<span class="lineNum">     900 </span>            :       yy_symbol_print (stderr, yyrhs[yyprhs[yyrule] + yyi],
+<span class="lineNum">     901 </span>            :                        &amp;(yyvsp[(yyi + 1) - (yynrhs)])
+<span class="lineNum">     902 </span>            :                                        , ctx);
+<span class="lineNum">     903 </span>            :       YYFPRINTF (stderr, &quot;\n&quot;);
+<span class="lineNum">     904 </span>            :     }
+<span class="lineNum">     905 </span>            : }
+<span class="lineNum">     906 </span>            : 
+<span class="lineNum">     907 </span>            : # define YY_REDUCE_PRINT(Rule)          \
+<span class="lineNum">     908 </span>            : do {                                    \
+<span class="lineNum">     909 </span>            :   if (yydebug)                          \
+<span class="lineNum">     910 </span>            :     yy_reduce_print (yyvsp, Rule, ctx); \
+<span class="lineNum">     911 </span>            : } while (YYID (0))
+<span class="lineNum">     912 </span>            : 
+<span class="lineNum">     913 </span>            : /* Nonzero means print parse trace.  It is left uninitialized so that
+<span class="lineNum">     914 </span>            :    multiple parsers can coexist.  */
+<span class="lineNum">     915 </span>            : int yydebug;
+<span class="lineNum">     916 </span>            : #else /* !YYDEBUG */
+<span class="lineNum">     917 </span>            : # define YYDPRINTF(Args)
+<span class="lineNum">     918 </span>            : # define YY_SYMBOL_PRINT(Title, Type, Value, Location)
+<span class="lineNum">     919 </span>            : # define YY_STACK_PRINT(Bottom, Top)
+<span class="lineNum">     920 </span>            : # define YY_REDUCE_PRINT(Rule)
+<span class="lineNum">     921 </span>            : #endif /* !YYDEBUG */
+<span class="lineNum">     922 </span>            : 
+<span class="lineNum">     923 </span>            : 
+<span class="lineNum">     924 </span>            : /* YYINITDEPTH -- initial size of the parser's stacks.  */
+<span class="lineNum">     925 </span>            : #ifndef YYINITDEPTH
+<span class="lineNum">     926 </span>            : # define YYINITDEPTH 200
+<span class="lineNum">     927 </span>            : #endif
+<span class="lineNum">     928 </span>            : 
+<span class="lineNum">     929 </span>            : /* YYMAXDEPTH -- maximum size the stacks can grow to (effective only
+<span class="lineNum">     930 </span>            :    if the built-in stack extension method is used).
+<span class="lineNum">     931 </span>            : 
+<span class="lineNum">     932 </span>            :    Do not make this value too large; the results are undefined if
+<span class="lineNum">     933 </span>            :    YYSTACK_ALLOC_MAXIMUM &lt; YYSTACK_BYTES (YYMAXDEPTH)
+<span class="lineNum">     934 </span>            :    evaluated with infinite-precision integer arithmetic.  */
+<span class="lineNum">     935 </span>            : 
+<span class="lineNum">     936 </span>            : #ifndef YYMAXDEPTH
+<span class="lineNum">     937 </span>            : # define YYMAXDEPTH 10000
+<span class="lineNum">     938 </span>            : #endif
+<span class="lineNum">     939 </span>            : 
+<span class="lineNum">     940 </span>            : 
+<span class="lineNum">     941 </span>            : #if YYERROR_VERBOSE
+<span class="lineNum">     942 </span>            : 
+<span class="lineNum">     943 </span>            : # ifndef yystrlen
+<span class="lineNum">     944 </span>            : #  if defined __GLIBC__ &amp;&amp; defined _STRING_H
+<span class="lineNum">     945 </span>            : #   define yystrlen strlen
+<span class="lineNum">     946 </span>            : #  else
+<span class="lineNum">     947 </span>            : /* Return the length of YYSTR.  */
+<span class="lineNum">     948 </span>            : #if (defined __STDC__ || defined __C99__FUNC__ \
+<span class="lineNum">     949 </span>            :      || defined __cplusplus || defined _MSC_VER)
+<span class="lineNum">     950 </span>            : static YYSIZE_T
+<span class="lineNum">     951 </span>            : yystrlen (const char *yystr)
+<span class="lineNum">     952 </span>            : #else
+<span class="lineNum">     953 </span>            : static YYSIZE_T
+<span class="lineNum">     954 </span>            : yystrlen (yystr)
+<span class="lineNum">     955 </span>            :     const char *yystr;
+<span class="lineNum">     956 </span>            : #endif
+<span class="lineNum">     957 </span>            : {
+<span class="lineNum">     958 </span>            :   YYSIZE_T yylen;
+<span class="lineNum">     959 </span>            :   for (yylen = 0; yystr[yylen]; yylen++)
+<span class="lineNum">     960 </span>            :     continue;
+<span class="lineNum">     961 </span>            :   return yylen;
+<span class="lineNum">     962 </span>            : }
+<span class="lineNum">     963 </span>            : #  endif
+<span class="lineNum">     964 </span>            : # endif
+<span class="lineNum">     965 </span>            : 
+<span class="lineNum">     966 </span>            : # ifndef yystpcpy
+<span class="lineNum">     967 </span>            : #  if defined __GLIBC__ &amp;&amp; defined _STRING_H &amp;&amp; defined _GNU_SOURCE
+<span class="lineNum">     968 </span>            : #   define yystpcpy stpcpy
+<span class="lineNum">     969 </span>            : #  else
+<span class="lineNum">     970 </span>            : /* Copy YYSRC to YYDEST, returning the address of the terminating '\0' in
+<span class="lineNum">     971 </span>            :    YYDEST.  */
+<span class="lineNum">     972 </span>            : #if (defined __STDC__ || defined __C99__FUNC__ \
+<span class="lineNum">     973 </span>            :      || defined __cplusplus || defined _MSC_VER)
+<span class="lineNum">     974 </span>            : static char *
+<span class="lineNum">     975 </span>            : yystpcpy (char *yydest, const char *yysrc)
+<span class="lineNum">     976 </span>            : #else
+<span class="lineNum">     977 </span>            : static char *
+<span class="lineNum">     978 </span>            : yystpcpy (yydest, yysrc)
+<span class="lineNum">     979 </span>            :     char *yydest;
+<span class="lineNum">     980 </span>            :     const char *yysrc;
+<span class="lineNum">     981 </span>            : #endif
+<span class="lineNum">     982 </span>            : {
+<span class="lineNum">     983 </span>            :   char *yyd = yydest;
+<span class="lineNum">     984 </span>            :   const char *yys = yysrc;
+<span class="lineNum">     985 </span>            : 
+<span class="lineNum">     986 </span>            :   while ((*yyd++ = *yys++) != '\0')
+<span class="lineNum">     987 </span>            :     continue;
+<span class="lineNum">     988 </span>            : 
+<span class="lineNum">     989 </span>            :   return yyd - 1;
+<span class="lineNum">     990 </span>            : }
+<span class="lineNum">     991 </span>            : #  endif
+<span class="lineNum">     992 </span>            : # endif
+<span class="lineNum">     993 </span>            : 
+<span class="lineNum">     994 </span>            : # ifndef yytnamerr
+<span class="lineNum">     995 </span>            : /* Copy to YYRES the contents of YYSTR after stripping away unnecessary
+<span class="lineNum">     996 </span>            :    quotes and backslashes, so that it's suitable for yyerror.  The
+<span class="lineNum">     997 </span>            :    heuristic is that double-quoting is unnecessary unless the string
+<span class="lineNum">     998 </span>            :    contains an apostrophe, a comma, or backslash (other than
+<span class="lineNum">     999 </span>            :    backslash-backslash).  YYSTR is taken from yytname.  If YYRES is
+<span class="lineNum">    1000 </span>            :    null, do not copy; instead, return the length of what the result
+<a name="1001"><span class="lineNum">    1001 </span>            :    would have been.  */</a>
+<span class="lineNum">    1002 </span>            : static YYSIZE_T
+<span class="lineNum">    1003 </span><span class="lineNoCov">          0 : yytnamerr (char *yyres, const char *yystr)</span>
+<span class="lineNum">    1004 </span>            : {
+<span class="lineNum">    1005 </span><span class="lineNoCov">          0 :   if (*yystr == '&quot;')</span>
+<span class="lineNum">    1006 </span>            :     {
+<span class="lineNum">    1007 </span><span class="lineNoCov">          0 :       YYSIZE_T yyn = 0;</span>
+<span class="lineNum">    1008 </span><span class="lineNoCov">          0 :       char const *yyp = yystr;</span>
+<span class="lineNum">    1009 </span>            : 
+<span class="lineNum">    1010 </span>            :       for (;;)
+<span class="lineNum">    1011 </span><span class="lineNoCov">          0 :         switch (*++yyp)</span>
+<span class="lineNum">    1012 </span>            :           {
+<span class="lineNum">    1013 </span>            :           case '\'':
+<span class="lineNum">    1014 </span>            :           case ',':
+<span class="lineNum">    1015 </span><span class="lineNoCov">          0 :             goto do_not_strip_quotes;</span>
+<span class="lineNum">    1016 </span>            : 
+<span class="lineNum">    1017 </span>            :           case '\\':
+<span class="lineNum">    1018 </span><span class="lineNoCov">          0 :             if (*++yyp != '\\')</span>
+<span class="lineNum">    1019 </span><span class="lineNoCov">          0 :               goto do_not_strip_quotes;</span>
+<span class="lineNum">    1020 </span>            :             /* Fall through.  */
+<span class="lineNum">    1021 </span>            :           default:
+<span class="lineNum">    1022 </span><span class="lineNoCov">          0 :             if (yyres)</span>
+<span class="lineNum">    1023 </span><span class="lineNoCov">          0 :               yyres[yyn] = *yyp;</span>
+<span class="lineNum">    1024 </span><span class="lineNoCov">          0 :             yyn++;</span>
+<span class="lineNum">    1025 </span><span class="lineNoCov">          0 :             break;</span>
+<span class="lineNum">    1026 </span>            : 
+<span class="lineNum">    1027 </span>            :           case '&quot;':
+<span class="lineNum">    1028 </span><span class="lineNoCov">          0 :             if (yyres)</span>
+<span class="lineNum">    1029 </span><span class="lineNoCov">          0 :               yyres[yyn] = '\0';</span>
+<span class="lineNum">    1030 </span><span class="lineNoCov">          0 :             return yyn;</span>
+<span class="lineNum">    1031 </span>            :           }
+<span class="lineNum">    1032 </span><span class="lineNoCov">          0 :     do_not_strip_quotes: ;</span>
+<span class="lineNum">    1033 </span>            :     }
+<span class="lineNum">    1034 </span>            : 
+<span class="lineNum">    1035 </span><span class="lineNoCov">          0 :   if (! yyres)</span>
+<span class="lineNum">    1036 </span><span class="lineNoCov">          0 :     return yystrlen (yystr);</span>
+<span class="lineNum">    1037 </span>            : 
+<span class="lineNum">    1038 </span><span class="lineNoCov">          0 :   return yystpcpy (yyres, yystr) - yyres;</span>
+<span class="lineNum">    1039 </span>            : }
+<span class="lineNum">    1040 </span>            : # endif
+<span class="lineNum">    1041 </span>            : 
+<span class="lineNum">    1042 </span>            : /* Copy into *YYMSG, which is of size *YYMSG_ALLOC, an error message
+<span class="lineNum">    1043 </span>            :    about the unexpected token YYTOKEN for the state stack whose top is
+<span class="lineNum">    1044 </span>            :    YYSSP.
+<span class="lineNum">    1045 </span>            : 
+<span class="lineNum">    1046 </span>            :    Return 0 if *YYMSG was successfully written.  Return 1 if *YYMSG is
+<span class="lineNum">    1047 </span>            :    not large enough to hold the message.  In that case, also set
+<span class="lineNum">    1048 </span>            :    *YYMSG_ALLOC to the required number of bytes.  Return 2 if the
+<a name="1049"><span class="lineNum">    1049 </span>            :    required number of bytes is too large to store.  */</a>
+<span class="lineNum">    1050 </span>            : static int
+<span class="lineNum">    1051 </span><span class="lineNoCov">          0 : yysyntax_error (YYSIZE_T *yymsg_alloc, char **yymsg,</span>
+<span class="lineNum">    1052 </span>            :                 yytype_int16 *yyssp, int yytoken)
+<span class="lineNum">    1053 </span>            : {
+<span class="lineNum">    1054 </span><span class="lineNoCov">          0 :   YYSIZE_T yysize0 = yytnamerr (0, yytname[yytoken]);</span>
+<span class="lineNum">    1055 </span><span class="lineNoCov">          0 :   YYSIZE_T yysize = yysize0;</span>
+<span class="lineNum">    1056 </span>            :   YYSIZE_T yysize1;
+<span class="lineNum">    1057 </span>            :   enum { YYERROR_VERBOSE_ARGS_MAXIMUM = 5 };
+<span class="lineNum">    1058 </span>            :   /* Internationalized format string. */
+<span class="lineNum">    1059 </span><span class="lineNoCov">          0 :   const char *yyformat = 0;</span>
+<span class="lineNum">    1060 </span>            :   /* Arguments of yyformat. */
+<span class="lineNum">    1061 </span>            :   char const *yyarg[YYERROR_VERBOSE_ARGS_MAXIMUM];
+<span class="lineNum">    1062 </span>            :   /* Number of reported tokens (one for the &quot;unexpected&quot;, one per
+<span class="lineNum">    1063 </span>            :      &quot;expected&quot;). */
+<span class="lineNum">    1064 </span><span class="lineNoCov">          0 :   int yycount = 0;</span>
+<span class="lineNum">    1065 </span>            : 
+<span class="lineNum">    1066 </span>            :   /* There are many possibilities here to consider:
+<span class="lineNum">    1067 </span>            :      - Assume YYFAIL is not used.  It's too flawed to consider.  See
+<span class="lineNum">    1068 </span>            :        &lt;http://lists.gnu.org/archive/html/bison-patches/2009-12/msg00024.html&gt;
+<span class="lineNum">    1069 </span>            :        for details.  YYERROR is fine as it does not invoke this
+<span class="lineNum">    1070 </span>            :        function.
+<span class="lineNum">    1071 </span>            :      - If this state is a consistent state with a default action, then
+<span class="lineNum">    1072 </span>            :        the only way this function was invoked is if the default action
+<span class="lineNum">    1073 </span>            :        is an error action.  In that case, don't check for expected
+<span class="lineNum">    1074 </span>            :        tokens because there are none.
+<span class="lineNum">    1075 </span>            :      - The only way there can be no lookahead present (in yychar) is if
+<span class="lineNum">    1076 </span>            :        this state is a consistent state with a default action.  Thus,
+<span class="lineNum">    1077 </span>            :        detecting the absence of a lookahead is sufficient to determine
+<span class="lineNum">    1078 </span>            :        that there is no unexpected or expected token to report.  In that
+<span class="lineNum">    1079 </span>            :        case, just report a simple &quot;syntax error&quot;.
+<span class="lineNum">    1080 </span>            :      - Don't assume there isn't a lookahead just because this state is a
+<span class="lineNum">    1081 </span>            :        consistent state with a default action.  There might have been a
+<span class="lineNum">    1082 </span>            :        previous inconsistent state, consistent state with a non-default
+<span class="lineNum">    1083 </span>            :        action, or user semantic action that manipulated yychar.
+<span class="lineNum">    1084 </span>            :      - Of course, the expected token list depends on states to have
+<span class="lineNum">    1085 </span>            :        correct lookahead information, and it depends on the parser not
+<span class="lineNum">    1086 </span>            :        to perform extra reductions after fetching a lookahead from the
+<span class="lineNum">    1087 </span>            :        scanner and before detecting a syntax error.  Thus, state merging
+<span class="lineNum">    1088 </span>            :        (from LALR or IELR) and default reductions corrupt the expected
+<span class="lineNum">    1089 </span>            :        token list.  However, the list is correct for canonical LR with
+<span class="lineNum">    1090 </span>            :        one exception: it will still contain any token that will not be
+<span class="lineNum">    1091 </span>            :        accepted due to an error action in a later state.
+<span class="lineNum">    1092 </span>            :   */
+<span class="lineNum">    1093 </span><span class="lineNoCov">          0 :   if (yytoken != YYEMPTY)</span>
+<span class="lineNum">    1094 </span>            :     {
+<span class="lineNum">    1095 </span><span class="lineNoCov">          0 :       int yyn = yypact[*yyssp];</span>
+<span class="lineNum">    1096 </span><span class="lineNoCov">          0 :       yyarg[yycount++] = yytname[yytoken];</span>
+<span class="lineNum">    1097 </span><span class="lineNoCov">          0 :       if (!yypact_value_is_default (yyn))</span>
+<span class="lineNum">    1098 </span>            :         {
+<span class="lineNum">    1099 </span>            :           /* Start YYX at -YYN if negative to avoid negative indexes in
+<span class="lineNum">    1100 </span>            :              YYCHECK.  In other words, skip the first -YYN actions for
+<span class="lineNum">    1101 </span>            :              this state because they are default actions.  */
+<span class="lineNum">    1102 </span><span class="lineNoCov">          0 :           int yyxbegin = yyn &lt; 0 ? -yyn : 0;</span>
+<span class="lineNum">    1103 </span>            :           /* Stay within bounds of both yycheck and yytname.  */
+<span class="lineNum">    1104 </span><span class="lineNoCov">          0 :           int yychecklim = YYLAST - yyn + 1;</span>
+<span class="lineNum">    1105 </span><span class="lineNoCov">          0 :           int yyxend = yychecklim &lt; YYNTOKENS ? yychecklim : YYNTOKENS;</span>
+<span class="lineNum">    1106 </span>            :           int yyx;
+<span class="lineNum">    1107 </span>            : 
+<span class="lineNum">    1108 </span><span class="lineNoCov">          0 :           for (yyx = yyxbegin; yyx &lt; yyxend; ++yyx)</span>
+<span class="lineNum">    1109 </span><span class="lineNoCov">          0 :             if (yycheck[yyx + yyn] == yyx &amp;&amp; yyx != YYTERROR</span>
+<span class="lineNum">    1110 </span><span class="lineNoCov">          0 :                 &amp;&amp; !yytable_value_is_error (yytable[yyx + yyn]))</span>
+<span class="lineNum">    1111 </span>            :               {
+<span class="lineNum">    1112 </span><span class="lineNoCov">          0 :                 if (yycount == YYERROR_VERBOSE_ARGS_MAXIMUM)</span>
+<span class="lineNum">    1113 </span>            :                   {
+<span class="lineNum">    1114 </span><span class="lineNoCov">          0 :                     yycount = 1;</span>
+<span class="lineNum">    1115 </span><span class="lineNoCov">          0 :                     yysize = yysize0;</span>
+<span class="lineNum">    1116 </span><span class="lineNoCov">          0 :                     break;</span>
+<span class="lineNum">    1117 </span>            :                   }
+<span class="lineNum">    1118 </span><span class="lineNoCov">          0 :                 yyarg[yycount++] = yytname[yyx];</span>
+<span class="lineNum">    1119 </span><span class="lineNoCov">          0 :                 yysize1 = yysize + yytnamerr (0, yytname[yyx]);</span>
+<span class="lineNum">    1120 </span><span class="lineNoCov">          0 :                 if (! (yysize &lt;= yysize1</span>
+<span class="lineNum">    1121 </span>            :                        &amp;&amp; yysize1 &lt;= YYSTACK_ALLOC_MAXIMUM))
+<span class="lineNum">    1122 </span><span class="lineNoCov">          0 :                   return 2;</span>
+<span class="lineNum">    1123 </span><span class="lineNoCov">          0 :                 yysize = yysize1;</span>
+<span class="lineNum">    1124 </span>            :               }
+<span class="lineNum">    1125 </span>            :         }
+<span class="lineNum">    1126 </span>            :     }
+<span class="lineNum">    1127 </span>            : 
+<span class="lineNum">    1128 </span><span class="lineNoCov">          0 :   switch (yycount)</span>
+<span class="lineNum">    1129 </span>            :     {
+<span class="lineNum">    1130 </span>            : # define YYCASE_(N, S)                      \
+<span class="lineNum">    1131 </span>            :       case N:                               \
+<span class="lineNum">    1132 </span>            :         yyformat = S;                       \
+<span class="lineNum">    1133 </span>            :       break
+<span class="lineNum">    1134 </span><span class="lineNoCov">          0 :       YYCASE_(0, YY_(&quot;syntax error&quot;));</span>
+<span class="lineNum">    1135 </span><span class="lineNoCov">          0 :       YYCASE_(1, YY_(&quot;syntax error, unexpected %s&quot;));</span>
+<span class="lineNum">    1136 </span><span class="lineNoCov">          0 :       YYCASE_(2, YY_(&quot;syntax error, unexpected %s, expecting %s&quot;));</span>
+<span class="lineNum">    1137 </span><span class="lineNoCov">          0 :       YYCASE_(3, YY_(&quot;syntax error, unexpected %s, expecting %s or %s&quot;));</span>
+<span class="lineNum">    1138 </span><span class="lineNoCov">          0 :       YYCASE_(4, YY_(&quot;syntax error, unexpected %s, expecting %s or %s or %s&quot;));</span>
+<span class="lineNum">    1139 </span><span class="lineNoCov">          0 :       YYCASE_(5, YY_(&quot;syntax error, unexpected %s, expecting %s or %s or %s or %s&quot;));</span>
+<span class="lineNum">    1140 </span>            : # undef YYCASE_
+<span class="lineNum">    1141 </span>            :     }
+<span class="lineNum">    1142 </span>            : 
+<span class="lineNum">    1143 </span><span class="lineNoCov">          0 :   yysize1 = yysize + yystrlen (yyformat);</span>
+<span class="lineNum">    1144 </span><span class="lineNoCov">          0 :   if (! (yysize &lt;= yysize1 &amp;&amp; yysize1 &lt;= YYSTACK_ALLOC_MAXIMUM))</span>
+<span class="lineNum">    1145 </span><span class="lineNoCov">          0 :     return 2;</span>
+<span class="lineNum">    1146 </span><span class="lineNoCov">          0 :   yysize = yysize1;</span>
+<span class="lineNum">    1147 </span>            : 
+<span class="lineNum">    1148 </span><span class="lineNoCov">          0 :   if (*yymsg_alloc &lt; yysize)</span>
+<span class="lineNum">    1149 </span>            :     {
+<span class="lineNum">    1150 </span><span class="lineNoCov">          0 :       *yymsg_alloc = 2 * yysize;</span>
+<span class="lineNum">    1151 </span><span class="lineNoCov">          0 :       if (! (yysize &lt;= *yymsg_alloc</span>
+<span class="lineNum">    1152 </span>            :              &amp;&amp; *yymsg_alloc &lt;= YYSTACK_ALLOC_MAXIMUM))
+<span class="lineNum">    1153 </span><span class="lineNoCov">          0 :         *yymsg_alloc = YYSTACK_ALLOC_MAXIMUM;</span>
+<span class="lineNum">    1154 </span><span class="lineNoCov">          0 :       return 1;</span>
+<span class="lineNum">    1155 </span>            :     }
+<span class="lineNum">    1156 </span>            : 
+<span class="lineNum">    1157 </span>            :   /* Avoid sprintf, as that infringes on the user's name space.
+<span class="lineNum">    1158 </span>            :      Don't have undefined behavior even if the translation
+<span class="lineNum">    1159 </span>            :      produced a string with the wrong number of &quot;%s&quot;s.  */
+<span class="lineNum">    1160 </span>            :   {
+<span class="lineNum">    1161 </span><span class="lineNoCov">          0 :     char *yyp = *yymsg;</span>
+<span class="lineNum">    1162 </span><span class="lineNoCov">          0 :     int yyi = 0;</span>
+<span class="lineNum">    1163 </span><span class="lineNoCov">          0 :     while ((*yyp = *yyformat) != '\0')</span>
+<span class="lineNum">    1164 </span><span class="lineNoCov">          0 :       if (*yyp == '%' &amp;&amp; yyformat[1] == 's' &amp;&amp; yyi &lt; yycount)</span>
+<span class="lineNum">    1165 </span>            :         {
+<span class="lineNum">    1166 </span><span class="lineNoCov">          0 :           yyp += yytnamerr (yyp, yyarg[yyi++]);</span>
+<span class="lineNum">    1167 </span><span class="lineNoCov">          0 :           yyformat += 2;</span>
+<span class="lineNum">    1168 </span>            :         }
+<span class="lineNum">    1169 </span>            :       else
+<span class="lineNum">    1170 </span>            :         {
+<span class="lineNum">    1171 </span><span class="lineNoCov">          0 :           yyp++;</span>
+<span class="lineNum">    1172 </span><span class="lineNoCov">          0 :           yyformat++;</span>
+<span class="lineNum">    1173 </span>            :         }
+<span class="lineNum">    1174 </span>            :   }
+<span class="lineNum">    1175 </span><span class="lineNoCov">          0 :   return 0;</span>
+<span class="lineNum">    1176 </span>            : }
+<span class="lineNum">    1177 </span>            : #endif /* YYERROR_VERBOSE */
+<span class="lineNum">    1178 </span>            : 
+<span class="lineNum">    1179 </span>            : /*-----------------------------------------------.
+<span class="lineNum">    1180 </span>            : | Release the memory associated to this symbol.  |
+<span class="lineNum">    1181 </span>            : `-----------------------------------------------*/
+<span class="lineNum">    1182 </span>            : 
+<span class="lineNum">    1183 </span>            : /*ARGSUSED*/
+<span class="lineNum">    1184 </span>            : #if (defined __STDC__ || defined __C99__FUNC__ \
+<a name="1185"><span class="lineNum">    1185 </span>            :      || defined __cplusplus || defined _MSC_VER)</a>
+<span class="lineNum">    1186 </span>            : static void
+<span class="lineNum">    1187 </span><span class="lineNoCov">          0 : yydestruct (const char *yymsg, int yytype, YYSTYPE *yyvaluep, ap_expr_parse_ctx_t *ctx)</span>
+<span class="lineNum">    1188 </span>            : #else
+<span class="lineNum">    1189 </span>            : static void
+<span class="lineNum">    1190 </span>            : yydestruct (yymsg, yytype, yyvaluep, ctx)
+<span class="lineNum">    1191 </span>            :     const char *yymsg;
+<span class="lineNum">    1192 </span>            :     int yytype;
+<span class="lineNum">    1193 </span>            :     YYSTYPE *yyvaluep;
+<span class="lineNum">    1194 </span>            :     ap_expr_parse_ctx_t *ctx;
+<span class="lineNum">    1195 </span>            : #endif
+<span class="lineNum">    1196 </span>            : {
+<span class="lineNum">    1197 </span>            :   YYUSE (yyvaluep);
+<span class="lineNum">    1198 </span>            :   YYUSE (ctx);
+<span class="lineNum">    1199 </span>            : 
+<span class="lineNum">    1200 </span><span class="lineNoCov">          0 :   if (!yymsg)</span>
+<span class="lineNum">    1201 </span><span class="lineNoCov">          0 :     yymsg = &quot;Deleting&quot;;</span>
+<span class="lineNum">    1202 </span>            :   YY_SYMBOL_PRINT (yymsg, yytype, yyvaluep, yylocationp);
+<span class="lineNum">    1203 </span>            : 
+<span class="lineNum">    1204 </span>            :   switch (yytype)
+<span class="lineNum">    1205 </span>            :     {
+<span class="lineNum">    1206 </span>            : 
+<span class="lineNum">    1207 </span>            :       default:
+<span class="lineNum">    1208 </span><span class="lineNoCov">          0 :         break;</span>
+<span class="lineNum">    1209 </span>            :     }
+<span class="lineNum">    1210 </span><span class="lineNoCov">          0 : }</span>
+<span class="lineNum">    1211 </span>            : 
+<span class="lineNum">    1212 </span>            : 
+<span class="lineNum">    1213 </span>            : /* Prevent warnings from -Wmissing-prototypes.  */
+<span class="lineNum">    1214 </span>            : #ifdef YYPARSE_PARAM
+<span class="lineNum">    1215 </span>            : #if defined __STDC__ || defined __cplusplus
+<span class="lineNum">    1216 </span>            : int yyparse (void *YYPARSE_PARAM);
+<span class="lineNum">    1217 </span>            : #else
+<span class="lineNum">    1218 </span>            : int yyparse ();
+<span class="lineNum">    1219 </span>            : #endif
+<span class="lineNum">    1220 </span>            : #else /* ! YYPARSE_PARAM */
+<span class="lineNum">    1221 </span>            : #if defined __STDC__ || defined __cplusplus
+<span class="lineNum">    1222 </span>            : int yyparse (ap_expr_parse_ctx_t *ctx);
+<span class="lineNum">    1223 </span>            : #else
+<span class="lineNum">    1224 </span>            : int yyparse ();
+<span class="lineNum">    1225 </span>            : #endif
+<span class="lineNum">    1226 </span>            : #endif /* ! YYPARSE_PARAM */
+<span class="lineNum">    1227 </span>            : 
+<span class="lineNum">    1228 </span>            : 
+<span class="lineNum">    1229 </span>            : /*----------.
+<span class="lineNum">    1230 </span>            : | yyparse.  |
+<span class="lineNum">    1231 </span>            : `----------*/
+<span class="lineNum">    1232 </span>            : 
+<span class="lineNum">    1233 </span>            : #ifdef YYPARSE_PARAM
+<span class="lineNum">    1234 </span>            : #if (defined __STDC__ || defined __C99__FUNC__ \
+<span class="lineNum">    1235 </span>            :      || defined __cplusplus || defined _MSC_VER)
+<span class="lineNum">    1236 </span>            : int
+<span class="lineNum">    1237 </span>            : yyparse (void *YYPARSE_PARAM)
+<span class="lineNum">    1238 </span>            : #else
+<span class="lineNum">    1239 </span>            : int
+<span class="lineNum">    1240 </span>            : yyparse (YYPARSE_PARAM)
+<span class="lineNum">    1241 </span>            :     void *YYPARSE_PARAM;
+<span class="lineNum">    1242 </span>            : #endif
+<span class="lineNum">    1243 </span>            : #else /* ! YYPARSE_PARAM */
+<span class="lineNum">    1244 </span>            : #if (defined __STDC__ || defined __C99__FUNC__ \
+<a name="1245"><span class="lineNum">    1245 </span>            :      || defined __cplusplus || defined _MSC_VER)</a>
+<span class="lineNum">    1246 </span>            : int
+<span class="lineNum">    1247 </span><span class="lineNoCov">          0 : yyparse (ap_expr_parse_ctx_t *ctx)</span>
+<span class="lineNum">    1248 </span>            : #else
+<span class="lineNum">    1249 </span>            : int
+<span class="lineNum">    1250 </span>            : yyparse (ctx)
+<span class="lineNum">    1251 </span>            :     ap_expr_parse_ctx_t *ctx;
+<span class="lineNum">    1252 </span>            : #endif
+<span class="lineNum">    1253 </span>            : #endif
+<span class="lineNum">    1254 </span>            : {
+<span class="lineNum">    1255 </span>            : /* The lookahead symbol.  */
+<span class="lineNum">    1256 </span>            : int yychar;
+<span class="lineNum">    1257 </span>            : 
+<span class="lineNum">    1258 </span>            : /* The semantic value of the lookahead symbol.  */
+<span class="lineNum">    1259 </span>            : YYSTYPE yylval;
+<span class="lineNum">    1260 </span>            : 
+<span class="lineNum">    1261 </span>            :     /* Number of syntax errors so far.  */
+<span class="lineNum">    1262 </span>            :     int yynerrs;
+<span class="lineNum">    1263 </span>            : 
+<span class="lineNum">    1264 </span>            :     int yystate;
+<span class="lineNum">    1265 </span>            :     /* Number of tokens to shift before error messages enabled.  */
+<span class="lineNum">    1266 </span>            :     int yyerrstatus;
+<span class="lineNum">    1267 </span>            : 
+<span class="lineNum">    1268 </span>            :     /* The stacks and their tools:
+<span class="lineNum">    1269 </span>            :        `yyss': related to states.
+<span class="lineNum">    1270 </span>            :        `yyvs': related to semantic values.
+<span class="lineNum">    1271 </span>            : 
+<span class="lineNum">    1272 </span>            :        Refer to the stacks thru separate pointers, to allow yyoverflow
+<span class="lineNum">    1273 </span>            :        to reallocate them elsewhere.  */
+<span class="lineNum">    1274 </span>            : 
+<span class="lineNum">    1275 </span>            :     /* The state stack.  */
+<span class="lineNum">    1276 </span>            :     yytype_int16 yyssa[YYINITDEPTH];
+<span class="lineNum">    1277 </span>            :     yytype_int16 *yyss;
+<span class="lineNum">    1278 </span>            :     yytype_int16 *yyssp;
+<span class="lineNum">    1279 </span>            : 
+<span class="lineNum">    1280 </span>            :     /* The semantic value stack.  */
+<span class="lineNum">    1281 </span>            :     YYSTYPE yyvsa[YYINITDEPTH];
+<span class="lineNum">    1282 </span>            :     YYSTYPE *yyvs;
+<span class="lineNum">    1283 </span>            :     YYSTYPE *yyvsp;
+<span class="lineNum">    1284 </span>            : 
+<span class="lineNum">    1285 </span>            :     YYSIZE_T yystacksize;
+<span class="lineNum">    1286 </span>            : 
+<span class="lineNum">    1287 </span>            :   int yyn;
+<span class="lineNum">    1288 </span>            :   int yyresult;
+<span class="lineNum">    1289 </span>            :   /* Lookahead token as an internal (translated) token number.  */
+<span class="lineNum">    1290 </span>            :   int yytoken;
+<span class="lineNum">    1291 </span>            :   /* The variables used to return semantic value and location from the
+<span class="lineNum">    1292 </span>            :      action routines.  */
+<span class="lineNum">    1293 </span>            :   YYSTYPE yyval;
+<span class="lineNum">    1294 </span>            : 
+<span class="lineNum">    1295 </span>            : #if YYERROR_VERBOSE
+<span class="lineNum">    1296 </span>            :   /* Buffer for error messages, and its allocated size.  */
+<span class="lineNum">    1297 </span>            :   char yymsgbuf[128];
+<span class="lineNum">    1298 </span><span class="lineNoCov">          0 :   char *yymsg = yymsgbuf;</span>
+<span class="lineNum">    1299 </span><span class="lineNoCov">          0 :   YYSIZE_T yymsg_alloc = sizeof yymsgbuf;</span>
+<span class="lineNum">    1300 </span>            : #endif
+<span class="lineNum">    1301 </span>            : 
+<span class="lineNum">    1302 </span>            : #define YYPOPSTACK(N)   (yyvsp -= (N), yyssp -= (N))
+<span class="lineNum">    1303 </span>            : 
+<span class="lineNum">    1304 </span>            :   /* The number of symbols on the RHS of the reduced rule.
+<span class="lineNum">    1305 </span>            :      Keep to zero when no symbol should be popped.  */
+<span class="lineNum">    1306 </span><span class="lineNoCov">          0 :   int yylen = 0;</span>
+<span class="lineNum">    1307 </span>            : 
+<span class="lineNum">    1308 </span><span class="lineNoCov">          0 :   yytoken = 0;</span>
+<span class="lineNum">    1309 </span><span class="lineNoCov">          0 :   yyss = yyssa;</span>
+<span class="lineNum">    1310 </span><span class="lineNoCov">          0 :   yyvs = yyvsa;</span>
+<span class="lineNum">    1311 </span><span class="lineNoCov">          0 :   yystacksize = YYINITDEPTH;</span>
+<span class="lineNum">    1312 </span>            : 
+<span class="lineNum">    1313 </span>            :   YYDPRINTF ((stderr, &quot;Starting parse\n&quot;));
+<span class="lineNum">    1314 </span>            : 
+<span class="lineNum">    1315 </span><span class="lineNoCov">          0 :   yystate = 0;</span>
+<span class="lineNum">    1316 </span><span class="lineNoCov">          0 :   yyerrstatus = 0;</span>
+<span class="lineNum">    1317 </span><span class="lineNoCov">          0 :   yynerrs = 0;</span>
+<span class="lineNum">    1318 </span><span class="lineNoCov">          0 :   yychar = YYEMPTY; /* Cause a token to be read.  */</span>
+<span class="lineNum">    1319 </span>            : 
+<span class="lineNum">    1320 </span>            :   /* Initialize stack pointers.
+<span class="lineNum">    1321 </span>            :      Waste one element of value and location stack
+<span class="lineNum">    1322 </span>            :      so that they stay on the same level as the state stack.
+<span class="lineNum">    1323 </span>            :      The wasted elements are never initialized.  */
+<span class="lineNum">    1324 </span><span class="lineNoCov">          0 :   yyssp = yyss;</span>
+<span class="lineNum">    1325 </span><span class="lineNoCov">          0 :   yyvsp = yyvs;</span>
+<span class="lineNum">    1326 </span>            : 
+<span class="lineNum">    1327 </span><span class="lineNoCov">          0 :   goto yysetstate;</span>
+<span class="lineNum">    1328 </span>            : 
+<span class="lineNum">    1329 </span>            : /*------------------------------------------------------------.
+<span class="lineNum">    1330 </span>            : | yynewstate -- Push a new state, which is found in yystate.  |
+<span class="lineNum">    1331 </span>            : `------------------------------------------------------------*/
+<span class="lineNum">    1332 </span>            :  yynewstate:
+<span class="lineNum">    1333 </span>            :   /* In all cases, when you get here, the value and location stacks
+<span class="lineNum">    1334 </span>            :      have just been pushed.  So pushing a state here evens the stacks.  */
+<span class="lineNum">    1335 </span><span class="lineNoCov">          0 :   yyssp++;</span>
+<span class="lineNum">    1336 </span>            : 
+<span class="lineNum">    1337 </span>            :  yysetstate:
+<span class="lineNum">    1338 </span><span class="lineNoCov">          0 :   *yyssp = yystate;</span>
+<span class="lineNum">    1339 </span>            : 
+<span class="lineNum">    1340 </span><span class="lineNoCov">          0 :   if (yyss + yystacksize - 1 &lt;= yyssp)</span>
+<span class="lineNum">    1341 </span>            :     {
+<span class="lineNum">    1342 </span>            :       /* Get the current used size of the three stacks, in elements.  */
+<span class="lineNum">    1343 </span><span class="lineNoCov">          0 :       YYSIZE_T yysize = yyssp - yyss + 1;</span>
+<span class="lineNum">    1344 </span>            : 
+<span class="lineNum">    1345 </span>            : #ifdef yyoverflow
+<span class="lineNum">    1346 </span>            :       {
+<span class="lineNum">    1347 </span>            :         /* Give user a chance to reallocate the stack.  Use copies of
+<span class="lineNum">    1348 </span>            :            these so that the &amp;'s don't force the real ones into
+<span class="lineNum">    1349 </span>            :            memory.  */
+<span class="lineNum">    1350 </span>            :         YYSTYPE *yyvs1 = yyvs;
+<span class="lineNum">    1351 </span>            :         yytype_int16 *yyss1 = yyss;
+<span class="lineNum">    1352 </span>            : 
+<span class="lineNum">    1353 </span>            :         /* Each stack pointer address is followed by the size of the
+<span class="lineNum">    1354 </span>            :            data in use in that stack, in bytes.  This used to be a
+<span class="lineNum">    1355 </span>            :            conditional around just the two extra args, but that might
+<span class="lineNum">    1356 </span>            :            be undefined if yyoverflow is a macro.  */
+<span class="lineNum">    1357 </span>            :         yyoverflow (YY_(&quot;memory exhausted&quot;),
+<span class="lineNum">    1358 </span>            :                     &amp;yyss1, yysize * sizeof (*yyssp),
+<span class="lineNum">    1359 </span>            :                     &amp;yyvs1, yysize * sizeof (*yyvsp),
+<span class="lineNum">    1360 </span>            :                     &amp;yystacksize);
+<span class="lineNum">    1361 </span>            : 
+<span class="lineNum">    1362 </span>            :         yyss = yyss1;
+<span class="lineNum">    1363 </span>            :         yyvs = yyvs1;
+<span class="lineNum">    1364 </span>            :       }
+<span class="lineNum">    1365 </span>            : #else /* no yyoverflow */
+<span class="lineNum">    1366 </span>            : # ifndef YYSTACK_RELOCATE
+<span class="lineNum">    1367 </span>            :       goto yyexhaustedlab;
+<span class="lineNum">    1368 </span>            : # else
+<span class="lineNum">    1369 </span>            :       /* Extend the stack our own way.  */
+<span class="lineNum">    1370 </span><span class="lineNoCov">          0 :       if (YYMAXDEPTH &lt;= yystacksize)</span>
+<span class="lineNum">    1371 </span><span class="lineNoCov">          0 :         goto yyexhaustedlab;</span>
+<span class="lineNum">    1372 </span><span class="lineNoCov">          0 :       yystacksize *= 2;</span>
+<span class="lineNum">    1373 </span><span class="lineNoCov">          0 :       if (YYMAXDEPTH &lt; yystacksize)</span>
+<span class="lineNum">    1374 </span><span class="lineNoCov">          0 :         yystacksize = YYMAXDEPTH;</span>
+<span class="lineNum">    1375 </span>            : 
+<span class="lineNum">    1376 </span>            :       {
+<span class="lineNum">    1377 </span><span class="lineNoCov">          0 :         yytype_int16 *yyss1 = yyss;</span>
+<span class="lineNum">    1378 </span><span class="lineNoCov">          0 :         union yyalloc *yyptr =</span>
+<span class="lineNum">    1379 </span><span class="lineNoCov">          0 :           (union yyalloc *) YYSTACK_ALLOC (YYSTACK_BYTES (yystacksize));</span>
+<span class="lineNum">    1380 </span><span class="lineNoCov">          0 :         if (! yyptr)</span>
+<span class="lineNum">    1381 </span><span class="lineNoCov">          0 :           goto yyexhaustedlab;</span>
+<span class="lineNum">    1382 </span><span class="lineNoCov">          0 :         YYSTACK_RELOCATE (yyss_alloc, yyss);</span>
+<span class="lineNum">    1383 </span><span class="lineNoCov">          0 :         YYSTACK_RELOCATE (yyvs_alloc, yyvs);</span>
+<span class="lineNum">    1384 </span>            : #  undef YYSTACK_RELOCATE
+<span class="lineNum">    1385 </span><span class="lineNoCov">          0 :         if (yyss1 != yyssa)</span>
+<span class="lineNum">    1386 </span><span class="lineNoCov">          0 :           YYSTACK_FREE (yyss1);</span>
+<span class="lineNum">    1387 </span>            :       }
+<span class="lineNum">    1388 </span>            : # endif
+<span class="lineNum">    1389 </span>            : #endif /* no yyoverflow */
+<span class="lineNum">    1390 </span>            : 
+<span class="lineNum">    1391 </span><span class="lineNoCov">          0 :       yyssp = yyss + yysize - 1;</span>
+<span class="lineNum">    1392 </span><span class="lineNoCov">          0 :       yyvsp = yyvs + yysize - 1;</span>
+<span class="lineNum">    1393 </span>            : 
+<span class="lineNum">    1394 </span>            :       YYDPRINTF ((stderr, &quot;Stack size increased to %lu\n&quot;,
+<span class="lineNum">    1395 </span>            :                   (unsigned long int) yystacksize));
+<span class="lineNum">    1396 </span>            : 
+<span class="lineNum">    1397 </span><span class="lineNoCov">          0 :       if (yyss + yystacksize - 1 &lt;= yyssp)</span>
+<span class="lineNum">    1398 </span><span class="lineNoCov">          0 :         YYABORT;</span>
+<span class="lineNum">    1399 </span>            :     }
+<span class="lineNum">    1400 </span>            : 
+<span class="lineNum">    1401 </span>            :   YYDPRINTF ((stderr, &quot;Entering state %d\n&quot;, yystate));
+<span class="lineNum">    1402 </span>            : 
+<span class="lineNum">    1403 </span><span class="lineNoCov">          0 :   if (yystate == YYFINAL)</span>
+<span class="lineNum">    1404 </span><span class="lineNoCov">          0 :     YYACCEPT;</span>
+<span class="lineNum">    1405 </span>            : 
+<span class="lineNum">    1406 </span><span class="lineNoCov">          0 :   goto yybackup;</span>
+<span class="lineNum">    1407 </span>            : 
+<span class="lineNum">    1408 </span>            : /*-----------.
+<span class="lineNum">    1409 </span>            : | yybackup.  |
+<span class="lineNum">    1410 </span>            : `-----------*/
+<span class="lineNum">    1411 </span>            : yybackup:
+<span class="lineNum">    1412 </span>            : 
+<span class="lineNum">    1413 </span>            :   /* Do appropriate processing given the current state.  Read a
+<span class="lineNum">    1414 </span>            :      lookahead token if we need one and don't already have one.  */
+<span class="lineNum">    1415 </span>            : 
+<span class="lineNum">    1416 </span>            :   /* First try to decide what to do without reference to lookahead token.  */
+<span class="lineNum">    1417 </span><span class="lineNoCov">          0 :   yyn = yypact[yystate];</span>
+<span class="lineNum">    1418 </span><span class="lineNoCov">          0 :   if (yypact_value_is_default (yyn))</span>
+<span class="lineNum">    1419 </span><span class="lineNoCov">          0 :     goto yydefault;</span>
+<span class="lineNum">    1420 </span>            : 
+<span class="lineNum">    1421 </span>            :   /* Not known =&gt; get a lookahead token if don't already have one.  */
+<span class="lineNum">    1422 </span>            : 
+<span class="lineNum">    1423 </span>            :   /* YYCHAR is either YYEMPTY or YYEOF or a valid lookahead symbol.  */
+<span class="lineNum">    1424 </span><span class="lineNoCov">          0 :   if (yychar == YYEMPTY)</span>
+<span class="lineNum">    1425 </span>            :     {
+<span class="lineNum">    1426 </span>            :       YYDPRINTF ((stderr, &quot;Reading a token: &quot;));
+<span class="lineNum">    1427 </span><span class="lineNoCov">          0 :       yychar = YYLEX;</span>
+<span class="lineNum">    1428 </span>            :     }
+<span class="lineNum">    1429 </span>            : 
+<span class="lineNum">    1430 </span><span class="lineNoCov">          0 :   if (yychar &lt;= YYEOF)</span>
+<span class="lineNum">    1431 </span>            :     {
+<span class="lineNum">    1432 </span><span class="lineNoCov">          0 :       yychar = yytoken = YYEOF;</span>
+<span class="lineNum">    1433 </span>            :       YYDPRINTF ((stderr, &quot;Now at end of input.\n&quot;));
+<span class="lineNum">    1434 </span>            :     }
+<span class="lineNum">    1435 </span>            :   else
+<span class="lineNum">    1436 </span>            :     {
+<span class="lineNum">    1437 </span><span class="lineNoCov">          0 :       yytoken = YYTRANSLATE (yychar);</span>
+<span class="lineNum">    1438 </span>            :       YY_SYMBOL_PRINT (&quot;Next token is&quot;, yytoken, &amp;yylval, &amp;yylloc);
+<span class="lineNum">    1439 </span>            :     }
+<span class="lineNum">    1440 </span>            : 
+<span class="lineNum">    1441 </span>            :   /* If the proper action on seeing token YYTOKEN is to reduce or to
+<span class="lineNum">    1442 </span>            :      detect an error, take that action.  */
+<span class="lineNum">    1443 </span><span class="lineNoCov">          0 :   yyn += yytoken;</span>
+<span class="lineNum">    1444 </span><span class="lineNoCov">          0 :   if (yyn &lt; 0 || YYLAST &lt; yyn || yycheck[yyn] != yytoken)</span>
+<span class="lineNum">    1445 </span>            :     goto yydefault;
+<span class="lineNum">    1446 </span><span class="lineNoCov">          0 :   yyn = yytable[yyn];</span>
+<span class="lineNum">    1447 </span><span class="lineNoCov">          0 :   if (yyn &lt;= 0)</span>
+<span class="lineNum">    1448 </span>            :     {
+<span class="lineNum">    1449 </span>            :       if (yytable_value_is_error (yyn))
+<span class="lineNum">    1450 </span>            :         goto yyerrlab;
+<span class="lineNum">    1451 </span><span class="lineNoCov">          0 :       yyn = -yyn;</span>
+<span class="lineNum">    1452 </span><span class="lineNoCov">          0 :       goto yyreduce;</span>
+<span class="lineNum">    1453 </span>            :     }
+<span class="lineNum">    1454 </span>            : 
+<span class="lineNum">    1455 </span>            :   /* Count tokens shifted since error; after three, turn off error
+<span class="lineNum">    1456 </span>            :      status.  */
+<span class="lineNum">    1457 </span><span class="lineNoCov">          0 :   if (yyerrstatus)</span>
+<span class="lineNum">    1458 </span><span class="lineNoCov">          0 :     yyerrstatus--;</span>
+<span class="lineNum">    1459 </span>            : 
+<span class="lineNum">    1460 </span>            :   /* Shift the lookahead token.  */
+<span class="lineNum">    1461 </span>            :   YY_SYMBOL_PRINT (&quot;Shifting&quot;, yytoken, &amp;yylval, &amp;yylloc);
+<span class="lineNum">    1462 </span>            : 
+<span class="lineNum">    1463 </span>            :   /* Discard the shifted token.  */
+<span class="lineNum">    1464 </span><span class="lineNoCov">          0 :   yychar = YYEMPTY;</span>
+<span class="lineNum">    1465 </span>            : 
+<span class="lineNum">    1466 </span><span class="lineNoCov">          0 :   yystate = yyn;</span>
+<span class="lineNum">    1467 </span><span class="lineNoCov">          0 :   *++yyvsp = yylval;</span>
+<span class="lineNum">    1468 </span>            : 
+<span class="lineNum">    1469 </span><span class="lineNoCov">          0 :   goto yynewstate;</span>
+<span class="lineNum">    1470 </span>            : 
+<span class="lineNum">    1471 </span>            : 
+<span class="lineNum">    1472 </span>            : /*-----------------------------------------------------------.
+<span class="lineNum">    1473 </span>            : | yydefault -- do the default action for the current state.  |
+<span class="lineNum">    1474 </span>            : `-----------------------------------------------------------*/
+<span class="lineNum">    1475 </span>            : yydefault:
+<span class="lineNum">    1476 </span><span class="lineNoCov">          0 :   yyn = yydefact[yystate];</span>
+<span class="lineNum">    1477 </span><span class="lineNoCov">          0 :   if (yyn == 0)</span>
+<span class="lineNum">    1478 </span><span class="lineNoCov">          0 :     goto yyerrlab;</span>
+<span class="lineNum">    1479 </span><span class="lineNoCov">          0 :   goto yyreduce;</span>
+<span class="lineNum">    1480 </span>            : 
+<span class="lineNum">    1481 </span>            : 
+<span class="lineNum">    1482 </span>            : /*-----------------------------.
+<span class="lineNum">    1483 </span>            : | yyreduce -- Do a reduction.  |
+<span class="lineNum">    1484 </span>            : `-----------------------------*/
+<span class="lineNum">    1485 </span>            : yyreduce:
+<span class="lineNum">    1486 </span>            :   /* yyn is the number of a rule to reduce with.  */
+<span class="lineNum">    1487 </span><span class="lineNoCov">          0 :   yylen = yyr2[yyn];</span>
+<span class="lineNum">    1488 </span>            : 
+<span class="lineNum">    1489 </span>            :   /* If YYLEN is nonzero, implement the default value of the action:
+<span class="lineNum">    1490 </span>            :      `$$ = $1'.
+<span class="lineNum">    1491 </span>            : 
+<span class="lineNum">    1492 </span>            :      Otherwise, the following line sets YYVAL to garbage.
+<span class="lineNum">    1493 </span>            :      This behavior is undocumented and Bison
+<span class="lineNum">    1494 </span>            :      users should not rely upon it.  Assigning to YYVAL
+<span class="lineNum">    1495 </span>            :      unconditionally makes the parser a bit smaller, and it avoids a
+<span class="lineNum">    1496 </span>            :      GCC warning that YYVAL may be used uninitialized.  */
+<span class="lineNum">    1497 </span><span class="lineNoCov">          0 :   yyval = yyvsp[1-yylen];</span>
+<span class="lineNum">    1498 </span>            : 
+<span class="lineNum">    1499 </span>            : 
+<span class="lineNum">    1500 </span>            :   YY_REDUCE_PRINT (yyn);
+<span class="lineNum">    1501 </span><span class="lineNoCov">          0 :   switch (yyn)</span>
+<span class="lineNum">    1502 </span>            :     {
+<span class="lineNum">    1503 </span>            :         case 2:
+<span class="lineNum">    1504 </span>            : 
+<span class="lineNum">    1505 </span>            : /* Line 1806 of yacc.c  */
+<span class="lineNum">    1506 </span>            : #line 112 &quot;util_expr_parse.y&quot;
+<span class="lineNum">    1507 </span>            :     { ctx-&gt;expr = (yyvsp[(2) - (2)].exVal); }
+<span class="lineNum">    1508 </span>            :     break;
+<span class="lineNum">    1509 </span>            : 
+<span class="lineNum">    1510 </span>            :   case 3:
+<span class="lineNum">    1511 </span>            : 
+<span class="lineNum">    1512 </span>            : /* Line 1806 of yacc.c  */
+<span class="lineNum">    1513 </span>            : #line 113 &quot;util_expr_parse.y&quot;
+<span class="lineNum">    1514 </span>            :     { ctx-&gt;expr = (yyvsp[(2) - (2)].exVal); }
+<span class="lineNum">    1515 </span>            :     break;
+<span class="lineNum">    1516 </span>            : 
+<span class="lineNum">    1517 </span>            :   case 4:
+<span class="lineNum">    1518 </span>            : 
+<span class="lineNum">    1519 </span>            : /* Line 1806 of yacc.c  */
+<span class="lineNum">    1520 </span>            : #line 114 &quot;util_expr_parse.y&quot;
+<span class="lineNum">    1521 </span>            :     { YYABORT; }
+<span class="lineNum">    1522 </span>            :     break;
+<span class="lineNum">    1523 </span>            : 
+<span class="lineNum">    1524 </span>            :   case 5:
+<span class="lineNum">    1525 </span>            : 
+<span class="lineNum">    1526 </span>            : /* Line 1806 of yacc.c  */
+<span class="lineNum">    1527 </span>            : #line 117 &quot;util_expr_parse.y&quot;
+<span class="lineNum">    1528 </span>            :     { (yyval.exVal) = ap_expr_make(op_True,        NULL, NULL, ctx); }
+<span class="lineNum">    1529 </span>            :     break;
+<span class="lineNum">    1530 </span>            : 
+<span class="lineNum">    1531 </span>            :   case 6:
+<span class="lineNum">    1532 </span>            : 
+<span class="lineNum">    1533 </span>            : /* Line 1806 of yacc.c  */
+<span class="lineNum">    1534 </span>            : #line 118 &quot;util_expr_parse.y&quot;
+<span class="lineNum">    1535 </span>            :     { (yyval.exVal) = ap_expr_make(op_False,       NULL, NULL, ctx); }
+<span class="lineNum">    1536 </span>            :     break;
+<span class="lineNum">    1537 </span>            : 
+<span class="lineNum">    1538 </span>            :   case 7:
+<span class="lineNum">    1539 </span>            : 
+<span class="lineNum">    1540 </span>            : /* Line 1806 of yacc.c  */
+<span class="lineNum">    1541 </span>            : #line 119 &quot;util_expr_parse.y&quot;
+<span class="lineNum">    1542 </span>            :     { (yyval.exVal) = ap_expr_make(op_Not,         (yyvsp[(2) - (2)].exVal),   NULL, ctx); }
+<span class="lineNum">    1543 </span>            :     break;
+<span class="lineNum">    1544 </span>            : 
+<span class="lineNum">    1545 </span>            :   case 8:
+<span class="lineNum">    1546 </span>            : 
+<span class="lineNum">    1547 </span>            : /* Line 1806 of yacc.c  */
+<span class="lineNum">    1548 </span>            : #line 120 &quot;util_expr_parse.y&quot;
+<span class="lineNum">    1549 </span>            :     { (yyval.exVal) = ap_expr_make(op_Or,          (yyvsp[(1) - (3)].exVal),   (yyvsp[(3) - (3)].exVal),   ctx); }
+<span class="lineNum">    1550 </span>            :     break;
+<span class="lineNum">    1551 </span>            : 
+<span class="lineNum">    1552 </span>            :   case 9:
+<span class="lineNum">    1553 </span>            : 
+<span class="lineNum">    1554 </span>            : /* Line 1806 of yacc.c  */
+<span class="lineNum">    1555 </span>            : #line 121 &quot;util_expr_parse.y&quot;
+<span class="lineNum">    1556 </span>            :     { (yyval.exVal) = ap_expr_make(op_And,         (yyvsp[(1) - (3)].exVal),   (yyvsp[(3) - (3)].exVal),   ctx); }
+<span class="lineNum">    1557 </span>            :     break;
+<span class="lineNum">    1558 </span>            : 
+<span class="lineNum">    1559 </span>            :   case 10:
+<span class="lineNum">    1560 </span>            : 
+<span class="lineNum">    1561 </span>            : /* Line 1806 of yacc.c  */
+<span class="lineNum">    1562 </span>            : #line 122 &quot;util_expr_parse.y&quot;
+<span class="lineNum">    1563 </span>            :     { (yyval.exVal) = ap_expr_make(op_Comp,        (yyvsp[(1) - (1)].exVal),   NULL, ctx); }
+<span class="lineNum">    1564 </span>            :     break;
+<span class="lineNum">    1565 </span>            : 
+<span class="lineNum">    1566 </span>            :   case 11:
+<span class="lineNum">    1567 </span>            : 
+<span class="lineNum">    1568 </span>            : /* Line 1806 of yacc.c  */
+<span class="lineNum">    1569 </span>            : #line 123 &quot;util_expr_parse.y&quot;
+<span class="lineNum">    1570 </span>            :     { (yyval.exVal) = ap_expr_unary_op_make(       (yyvsp[(1) - (2)].cpVal),   (yyvsp[(2) - (2)].exVal),   ctx); }
+<span class="lineNum">    1571 </span>            :     break;
+<span class="lineNum">    1572 </span>            : 
+<span class="lineNum">    1573 </span>            :   case 12:
+<span class="lineNum">    1574 </span>            : 
+<span class="lineNum">    1575 </span>            : /* Line 1806 of yacc.c  */
+<span class="lineNum">    1576 </span>            : #line 124 &quot;util_expr_parse.y&quot;
+<span class="lineNum">    1577 </span>            :     { (yyval.exVal) = ap_expr_binary_op_make((yyvsp[(2) - (3)].cpVal),   (yyvsp[(1) - (3)].exVal),   (yyvsp[(3) - (3)].exVal),   ctx); }
+<span class="lineNum">    1578 </span>            :     break;
+<span class="lineNum">    1579 </span>            : 
+<span class="lineNum">    1580 </span>            :   case 13:
+<span class="lineNum">    1581 </span>            : 
+<span class="lineNum">    1582 </span>            : /* Line 1806 of yacc.c  */
+<span class="lineNum">    1583 </span>            : #line 125 &quot;util_expr_parse.y&quot;
+<span class="lineNum">    1584 </span>            :     { (yyval.exVal) = (yyvsp[(2) - (3)].exVal); }
+<span class="lineNum">    1585 </span>            :     break;
+<span class="lineNum">    1586 </span>            : 
+<span class="lineNum">    1587 </span>            :   case 14:
+<span class="lineNum">    1588 </span>            : 
+<span class="lineNum">    1589 </span>            : /* Line 1806 of yacc.c  */
+<span class="lineNum">    1590 </span>            : #line 126 &quot;util_expr_parse.y&quot;
+<span class="lineNum">    1591 </span>            :     { YYABORT; }
+<span class="lineNum">    1592 </span>            :     break;
+<span class="lineNum">    1593 </span>            : 
+<span class="lineNum">    1594 </span>            :   case 15:
+<span class="lineNum">    1595 </span>            : 
+<span class="lineNum">    1596 </span>            : /* Line 1806 of yacc.c  */
+<span class="lineNum">    1597 </span>            : #line 129 &quot;util_expr_parse.y&quot;
+<span class="lineNum">    1598 </span>            :     { (yyval.exVal) = ap_expr_make(op_EQ,      (yyvsp[(1) - (3)].exVal), (yyvsp[(3) - (3)].exVal), ctx); }
+<span class="lineNum">    1599 </span>            :     break;
+<span class="lineNum">    1600 </span>            : 
+<span class="lineNum">    1601 </span>            :   case 16:
+<span class="lineNum">    1602 </span>            : 
+<span class="lineNum">    1603 </span>            : /* Line 1806 of yacc.c  */
+<span class="lineNum">    1604 </span>            : #line 130 &quot;util_expr_parse.y&quot;
+<span class="lineNum">    1605 </span>            :     { (yyval.exVal) = ap_expr_make(op_NE,      (yyvsp[(1) - (3)].exVal), (yyvsp[(3) - (3)].exVal), ctx); }
+<span class="lineNum">    1606 </span>            :     break;
+<span class="lineNum">    1607 </span>            : 
+<span class="lineNum">    1608 </span>            :   case 17:
+<span class="lineNum">    1609 </span>            : 
+<span class="lineNum">    1610 </span>            : /* Line 1806 of yacc.c  */
+<span class="lineNum">    1611 </span>            : #line 131 &quot;util_expr_parse.y&quot;
+<span class="lineNum">    1612 </span>            :     { (yyval.exVal) = ap_expr_make(op_LT,      (yyvsp[(1) - (3)].exVal), (yyvsp[(3) - (3)].exVal), ctx); }
+<span class="lineNum">    1613 </span>            :     break;
+<span class="lineNum">    1614 </span>            : 
+<span class="lineNum">    1615 </span>            :   case 18:
+<span class="lineNum">    1616 </span>            : 
+<span class="lineNum">    1617 </span>            : /* Line 1806 of yacc.c  */
+<span class="lineNum">    1618 </span>            : #line 132 &quot;util_expr_parse.y&quot;
+<span class="lineNum">    1619 </span>            :     { (yyval.exVal) = ap_expr_make(op_LE,      (yyvsp[(1) - (3)].exVal), (yyvsp[(3) - (3)].exVal), ctx); }
+<span class="lineNum">    1620 </span>            :     break;
+<span class="lineNum">    1621 </span>            : 
+<span class="lineNum">    1622 </span>            :   case 19:
+<span class="lineNum">    1623 </span>            : 
+<span class="lineNum">    1624 </span>            : /* Line 1806 of yacc.c  */
+<span class="lineNum">    1625 </span>            : #line 133 &quot;util_expr_parse.y&quot;
+<span class="lineNum">    1626 </span>            :     { (yyval.exVal) = ap_expr_make(op_GT,      (yyvsp[(1) - (3)].exVal), (yyvsp[(3) - (3)].exVal), ctx); }
+<span class="lineNum">    1627 </span>            :     break;
+<span class="lineNum">    1628 </span>            : 
+<span class="lineNum">    1629 </span>            :   case 20:
+<span class="lineNum">    1630 </span>            : 
+<span class="lineNum">    1631 </span>            : /* Line 1806 of yacc.c  */
+<span class="lineNum">    1632 </span>            : #line 134 &quot;util_expr_parse.y&quot;
+<span class="lineNum">    1633 </span>            :     { (yyval.exVal) = ap_expr_make(op_GE,      (yyvsp[(1) - (3)].exVal), (yyvsp[(3) - (3)].exVal), ctx); }
+<span class="lineNum">    1634 </span>            :     break;
+<span class="lineNum">    1635 </span>            : 
+<span class="lineNum">    1636 </span>            :   case 21:
+<span class="lineNum">    1637 </span>            : 
+<span class="lineNum">    1638 </span>            : /* Line 1806 of yacc.c  */
+<span class="lineNum">    1639 </span>            : #line 135 &quot;util_expr_parse.y&quot;
+<span class="lineNum">    1640 </span>            :     { (yyval.exVal) = ap_expr_make(op_STR_EQ,  (yyvsp[(1) - (3)].exVal), (yyvsp[(3) - (3)].exVal), ctx); }
+<span class="lineNum">    1641 </span>            :     break;
+<span class="lineNum">    1642 </span>            : 
+<span class="lineNum">    1643 </span>            :   case 22:
+<span class="lineNum">    1644 </span>            : 
+<span class="lineNum">    1645 </span>            : /* Line 1806 of yacc.c  */
+<span class="lineNum">    1646 </span>            : #line 136 &quot;util_expr_parse.y&quot;
+<span class="lineNum">    1647 </span>            :     { (yyval.exVal) = ap_expr_make(op_STR_NE,  (yyvsp[(1) - (3)].exVal), (yyvsp[(3) - (3)].exVal), ctx); }
+<span class="lineNum">    1648 </span>            :     break;
+<span class="lineNum">    1649 </span>            : 
+<span class="lineNum">    1650 </span>            :   case 23:
+<span class="lineNum">    1651 </span>            : 
+<span class="lineNum">    1652 </span>            : /* Line 1806 of yacc.c  */
+<span class="lineNum">    1653 </span>            : #line 137 &quot;util_expr_parse.y&quot;
+<span class="lineNum">    1654 </span>            :     { (yyval.exVal) = ap_expr_make(op_STR_LT,  (yyvsp[(1) - (3)].exVal), (yyvsp[(3) - (3)].exVal), ctx); }
+<span class="lineNum">    1655 </span>            :     break;
+<span class="lineNum">    1656 </span>            : 
+<span class="lineNum">    1657 </span>            :   case 24:
+<span class="lineNum">    1658 </span>            : 
+<span class="lineNum">    1659 </span>            : /* Line 1806 of yacc.c  */
+<span class="lineNum">    1660 </span>            : #line 138 &quot;util_expr_parse.y&quot;
+<span class="lineNum">    1661 </span>            :     { (yyval.exVal) = ap_expr_make(op_STR_LE,  (yyvsp[(1) - (3)].exVal), (yyvsp[(3) - (3)].exVal), ctx); }
+<span class="lineNum">    1662 </span>            :     break;
+<span class="lineNum">    1663 </span>            : 
+<span class="lineNum">    1664 </span>            :   case 25:
+<span class="lineNum">    1665 </span>            : 
+<span class="lineNum">    1666 </span>            : /* Line 1806 of yacc.c  */
+<span class="lineNum">    1667 </span>            : #line 139 &quot;util_expr_parse.y&quot;
+<span class="lineNum">    1668 </span>            :     { (yyval.exVal) = ap_expr_make(op_STR_GT,  (yyvsp[(1) - (3)].exVal), (yyvsp[(3) - (3)].exVal), ctx); }
+<span class="lineNum">    1669 </span>            :     break;
+<span class="lineNum">    1670 </span>            : 
+<span class="lineNum">    1671 </span>            :   case 26:
+<span class="lineNum">    1672 </span>            : 
+<span class="lineNum">    1673 </span>            : /* Line 1806 of yacc.c  */
+<span class="lineNum">    1674 </span>            : #line 140 &quot;util_expr_parse.y&quot;
+<span class="lineNum">    1675 </span>            :     { (yyval.exVal) = ap_expr_make(op_STR_GE,  (yyvsp[(1) - (3)].exVal), (yyvsp[(3) - (3)].exVal), ctx); }
+<span class="lineNum">    1676 </span>            :     break;
+<span class="lineNum">    1677 </span>            : 
+<span class="lineNum">    1678 </span>            :   case 27:
+<span class="lineNum">    1679 </span>            : 
+<span class="lineNum">    1680 </span>            : /* Line 1806 of yacc.c  */
+<span class="lineNum">    1681 </span>            : #line 141 &quot;util_expr_parse.y&quot;
+<span class="lineNum">    1682 </span>            :     { (yyval.exVal) = ap_expr_make(op_IN,      (yyvsp[(1) - (3)].exVal), (yyvsp[(3) - (3)].exVal), ctx); }
+<span class="lineNum">    1683 </span>            :     break;
+<span class="lineNum">    1684 </span>            : 
+<span class="lineNum">    1685 </span>            :   case 28:
+<span class="lineNum">    1686 </span>            : 
+<span class="lineNum">    1687 </span>            : /* Line 1806 of yacc.c  */
+<span class="lineNum">    1688 </span>            : #line 142 &quot;util_expr_parse.y&quot;
+<span class="lineNum">    1689 </span>            :     { (yyval.exVal) = ap_expr_make(op_REG,     (yyvsp[(1) - (3)].exVal), (yyvsp[(3) - (3)].exVal), ctx); }
+<span class="lineNum">    1690 </span>            :     break;
+<span class="lineNum">    1691 </span>            : 
+<span class="lineNum">    1692 </span>            :   case 29:
+<span class="lineNum">    1693 </span>            : 
+<span class="lineNum">    1694 </span>            : /* Line 1806 of yacc.c  */
+<span class="lineNum">    1695 </span>            : #line 143 &quot;util_expr_parse.y&quot;
+<span class="lineNum">    1696 </span>            :     { (yyval.exVal) = ap_expr_make(op_NRE,     (yyvsp[(1) - (3)].exVal), (yyvsp[(3) - (3)].exVal), ctx); }
+<span class="lineNum">    1697 </span>            :     break;
+<span class="lineNum">    1698 </span>            : 
+<span class="lineNum">    1699 </span>            :   case 30:
+<span class="lineNum">    1700 </span>            : 
+<span class="lineNum">    1701 </span>            : /* Line 1806 of yacc.c  */
+<span class="lineNum">    1702 </span>            : #line 146 &quot;util_expr_parse.y&quot;
+<span class="lineNum">    1703 </span>            :     { (yyval.exVal) = (yyvsp[(1) - (1)].exVal); }
+<span class="lineNum">    1704 </span>            :     break;
+<span class="lineNum">    1705 </span>            : 
+<span class="lineNum">    1706 </span>            :   case 31:
+<span class="lineNum">    1707 </span>            : 
+<span class="lineNum">    1708 </span>            : /* Line 1806 of yacc.c  */
+<span class="lineNum">    1709 </span>            : #line 147 &quot;util_expr_parse.y&quot;
+<span class="lineNum">    1710 </span>            :     { (yyval.exVal) = (yyvsp[(2) - (3)].exVal); }
+<span class="lineNum">    1711 </span>            :     break;
+<span class="lineNum">    1712 </span>            : 
+<span class="lineNum">    1713 </span>            :   case 32:
+<span class="lineNum">    1714 </span>            : 
+<span class="lineNum">    1715 </span>            : /* Line 1806 of yacc.c  */
+<span class="lineNum">    1716 </span>            : #line 150 &quot;util_expr_parse.y&quot;
+<span class="lineNum">    1717 </span>            :     { (yyval.exVal) = ap_expr_make(op_ListElement, (yyvsp[(1) - (1)].exVal), NULL, ctx); }
+<span class="lineNum">    1718 </span>            :     break;
+<span class="lineNum">    1719 </span>            : 
+<span class="lineNum">    1720 </span>            :   case 33:
+<span class="lineNum">    1721 </span>            : 
+<span class="lineNum">    1722 </span>            : /* Line 1806 of yacc.c  */
+<span class="lineNum">    1723 </span>            : #line 151 &quot;util_expr_parse.y&quot;
+<span class="lineNum">    1724 </span>            :     { (yyval.exVal) = ap_expr_make(op_ListElement, (yyvsp[(3) - (3)].exVal), (yyvsp[(1) - (3)].exVal),   ctx); }
+<span class="lineNum">    1725 </span>            :     break;
+<span class="lineNum">    1726 </span>            : 
+<span class="lineNum">    1727 </span>            :   case 34:
+<span class="lineNum">    1728 </span>            : 
+<span class="lineNum">    1729 </span>            : /* Line 1806 of yacc.c  */
+<span class="lineNum">    1730 </span>            : #line 154 &quot;util_expr_parse.y&quot;
+<span class="lineNum">    1731 </span>            :     { (yyval.exVal) = ap_expr_make(op_Concat, (yyvsp[(1) - (2)].exVal), (yyvsp[(2) - (2)].exVal), ctx); }
+<span class="lineNum">    1732 </span>            :     break;
+<span class="lineNum">    1733 </span>            : 
+<span class="lineNum">    1734 </span>            :   case 35:
+<span class="lineNum">    1735 </span>            : 
+<span class="lineNum">    1736 </span>            : /* Line 1806 of yacc.c  */
+<span class="lineNum">    1737 </span>            : #line 155 &quot;util_expr_parse.y&quot;
+<span class="lineNum">    1738 </span>            :     { (yyval.exVal) = (yyvsp[(1) - (1)].exVal); }
+<span class="lineNum">    1739 </span>            :     break;
+<span class="lineNum">    1740 </span>            : 
+<span class="lineNum">    1741 </span>            :   case 36:
+<span class="lineNum">    1742 </span>            : 
+<span class="lineNum">    1743 </span>            : /* Line 1806 of yacc.c  */
+<span class="lineNum">    1744 </span>            : #line 156 &quot;util_expr_parse.y&quot;
+<span class="lineNum">    1745 </span>            :     { YYABORT; }
+<span class="lineNum">    1746 </span>            :     break;
+<span class="lineNum">    1747 </span>            : 
+<span class="lineNum">    1748 </span>            :   case 37:
+<span class="lineNum">    1749 </span>            : 
+<span class="lineNum">    1750 </span>            : /* Line 1806 of yacc.c  */
+<span class="lineNum">    1751 </span>            : #line 159 &quot;util_expr_parse.y&quot;
+<span class="lineNum">    1752 </span>            :     { (yyval.exVal) = ap_expr_make(op_String, (yyvsp[(1) - (1)].cpVal), NULL, ctx); }
+<span class="lineNum">    1753 </span>            :     break;
+<span class="lineNum">    1754 </span>            : 
+<span class="lineNum">    1755 </span>            :   case 38:
+<span class="lineNum">    1756 </span>            : 
+<span class="lineNum">    1757 </span>            : /* Line 1806 of yacc.c  */
+<span class="lineNum">    1758 </span>            : #line 160 &quot;util_expr_parse.y&quot;
+<span class="lineNum">    1759 </span>            :     { (yyval.exVal) = (yyvsp[(1) - (1)].exVal); }
+<span class="lineNum">    1760 </span>            :     break;
+<span class="lineNum">    1761 </span>            : 
+<span class="lineNum">    1762 </span>            :   case 39:
+<span class="lineNum">    1763 </span>            : 
+<span class="lineNum">    1764 </span>            : /* Line 1806 of yacc.c  */
+<span class="lineNum">    1765 </span>            : #line 161 &quot;util_expr_parse.y&quot;
+<span class="lineNum">    1766 </span>            :     { (yyval.exVal) = (yyvsp[(1) - (1)].exVal); }
+<span class="lineNum">    1767 </span>            :     break;
+<span class="lineNum">    1768 </span>            : 
+<span class="lineNum">    1769 </span>            :   case 40:
+<span class="lineNum">    1770 </span>            : 
+<span class="lineNum">    1771 </span>            : /* Line 1806 of yacc.c  */
+<span class="lineNum">    1772 </span>            : #line 164 &quot;util_expr_parse.y&quot;
+<span class="lineNum">    1773 </span>            :     { (yyval.exVal) = ap_expr_var_make((yyvsp[(2) - (3)].cpVal), ctx); }
+<span class="lineNum">    1774 </span>            :     break;
+<span class="lineNum">    1775 </span>            : 
+<span class="lineNum">    1776 </span>            :   case 41:
+<span class="lineNum">    1777 </span>            : 
+<span class="lineNum">    1778 </span>            : /* Line 1806 of yacc.c  */
+<span class="lineNum">    1779 </span>            : #line 165 &quot;util_expr_parse.y&quot;
+<span class="lineNum">    1780 </span>            :     { (yyval.exVal) = ap_expr_str_func_make((yyvsp[(2) - (5)].cpVal), (yyvsp[(4) - (5)].exVal), ctx); }
+<span class="lineNum">    1781 </span>            :     break;
+<span class="lineNum">    1782 </span>            : 
+<span class="lineNum">    1783 </span>            :   case 42:
+<span class="lineNum">    1784 </span>            : 
+<span class="lineNum">    1785 </span>            : /* Line 1806 of yacc.c  */
+<span class="lineNum">    1786 </span>            : #line 168 &quot;util_expr_parse.y&quot;
+<span class="lineNum">    1787 </span>            :     { (yyval.exVal) = ap_expr_make(op_Digit,  (yyvsp[(1) - (1)].cpVal), NULL, ctx); }
+<span class="lineNum">    1788 </span>            :     break;
+<span class="lineNum">    1789 </span>            : 
+<span class="lineNum">    1790 </span>            :   case 43:
+<span class="lineNum">    1791 </span>            : 
+<span class="lineNum">    1792 </span>            : /* Line 1806 of yacc.c  */
+<span class="lineNum">    1793 </span>            : #line 169 &quot;util_expr_parse.y&quot;
+<span class="lineNum">    1794 </span>            :     { (yyval.exVal) = ap_expr_make(op_Concat, (yyvsp[(1) - (3)].exVal), (yyvsp[(3) - (3)].exVal),   ctx); }
+<span class="lineNum">    1795 </span>            :     break;
+<span class="lineNum">    1796 </span>            : 
+<span class="lineNum">    1797 </span>            :   case 44:
+<span class="lineNum">    1798 </span>            : 
+<span class="lineNum">    1799 </span>            : /* Line 1806 of yacc.c  */
+<span class="lineNum">    1800 </span>            : #line 170 &quot;util_expr_parse.y&quot;
+<span class="lineNum">    1801 </span>            :     { (yyval.exVal) = (yyvsp[(1) - (1)].exVal); }
+<span class="lineNum">    1802 </span>            :     break;
+<span class="lineNum">    1803 </span>            : 
+<span class="lineNum">    1804 </span>            :   case 45:
+<span class="lineNum">    1805 </span>            : 
+<span class="lineNum">    1806 </span>            : /* Line 1806 of yacc.c  */
+<span class="lineNum">    1807 </span>            : #line 171 &quot;util_expr_parse.y&quot;
+<span class="lineNum">    1808 </span>            :     { (yyval.exVal) = (yyvsp[(1) - (1)].exVal); }
+<span class="lineNum">    1809 </span>            :     break;
+<span class="lineNum">    1810 </span>            : 
+<span class="lineNum">    1811 </span>            :   case 46:
+<span class="lineNum">    1812 </span>            : 
+<span class="lineNum">    1813 </span>            : /* Line 1806 of yacc.c  */
+<span class="lineNum">    1814 </span>            : #line 172 &quot;util_expr_parse.y&quot;
+<span class="lineNum">    1815 </span>            :     { (yyval.exVal) = (yyvsp[(1) - (1)].exVal); }
+<span class="lineNum">    1816 </span>            :     break;
+<span class="lineNum">    1817 </span>            : 
+<span class="lineNum">    1818 </span>            :   case 47:
+<span class="lineNum">    1819 </span>            : 
+<span class="lineNum">    1820 </span>            : /* Line 1806 of yacc.c  */
+<span class="lineNum">    1821 </span>            : #line 173 &quot;util_expr_parse.y&quot;
+<span class="lineNum">    1822 </span>            :     { (yyval.exVal) = (yyvsp[(2) - (3)].exVal); }
+<span class="lineNum">    1823 </span>            :     break;
+<span class="lineNum">    1824 </span>            : 
+<span class="lineNum">    1825 </span>            :   case 48:
+<span class="lineNum">    1826 </span>            : 
+<span class="lineNum">    1827 </span>            : /* Line 1806 of yacc.c  */
+<span class="lineNum">    1828 </span>            : #line 174 &quot;util_expr_parse.y&quot;
+<span class="lineNum">    1829 </span>            :     { (yyval.exVal) = ap_expr_make(op_String, &quot;&quot;, NULL, ctx); }
+<span class="lineNum">    1830 </span>            :     break;
+<span class="lineNum">    1831 </span>            : 
+<span class="lineNum">    1832 </span>            :   case 49:
+<span class="lineNum">    1833 </span>            : 
+<span class="lineNum">    1834 </span>            : /* Line 1806 of yacc.c  */
+<span class="lineNum">    1835 </span>            : #line 177 &quot;util_expr_parse.y&quot;
+<span class="lineNum">    1836 </span>            :     {
+<span class="lineNum">    1837 </span>            :                 ap_regex_t *regex;
+<span class="lineNum">    1838 </span>            :                 if ((regex = ap_pregcomp(ctx-&gt;pool, (yyvsp[(1) - (1)].cpVal),
+<span class="lineNum">    1839 </span>            :                                          AP_REG_EXTENDED|AP_REG_NOSUB)) == NULL) {
+<span class="lineNum">    1840 </span>            :                     ctx-&gt;error = &quot;Failed to compile regular expression&quot;;
+<span class="lineNum">    1841 </span>            :                     YYERROR;
+<span class="lineNum">    1842 </span>            :                 }
+<span class="lineNum">    1843 </span>            :                 (yyval.exVal) = ap_expr_make(op_Regex, regex, NULL, ctx);
+<span class="lineNum">    1844 </span>            :             }
+<span class="lineNum">    1845 </span>            :     break;
+<span class="lineNum">    1846 </span>            : 
+<span class="lineNum">    1847 </span>            :   case 50:
+<span class="lineNum">    1848 </span>            : 
+<span class="lineNum">    1849 </span>            : /* Line 1806 of yacc.c  */
+<span class="lineNum">    1850 </span>            : #line 186 &quot;util_expr_parse.y&quot;
+<span class="lineNum">    1851 </span>            :     {
+<span class="lineNum">    1852 </span>            :                 ap_regex_t *regex;
+<span class="lineNum">    1853 </span>            :                 if ((regex = ap_pregcomp(ctx-&gt;pool, (yyvsp[(1) - (1)].cpVal),
+<span class="lineNum">    1854 </span>            :                                          AP_REG_EXTENDED|AP_REG_NOSUB|AP_REG_ICASE)) == NULL) {
+<span class="lineNum">    1855 </span>            :                     ctx-&gt;error = &quot;Failed to compile regular expression&quot;;
+<span class="lineNum">    1856 </span>            :                     YYERROR;
+<span class="lineNum">    1857 </span>            :                 }
+<span class="lineNum">    1858 </span>            :                 (yyval.exVal) = ap_expr_make(op_Regex, regex, NULL, ctx);
+<span class="lineNum">    1859 </span>            :             }
+<span class="lineNum">    1860 </span>            :     break;
+<span class="lineNum">    1861 </span>            : 
+<span class="lineNum">    1862 </span>            :   case 51:
+<span class="lineNum">    1863 </span>            : 
+<span class="lineNum">    1864 </span>            : /* Line 1806 of yacc.c  */
+<span class="lineNum">    1865 </span>            : #line 197 &quot;util_expr_parse.y&quot;
+<span class="lineNum">    1866 </span>            :     {
+<span class="lineNum">    1867 </span>            :                 int *n = apr_palloc(ctx-&gt;pool, sizeof(int));
+<span class="lineNum">    1868 </span>            :                 *n = (yyvsp[(1) - (1)].num);
+<span class="lineNum">    1869 </span>            :                 (yyval.exVal) = ap_expr_make(op_RegexBackref, n, NULL, ctx);
+<span class="lineNum">    1870 </span>            :             }
+<span class="lineNum">    1871 </span>            :     break;
+<span class="lineNum">    1872 </span>            : 
+<span class="lineNum">    1873 </span>            :   case 52:
+<span class="lineNum">    1874 </span>            : 
+<span class="lineNum">    1875 </span>            : /* Line 1806 of yacc.c  */
+<span class="lineNum">    1876 </span>            : #line 204 &quot;util_expr_parse.y&quot;
+<span class="lineNum">    1877 </span>            :     { (yyval.exVal) = ap_expr_list_func_make((yyvsp[(1) - (4)].cpVal), (yyvsp[(3) - (4)].exVal), ctx); }
+<span class="lineNum">    1878 </span>            :     break;
+<span class="lineNum">    1879 </span>            : 
+<span class="lineNum">    1880 </span>            :   case 53:
+<span class="lineNum">    1881 </span>            : 
+<span class="lineNum">    1882 </span>            : /* Line 1806 of yacc.c  */
+<span class="lineNum">    1883 </span>            : #line 207 &quot;util_expr_parse.y&quot;
+<span class="lineNum">    1884 </span>            :     { (yyval.exVal) = ap_expr_str_func_make((yyvsp[(1) - (4)].cpVal), (yyvsp[(3) - (4)].exVal), ctx); }
+<span class="lineNum">    1885 </span>            :     break;
+<span class="lineNum">    1886 </span>            : 
+<span class="lineNum">    1887 </span>            : 
+<span class="lineNum">    1888 </span>            : 
+<span class="lineNum">    1889 </span>            : /* Line 1806 of yacc.c  */
+<span class="lineNum">    1890 </span>            : #line 1891 &quot;util_expr_parse.c&quot;
+<span class="lineNum">    1891 </span><span class="lineNoCov">          0 :       default: break;</span>
+<span class="lineNum">    1892 </span>            :     }
+<span class="lineNum">    1893 </span>            :   /* User semantic actions sometimes alter yychar, and that requires
+<span class="lineNum">    1894 </span>            :      that yytoken be updated with the new translation.  We take the
+<span class="lineNum">    1895 </span>            :      approach of translating immediately before every use of yytoken.
+<span class="lineNum">    1896 </span>            :      One alternative is translating here after every semantic action,
+<span class="lineNum">    1897 </span>            :      but that translation would be missed if the semantic action invokes
+<span class="lineNum">    1898 </span>            :      YYABORT, YYACCEPT, or YYERROR immediately after altering yychar or
+<span class="lineNum">    1899 </span>            :      if it invokes YYBACKUP.  In the case of YYABORT or YYACCEPT, an
+<span class="lineNum">    1900 </span>            :      incorrect destructor might then be invoked immediately.  In the
+<span class="lineNum">    1901 </span>            :      case of YYERROR or YYBACKUP, subsequent parser actions might lead
+<span class="lineNum">    1902 </span>            :      to an incorrect destructor call or verbose syntax error message
+<span class="lineNum">    1903 </span>            :      before the lookahead is translated.  */
+<span class="lineNum">    1904 </span>            :   YY_SYMBOL_PRINT (&quot;-&gt; $$ =&quot;, yyr1[yyn], &amp;yyval, &amp;yyloc);
+<span class="lineNum">    1905 </span>            : 
+<span class="lineNum">    1906 </span><span class="lineNoCov">          0 :   YYPOPSTACK (yylen);</span>
+<span class="lineNum">    1907 </span><span class="lineNoCov">          0 :   yylen = 0;</span>
+<span class="lineNum">    1908 </span>            :   YY_STACK_PRINT (yyss, yyssp);
+<span class="lineNum">    1909 </span>            : 
+<span class="lineNum">    1910 </span><span class="lineNoCov">          0 :   *++yyvsp = yyval;</span>
+<span class="lineNum">    1911 </span>            : 
+<span class="lineNum">    1912 </span>            :   /* Now `shift' the result of the reduction.  Determine what state
+<span class="lineNum">    1913 </span>            :      that goes to, based on the state we popped back to and the rule
+<span class="lineNum">    1914 </span>            :      number reduced by.  */
+<span class="lineNum">    1915 </span>            : 
+<span class="lineNum">    1916 </span><span class="lineNoCov">          0 :   yyn = yyr1[yyn];</span>
+<span class="lineNum">    1917 </span>            : 
+<span class="lineNum">    1918 </span><span class="lineNoCov">          0 :   yystate = yypgoto[yyn - YYNTOKENS] + *yyssp;</span>
+<span class="lineNum">    1919 </span><span class="lineNoCov">          0 :   if (0 &lt;= yystate &amp;&amp; yystate &lt;= YYLAST &amp;&amp; yycheck[yystate] == *yyssp)</span>
+<span class="lineNum">    1920 </span><span class="lineNoCov">          0 :     yystate = yytable[yystate];</span>
+<span class="lineNum">    1921 </span>            :   else
+<span class="lineNum">    1922 </span><span class="lineNoCov">          0 :     yystate = yydefgoto[yyn - YYNTOKENS];</span>
+<span class="lineNum">    1923 </span>            : 
+<span class="lineNum">    1924 </span><span class="lineNoCov">          0 :   goto yynewstate;</span>
+<span class="lineNum">    1925 </span>            : 
+<span class="lineNum">    1926 </span>            : 
+<span class="lineNum">    1927 </span>            : /*------------------------------------.
+<span class="lineNum">    1928 </span>            : | yyerrlab -- here on detecting error |
+<span class="lineNum">    1929 </span>            : `------------------------------------*/
+<span class="lineNum">    1930 </span>            : yyerrlab:
+<span class="lineNum">    1931 </span>            :   /* Make sure we have latest lookahead translation.  See comments at
+<span class="lineNum">    1932 </span>            :      user semantic actions for why this is necessary.  */
+<span class="lineNum">    1933 </span><span class="lineNoCov">          0 :   yytoken = yychar == YYEMPTY ? YYEMPTY : YYTRANSLATE (yychar);</span>
+<span class="lineNum">    1934 </span>            : 
+<span class="lineNum">    1935 </span>            :   /* If not already recovering from an error, report this error.  */
+<span class="lineNum">    1936 </span><span class="lineNoCov">          0 :   if (!yyerrstatus)</span>
+<span class="lineNum">    1937 </span>            :     {
+<span class="lineNum">    1938 </span><span class="lineNoCov">          0 :       ++yynerrs;</span>
+<span class="lineNum">    1939 </span>            : #if ! YYERROR_VERBOSE
+<span class="lineNum">    1940 </span>            :       yyerror (ctx, YY_(&quot;syntax error&quot;));
+<span class="lineNum">    1941 </span>            : #else
+<span class="lineNum">    1942 </span>            : # define YYSYNTAX_ERROR yysyntax_error (&amp;yymsg_alloc, &amp;yymsg, \
+<span class="lineNum">    1943 </span>            :                                         yyssp, yytoken)
+<span class="lineNum">    1944 </span>            :       {
+<span class="lineNum">    1945 </span><span class="lineNoCov">          0 :         char const *yymsgp = YY_(&quot;syntax error&quot;);</span>
+<span class="lineNum">    1946 </span>            :         int yysyntax_error_status;
+<span class="lineNum">    1947 </span><span class="lineNoCov">          0 :         yysyntax_error_status = YYSYNTAX_ERROR;</span>
+<span class="lineNum">    1948 </span><span class="lineNoCov">          0 :         if (yysyntax_error_status == 0)</span>
+<span class="lineNum">    1949 </span><span class="lineNoCov">          0 :           yymsgp = yymsg;</span>
+<span class="lineNum">    1950 </span><span class="lineNoCov">          0 :         else if (yysyntax_error_status == 1)</span>
+<span class="lineNum">    1951 </span>            :           {
+<span class="lineNum">    1952 </span><span class="lineNoCov">          0 :             if (yymsg != yymsgbuf)</span>
+<span class="lineNum">    1953 </span><span class="lineNoCov">          0 :               YYSTACK_FREE (yymsg);</span>
+<span class="lineNum">    1954 </span><span class="lineNoCov">          0 :             yymsg = (char *) YYSTACK_ALLOC (yymsg_alloc);</span>
+<span class="lineNum">    1955 </span><span class="lineNoCov">          0 :             if (!yymsg)</span>
+<span class="lineNum">    1956 </span>            :               {
+<span class="lineNum">    1957 </span><span class="lineNoCov">          0 :                 yymsg = yymsgbuf;</span>
+<span class="lineNum">    1958 </span><span class="lineNoCov">          0 :                 yymsg_alloc = sizeof yymsgbuf;</span>
+<span class="lineNum">    1959 </span><span class="lineNoCov">          0 :                 yysyntax_error_status = 2;</span>
+<span class="lineNum">    1960 </span>            :               }
+<span class="lineNum">    1961 </span>            :             else
+<span class="lineNum">    1962 </span>            :               {
+<span class="lineNum">    1963 </span><span class="lineNoCov">          0 :                 yysyntax_error_status = YYSYNTAX_ERROR;</span>
+<span class="lineNum">    1964 </span><span class="lineNoCov">          0 :                 yymsgp = yymsg;</span>
+<span class="lineNum">    1965 </span>            :               }
+<span class="lineNum">    1966 </span>            :           }
+<span class="lineNum">    1967 </span><span class="lineNoCov">          0 :         yyerror (ctx, yymsgp);</span>
+<span class="lineNum">    1968 </span><span class="lineNoCov">          0 :         if (yysyntax_error_status == 2)</span>
+<span class="lineNum">    1969 </span><span class="lineNoCov">          0 :           goto yyexhaustedlab;</span>
+<span class="lineNum">    1970 </span>            :       }
+<span class="lineNum">    1971 </span>            : # undef YYSYNTAX_ERROR
+<span class="lineNum">    1972 </span>            : #endif
+<span class="lineNum">    1973 </span>            :     }
+<span class="lineNum">    1974 </span>            : 
+<span class="lineNum">    1975 </span>            : 
+<span class="lineNum">    1976 </span>            : 
+<span class="lineNum">    1977 </span><span class="lineNoCov">          0 :   if (yyerrstatus == 3)</span>
+<span class="lineNum">    1978 </span>            :     {
+<span class="lineNum">    1979 </span>            :       /* If just tried and failed to reuse lookahead token after an
+<span class="lineNum">    1980 </span>            :          error, discard it.  */
+<span class="lineNum">    1981 </span>            : 
+<span class="lineNum">    1982 </span><span class="lineNoCov">          0 :       if (yychar &lt;= YYEOF)</span>
+<span class="lineNum">    1983 </span>            :         {
+<span class="lineNum">    1984 </span>            :           /* Return failure if at end of input.  */
+<span class="lineNum">    1985 </span><span class="lineNoCov">          0 :           if (yychar == YYEOF)</span>
+<span class="lineNum">    1986 </span><span class="lineNoCov">          0 :             YYABORT;</span>
+<span class="lineNum">    1987 </span>            :         }
+<span class="lineNum">    1988 </span>            :       else
+<span class="lineNum">    1989 </span>            :         {
+<span class="lineNum">    1990 </span><span class="lineNoCov">          0 :           yydestruct (&quot;Error: discarding&quot;,</span>
+<span class="lineNum">    1991 </span>            :                       yytoken, &amp;yylval, ctx);
+<span class="lineNum">    1992 </span><span class="lineNoCov">          0 :           yychar = YYEMPTY;</span>
+<span class="lineNum">    1993 </span>            :         }
+<span class="lineNum">    1994 </span>            :     }
+<span class="lineNum">    1995 </span>            : 
+<span class="lineNum">    1996 </span>            :   /* Else will try to reuse lookahead token after shifting the error
+<span class="lineNum">    1997 </span>            :      token.  */
+<span class="lineNum">    1998 </span><span class="lineNoCov">          0 :   goto yyerrlab1;</span>
+<span class="lineNum">    1999 </span>            : 
+<span class="lineNum">    2000 </span>            : 
+<span class="lineNum">    2001 </span>            : /*---------------------------------------------------.
+<span class="lineNum">    2002 </span>            : | yyerrorlab -- error raised explicitly by YYERROR.  |
+<span class="lineNum">    2003 </span>            : `---------------------------------------------------*/
+<span class="lineNum">    2004 </span>            : yyerrorlab:
+<span class="lineNum">    2005 </span>            : 
+<span class="lineNum">    2006 </span>            :   /* Pacify compilers like GCC when the user code never invokes
+<span class="lineNum">    2007 </span>            :      YYERROR and the label yyerrorlab therefore never appears in user
+<span class="lineNum">    2008 </span>            :      code.  */
+<span class="lineNum">    2009 </span>            :   if (/*CONSTCOND*/ 0)
+<span class="lineNum">    2010 </span>            :      goto yyerrorlab;
+<span class="lineNum">    2011 </span>            : 
+<span class="lineNum">    2012 </span>            :   /* Do not reclaim the symbols of the rule which action triggered
+<span class="lineNum">    2013 </span>            :      this YYERROR.  */
+<span class="lineNum">    2014 </span><span class="lineNoCov">          0 :   YYPOPSTACK (yylen);</span>
+<span class="lineNum">    2015 </span><span class="lineNoCov">          0 :   yylen = 0;</span>
+<span class="lineNum">    2016 </span>            :   YY_STACK_PRINT (yyss, yyssp);
+<span class="lineNum">    2017 </span><span class="lineNoCov">          0 :   yystate = *yyssp;</span>
+<span class="lineNum">    2018 </span><span class="lineNoCov">          0 :   goto yyerrlab1;</span>
+<span class="lineNum">    2019 </span>            : 
+<span class="lineNum">    2020 </span>            : 
+<span class="lineNum">    2021 </span>            : /*-------------------------------------------------------------.
+<span class="lineNum">    2022 </span>            : | yyerrlab1 -- common code for both syntax error and YYERROR.  |
+<span class="lineNum">    2023 </span>            : `-------------------------------------------------------------*/
+<span class="lineNum">    2024 </span>            : yyerrlab1:
+<span class="lineNum">    2025 </span><span class="lineNoCov">          0 :   yyerrstatus = 3;      /* Each real token shifted decrements this.  */</span>
+<span class="lineNum">    2026 </span>            : 
+<span class="lineNum">    2027 </span>            :   for (;;)
+<span class="lineNum">    2028 </span>            :     {
+<span class="lineNum">    2029 </span><span class="lineNoCov">          0 :       yyn = yypact[yystate];</span>
+<span class="lineNum">    2030 </span><span class="lineNoCov">          0 :       if (!yypact_value_is_default (yyn))</span>
+<span class="lineNum">    2031 </span>            :         {
+<span class="lineNum">    2032 </span><span class="lineNoCov">          0 :           yyn += YYTERROR;</span>
+<span class="lineNum">    2033 </span><span class="lineNoCov">          0 :           if (0 &lt;= yyn &amp;&amp; yyn &lt;= YYLAST &amp;&amp; yycheck[yyn] == YYTERROR)</span>
+<span class="lineNum">    2034 </span>            :             {
+<span class="lineNum">    2035 </span><span class="lineNoCov">          0 :               yyn = yytable[yyn];</span>
+<span class="lineNum">    2036 </span><span class="lineNoCov">          0 :               if (0 &lt; yyn)</span>
+<span class="lineNum">    2037 </span><span class="lineNoCov">          0 :                 break;</span>
+<span class="lineNum">    2038 </span>            :             }
+<span class="lineNum">    2039 </span>            :         }
+<span class="lineNum">    2040 </span>            : 
+<span class="lineNum">    2041 </span>            :       /* Pop the current state because it cannot handle the error token.  */
+<span class="lineNum">    2042 </span><span class="lineNoCov">          0 :       if (yyssp == yyss)</span>
+<span class="lineNum">    2043 </span><span class="lineNoCov">          0 :         YYABORT;</span>
+<span class="lineNum">    2044 </span>            : 
+<span class="lineNum">    2045 </span>            : 
+<span class="lineNum">    2046 </span><span class="lineNoCov">          0 :       yydestruct (&quot;Error: popping&quot;,</span>
+<span class="lineNum">    2047 </span><span class="lineNoCov">          0 :                   yystos[yystate], yyvsp, ctx);</span>
+<span class="lineNum">    2048 </span><span class="lineNoCov">          0 :       YYPOPSTACK (1);</span>
+<span class="lineNum">    2049 </span><span class="lineNoCov">          0 :       yystate = *yyssp;</span>
+<span class="lineNum">    2050 </span>            :       YY_STACK_PRINT (yyss, yyssp);
+<span class="lineNum">    2051 </span><span class="lineNoCov">          0 :     }</span>
+<span class="lineNum">    2052 </span>            : 
+<span class="lineNum">    2053 </span><span class="lineNoCov">          0 :   *++yyvsp = yylval;</span>
+<span class="lineNum">    2054 </span>            : 
+<span class="lineNum">    2055 </span>            : 
+<span class="lineNum">    2056 </span>            :   /* Shift the error token.  */
+<span class="lineNum">    2057 </span>            :   YY_SYMBOL_PRINT (&quot;Shifting&quot;, yystos[yyn], yyvsp, yylsp);
+<span class="lineNum">    2058 </span>            : 
+<span class="lineNum">    2059 </span><span class="lineNoCov">          0 :   yystate = yyn;</span>
+<span class="lineNum">    2060 </span><span class="lineNoCov">          0 :   goto yynewstate;</span>
+<span class="lineNum">    2061 </span>            : 
+<span class="lineNum">    2062 </span>            : 
+<span class="lineNum">    2063 </span>            : /*-------------------------------------.
+<span class="lineNum">    2064 </span>            : | yyacceptlab -- YYACCEPT comes here.  |
+<span class="lineNum">    2065 </span>            : `-------------------------------------*/
+<span class="lineNum">    2066 </span>            : yyacceptlab:
+<span class="lineNum">    2067 </span><span class="lineNoCov">          0 :   yyresult = 0;</span>
+<span class="lineNum">    2068 </span><span class="lineNoCov">          0 :   goto yyreturn;</span>
+<span class="lineNum">    2069 </span>            : 
+<span class="lineNum">    2070 </span>            : /*-----------------------------------.
+<span class="lineNum">    2071 </span>            : | yyabortlab -- YYABORT comes here.  |
+<span class="lineNum">    2072 </span>            : `-----------------------------------*/
+<span class="lineNum">    2073 </span>            : yyabortlab:
+<span class="lineNum">    2074 </span><span class="lineNoCov">          0 :   yyresult = 1;</span>
+<span class="lineNum">    2075 </span><span class="lineNoCov">          0 :   goto yyreturn;</span>
+<span class="lineNum">    2076 </span>            : 
+<span class="lineNum">    2077 </span>            : #if !defined(yyoverflow) || YYERROR_VERBOSE
+<span class="lineNum">    2078 </span>            : /*-------------------------------------------------.
+<span class="lineNum">    2079 </span>            : | yyexhaustedlab -- memory exhaustion comes here.  |
+<span class="lineNum">    2080 </span>            : `-------------------------------------------------*/
+<span class="lineNum">    2081 </span>            : yyexhaustedlab:
+<span class="lineNum">    2082 </span><span class="lineNoCov">          0 :   yyerror (ctx, YY_(&quot;memory exhausted&quot;));</span>
+<span class="lineNum">    2083 </span><span class="lineNoCov">          0 :   yyresult = 2;</span>
+<span class="lineNum">    2084 </span>            :   /* Fall through.  */
+<span class="lineNum">    2085 </span>            : #endif
+<span class="lineNum">    2086 </span>            : 
+<span class="lineNum">    2087 </span>            : yyreturn:
+<span class="lineNum">    2088 </span><span class="lineNoCov">          0 :   if (yychar != YYEMPTY)</span>
+<span class="lineNum">    2089 </span>            :     {
+<span class="lineNum">    2090 </span>            :       /* Make sure we have latest lookahead translation.  See comments at
+<span class="lineNum">    2091 </span>            :          user semantic actions for why this is necessary.  */
+<span class="lineNum">    2092 </span><span class="lineNoCov">          0 :       yytoken = YYTRANSLATE (yychar);</span>
+<span class="lineNum">    2093 </span><span class="lineNoCov">          0 :       yydestruct (&quot;Cleanup: discarding lookahead&quot;,</span>
+<span class="lineNum">    2094 </span>            :                   yytoken, &amp;yylval, ctx);
+<span class="lineNum">    2095 </span>            :     }
+<span class="lineNum">    2096 </span>            :   /* Do not reclaim the symbols of the rule which action triggered
+<span class="lineNum">    2097 </span>            :      this YYABORT or YYACCEPT.  */
+<span class="lineNum">    2098 </span><span class="lineNoCov">          0 :   YYPOPSTACK (yylen);</span>
+<span class="lineNum">    2099 </span>            :   YY_STACK_PRINT (yyss, yyssp);
+<span class="lineNum">    2100 </span><span class="lineNoCov">          0 :   while (yyssp != yyss)</span>
+<span class="lineNum">    2101 </span>            :     {
+<span class="lineNum">    2102 </span><span class="lineNoCov">          0 :       yydestruct (&quot;Cleanup: popping&quot;,</span>
+<span class="lineNum">    2103 </span><span class="lineNoCov">          0 :                   yystos[*yyssp], yyvsp, ctx);</span>
+<span class="lineNum">    2104 </span><span class="lineNoCov">          0 :       YYPOPSTACK (1);</span>
+<span class="lineNum">    2105 </span>            :     }
+<span class="lineNum">    2106 </span>            : #ifndef yyoverflow
+<span class="lineNum">    2107 </span><span class="lineNoCov">          0 :   if (yyss != yyssa)</span>
+<span class="lineNum">    2108 </span><span class="lineNoCov">          0 :     YYSTACK_FREE (yyss);</span>
+<span class="lineNum">    2109 </span>            : #endif
+<span class="lineNum">    2110 </span>            : #if YYERROR_VERBOSE
+<span class="lineNum">    2111 </span><span class="lineNoCov">          0 :   if (yymsg != yymsgbuf)</span>
+<span class="lineNum">    2112 </span><span class="lineNoCov">          0 :     YYSTACK_FREE (yymsg);</span>
+<span class="lineNum">    2113 </span>            : #endif
+<span class="lineNum">    2114 </span>            :   /* Make sure YYID is used.  */
+<span class="lineNum">    2115 </span><span class="lineNoCov">          0 :   return YYID (yyresult);</span>
+<span class="lineNum">    2116 </span>            : }
+<span class="lineNum">    2117 </span>            : 
+<span class="lineNum">    2118 </span>            : 
+<span class="lineNum">    2119 </span>            : 
+<span class="lineNum">    2120 </span>            : /* Line 2067 of yacc.c  */
+<span class="lineNum">    2121 </span>            : #line 210 &quot;util_expr_parse.y&quot;
+<span class="lineNum">    2122 </span>            : 
+<span class="lineNum">    2123 </span>            : 
+<span class="lineNum">    2124 </span>            : void yyerror(ap_expr_parse_ctx_t *ctx, const char *s)
+<span class="lineNum">    2125 </span>            : {
+<span class="lineNum">    2126 </span>            :     /* s is allocated on the stack */
+<span class="lineNum">    2127 </span>            :     ctx-&gt;error = apr_pstrdup(ctx-&gt;ptemp, s);
+<span class="lineNum">    2128 </span>            : }
+<span class="lineNum">    2129 </span>            : 
+<span class="lineNum">    2130 </span>            : 
+</pre>
+      </td>
+    </tr>
+  </table>
+  <br>
+
+  <table width="100%" border=0 cellspacing=0 cellpadding=0>
+    <tr><td class="ruler"><img src="../glass.png" width=3 height=3 alt=""></td></tr>
+    <tr><td class="versionInfo">Generated by: <a href="http://ltp.sourceforge.net/coverage/lcov.php" target="_parent">LCOV version 1.11</a></td></tr>
+  </table>
+  <br>
+
+</body>
+</html>

@@ -1,0 +1,384 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+
+<html lang="en">
+
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <title>LCOV - apptest.info - modules/http/http_core.c</title>
+  <link rel="stylesheet" type="text/css" href="../../gcov.css">
+</head>
+
+<body>
+
+  <table width="100%" border=0 cellspacing=0 cellpadding=0>
+    <tr><td class="title">LCOV - code coverage report</td></tr>
+    <tr><td class="ruler"><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
+
+    <tr>
+      <td width="100%">
+        <table cellpadding=1 border=0 width="100%">
+          <tr>
+            <td width="10%" class="headerItem">Current view:</td>
+            <td width="35%" class="headerValue"><a href="../../index.html">top level</a> - <a href="index.html">modules/http</a> - http_core.c<span style="font-size: 80%;"> (source / <a href="http_core.c.func-sort-c.html">functions</a>)</span></td>
+            <td width="5%"></td>
+            <td width="15%"></td>
+            <td width="10%" class="headerCovTableHead">Hit</td>
+            <td width="10%" class="headerCovTableHead">Total</td>
+            <td width="15%" class="headerCovTableHead">Coverage</td>
+          </tr>
+          <tr>
+            <td class="headerItem">Test:</td>
+            <td class="headerValue">apptest.info</td>
+            <td></td>
+            <td class="headerItem">Lines:</td>
+            <td class="headerCovTableEntry">52</td>
+            <td class="headerCovTableEntry">112</td>
+            <td class="headerCovTableEntryLo">46.4 %</td>
+          </tr>
+          <tr>
+            <td class="headerItem">Date:</td>
+            <td class="headerValue">2017-01-31 22:58:06</td>
+            <td></td>
+            <td class="headerItem">Functions:</td>
+            <td class="headerCovTableEntry">6</td>
+            <td class="headerCovTableEntry">12</td>
+            <td class="headerCovTableEntryLo">50.0 %</td>
+          </tr>
+          <tr><td><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
+        </table>
+      </td>
+    </tr>
+
+    <tr><td class="ruler"><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
+  </table>
+
+  <table cellpadding=0 cellspacing=0 border=0>
+    <tr>
+      <td><br></td>
+    </tr>
+    <tr>
+      <td>
+<pre class="sourceHeading">          Line data    Source code</pre>
+<pre class="source">
+<a name="1"><span class="lineNum">       1 </span>            : /* Licensed to the Apache Software Foundation (ASF) under one or more</a>
+<span class="lineNum">       2 </span>            :  * contributor license agreements.  See the NOTICE file distributed with
+<span class="lineNum">       3 </span>            :  * this work for additional information regarding copyright ownership.
+<span class="lineNum">       4 </span>            :  * The ASF licenses this file to You under the Apache License, Version 2.0
+<span class="lineNum">       5 </span>            :  * (the &quot;License&quot;); you may not use this file except in compliance with
+<span class="lineNum">       6 </span>            :  * the License.  You may obtain a copy of the License at
+<span class="lineNum">       7 </span>            :  *
+<span class="lineNum">       8 </span>            :  *     http://www.apache.org/licenses/LICENSE-2.0
+<span class="lineNum">       9 </span>            :  *
+<span class="lineNum">      10 </span>            :  * Unless required by applicable law or agreed to in writing, software
+<span class="lineNum">      11 </span>            :  * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+<span class="lineNum">      12 </span>            :  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+<span class="lineNum">      13 </span>            :  * See the License for the specific language governing permissions and
+<span class="lineNum">      14 </span>            :  * limitations under the License.
+<span class="lineNum">      15 </span>            :  */
+<span class="lineNum">      16 </span>            : 
+<span class="lineNum">      17 </span>            : #include &quot;apr_strings.h&quot;
+<span class="lineNum">      18 </span>            : #include &quot;apr_thread_proc.h&quot;    /* for RLIMIT stuff */
+<span class="lineNum">      19 </span>            : 
+<span class="lineNum">      20 </span>            : #define APR_WANT_STRFUNC
+<span class="lineNum">      21 </span>            : #include &quot;apr_want.h&quot;
+<span class="lineNum">      22 </span>            : 
+<span class="lineNum">      23 </span>            : #include &quot;httpd.h&quot;
+<span class="lineNum">      24 </span>            : #include &quot;http_config.h&quot;
+<span class="lineNum">      25 </span>            : #include &quot;http_connection.h&quot;
+<span class="lineNum">      26 </span>            : #include &quot;http_core.h&quot;
+<span class="lineNum">      27 </span>            : #include &quot;http_protocol.h&quot;   /* For index_of_response().  Grump. */
+<span class="lineNum">      28 </span>            : #include &quot;http_request.h&quot;
+<span class="lineNum">      29 </span>            : 
+<span class="lineNum">      30 </span>            : #include &quot;util_filter.h&quot;
+<span class="lineNum">      31 </span>            : #include &quot;util_ebcdic.h&quot;
+<span class="lineNum">      32 </span>            : #include &quot;ap_mpm.h&quot;
+<span class="lineNum">      33 </span>            : #include &quot;scoreboard.h&quot;
+<span class="lineNum">      34 </span>            : 
+<span class="lineNum">      35 </span>            : #include &quot;mod_core.h&quot;
+<span class="lineNum">      36 </span>            : 
+<span class="lineNum">      37 </span>            : /* Handles for core filters */
+<span class="lineNum">      38 </span>            : AP_DECLARE_DATA ap_filter_rec_t *ap_http_input_filter_handle;
+<span class="lineNum">      39 </span>            : AP_DECLARE_DATA ap_filter_rec_t *ap_http_header_filter_handle;
+<span class="lineNum">      40 </span>            : AP_DECLARE_DATA ap_filter_rec_t *ap_chunk_filter_handle;
+<span class="lineNum">      41 </span>            : AP_DECLARE_DATA ap_filter_rec_t *ap_http_outerror_filter_handle;
+<span class="lineNum">      42 </span>            : AP_DECLARE_DATA ap_filter_rec_t *ap_byterange_filter_handle;
+<span class="lineNum">      43 </span>            : 
+<span class="lineNum">      44 </span>            : AP_DECLARE_DATA const char *ap_multipart_boundary;
+<span class="lineNum">      45 </span>            : 
+<span class="lineNum">      46 </span>            : /* If we are using an MPM That Supports Async Connections,
+<span class="lineNum">      47 </span>            :  * use a different processing function
+<span class="lineNum">      48 </span>            :  */
+<a name="49"><span class="lineNum">      49 </span>            : static int async_mpm = 0;</a>
+<span class="lineNum">      50 </span>            : 
+<span class="lineNum">      51 </span><span class="lineNoCov">          0 : static const char *set_keep_alive_timeout(cmd_parms *cmd, void *dummy,</span>
+<span class="lineNum">      52 </span>            :                                           const char *arg)
+<span class="lineNum">      53 </span>            : {
+<span class="lineNum">      54 </span>            :     apr_interval_time_t timeout;
+<span class="lineNum">      55 </span><span class="lineNoCov">          0 :     const char *err = ap_check_cmd_context(cmd, NOT_IN_DIR_LOC_FILE);</span>
+<span class="lineNum">      56 </span><span class="lineNoCov">          0 :     if (err != NULL) {</span>
+<span class="lineNum">      57 </span><span class="lineNoCov">          0 :         return err;</span>
+<span class="lineNum">      58 </span>            :     }
+<span class="lineNum">      59 </span>            : 
+<span class="lineNum">      60 </span>            :     /* Stolen from mod_proxy.c */
+<span class="lineNum">      61 </span><span class="lineNoCov">          0 :     if (ap_timeout_parameter_parse(arg, &amp;timeout, &quot;s&quot;) != APR_SUCCESS)</span>
+<span class="lineNum">      62 </span><span class="lineNoCov">          0 :         return &quot;KeepAliveTimeout has wrong format&quot;;</span>
+<span class="lineNum">      63 </span><span class="lineNoCov">          0 :     cmd-&gt;server-&gt;keep_alive_timeout = timeout;</span>
+<span class="lineNum">      64 </span><span class="lineNoCov">          0 :     return NULL;</span>
+<a name="65"><span class="lineNum">      65 </span>            : }</a>
+<span class="lineNum">      66 </span>            : 
+<span class="lineNum">      67 </span><span class="lineNoCov">          0 : static const char *set_keep_alive(cmd_parms *cmd, void *dummy,</span>
+<span class="lineNum">      68 </span>            :                                   int arg)
+<span class="lineNum">      69 </span>            : {
+<span class="lineNum">      70 </span><span class="lineNoCov">          0 :     const char *err = ap_check_cmd_context(cmd, NOT_IN_DIR_LOC_FILE);</span>
+<span class="lineNum">      71 </span><span class="lineNoCov">          0 :     if (err != NULL) {</span>
+<span class="lineNum">      72 </span><span class="lineNoCov">          0 :         return err;</span>
+<span class="lineNum">      73 </span>            :     }
+<span class="lineNum">      74 </span>            : 
+<span class="lineNum">      75 </span><span class="lineNoCov">          0 :     cmd-&gt;server-&gt;keep_alive = arg;</span>
+<span class="lineNum">      76 </span><span class="lineNoCov">          0 :     return NULL;</span>
+<a name="77"><span class="lineNum">      77 </span>            : }</a>
+<span class="lineNum">      78 </span>            : 
+<span class="lineNum">      79 </span><span class="lineNoCov">          0 : static const char *set_keep_alive_max(cmd_parms *cmd, void *dummy,</span>
+<span class="lineNum">      80 </span>            :                                       const char *arg)
+<span class="lineNum">      81 </span>            : {
+<span class="lineNum">      82 </span><span class="lineNoCov">          0 :     const char *err = ap_check_cmd_context(cmd, NOT_IN_DIR_LOC_FILE);</span>
+<span class="lineNum">      83 </span><span class="lineNoCov">          0 :     if (err != NULL) {</span>
+<span class="lineNum">      84 </span><span class="lineNoCov">          0 :         return err;</span>
+<span class="lineNum">      85 </span>            :     }
+<span class="lineNum">      86 </span>            : 
+<span class="lineNum">      87 </span><span class="lineNoCov">          0 :     cmd-&gt;server-&gt;keep_alive_max = atoi(arg);</span>
+<span class="lineNum">      88 </span><span class="lineNoCov">          0 :     return NULL;</span>
+<span class="lineNum">      89 </span>            : }
+<span class="lineNum">      90 </span>            : 
+<span class="lineNum">      91 </span>            : static const command_rec http_cmds[] = {
+<span class="lineNum">      92 </span>            :     AP_INIT_TAKE1(&quot;KeepAliveTimeout&quot;, set_keep_alive_timeout, NULL, RSRC_CONF,
+<span class="lineNum">      93 </span>            :                   &quot;Keep-Alive timeout duration (sec)&quot;),
+<span class="lineNum">      94 </span>            :     AP_INIT_TAKE1(&quot;MaxKeepAliveRequests&quot;, set_keep_alive_max, NULL, RSRC_CONF,
+<span class="lineNum">      95 </span>            :                   &quot;Maximum number of Keep-Alive requests per connection, &quot;
+<span class="lineNum">      96 </span>            :                   &quot;or 0 for infinite&quot;),
+<span class="lineNum">      97 </span>            :     AP_INIT_FLAG(&quot;KeepAlive&quot;, set_keep_alive, NULL, RSRC_CONF,
+<span class="lineNum">      98 </span>            :                   &quot;Whether persistent connections should be On or Off&quot;),
+<span class="lineNum">      99 </span>            :     { NULL }
+<a name="100"><span class="lineNum">     100 </span>            : };</a>
+<span class="lineNum">     101 </span>            : 
+<span class="lineNum">     102 </span><span class="lineNoCov">          0 : static const char *http_scheme(const request_rec *r)</span>
+<span class="lineNum">     103 </span>            : {
+<span class="lineNum">     104 </span>            :     /*
+<span class="lineNum">     105 </span>            :      * The http module shouldn't return anything other than
+<span class="lineNum">     106 </span>            :      * &quot;http&quot; (the default) or &quot;https&quot;.
+<span class="lineNum">     107 </span>            :      */
+<span class="lineNum">     108 </span><span class="lineNoCov">          0 :     if (r-&gt;server-&gt;server_scheme &amp;&amp;</span>
+<span class="lineNum">     109 </span><span class="lineNoCov">          0 :         (strcmp(r-&gt;server-&gt;server_scheme, &quot;https&quot;) == 0))</span>
+<span class="lineNum">     110 </span><span class="lineNoCov">          0 :         return &quot;https&quot;;</span>
+<span class="lineNum">     111 </span>            : 
+<span class="lineNum">     112 </span><span class="lineNoCov">          0 :     return &quot;http&quot;;</span>
+<a name="113"><span class="lineNum">     113 </span>            : }</a>
+<span class="lineNum">     114 </span>            : 
+<span class="lineNum">     115 </span><span class="lineNoCov">          0 : static apr_port_t http_port(const request_rec *r)</span>
+<span class="lineNum">     116 </span>            : {
+<span class="lineNum">     117 </span><span class="lineNoCov">          0 :     if (r-&gt;server-&gt;server_scheme &amp;&amp;</span>
+<span class="lineNum">     118 </span><span class="lineNoCov">          0 :         (strcmp(r-&gt;server-&gt;server_scheme, &quot;https&quot;) == 0))</span>
+<span class="lineNum">     119 </span><span class="lineNoCov">          0 :         return DEFAULT_HTTPS_PORT;</span>
+<span class="lineNum">     120 </span>            : 
+<span class="lineNum">     121 </span><span class="lineNoCov">          0 :     return DEFAULT_HTTP_PORT;</span>
+<a name="122"><span class="lineNum">     122 </span>            : }</a>
+<span class="lineNum">     123 </span>            : 
+<span class="lineNum">     124 </span><span class="lineCov">          2 : static int ap_process_http_async_connection(conn_rec *c)</span>
+<span class="lineNum">     125 </span>            : {
+<span class="lineNum">     126 </span>            :     request_rec *r;
+<span class="lineNum">     127 </span><span class="lineCov">          2 :     conn_state_t *cs = c-&gt;cs;</span>
+<span class="lineNum">     128 </span>            : 
+<span class="lineNum">     129 </span>            :     AP_DEBUG_ASSERT(cs != NULL);
+<span class="lineNum">     130 </span>            :     AP_DEBUG_ASSERT(cs-&gt;state == CONN_STATE_READ_REQUEST_LINE);
+<span class="lineNum">     131 </span>            : 
+<span class="lineNum">     132 </span><span class="lineCov">          6 :     while (cs-&gt;state == CONN_STATE_READ_REQUEST_LINE) {</span>
+<span class="lineNum">     133 </span><span class="lineCov">          2 :         ap_update_child_status_from_conn(c-&gt;sbh, SERVER_BUSY_READ, c);</span>
+<span class="lineNum">     134 </span>            : 
+<span class="lineNum">     135 </span><span class="lineCov">          2 :         if ((r = ap_read_request(c))) {</span>
+<span class="lineNum">     136 </span>            : 
+<span class="lineNum">     137 </span><span class="lineCov">          1 :             c-&gt;keepalive = AP_CONN_UNKNOWN;</span>
+<span class="lineNum">     138 </span>            :             /* process the request if it was read without error */
+<span class="lineNum">     139 </span>            : 
+<span class="lineNum">     140 </span><span class="lineCov">          1 :             ap_update_child_status(c-&gt;sbh, SERVER_BUSY_WRITE, r);</span>
+<span class="lineNum">     141 </span><span class="lineCov">          1 :             if (r-&gt;status == HTTP_OK) {</span>
+<span class="lineNum">     142 </span><span class="lineCov">          1 :                 cs-&gt;state = CONN_STATE_HANDLER;</span>
+<span class="lineNum">     143 </span><span class="lineCov">          1 :                 ap_process_async_request(r);</span>
+<span class="lineNum">     144 </span>            :                 /* After the call to ap_process_request, the
+<span class="lineNum">     145 </span>            :                  * request pool may have been deleted.  We set
+<span class="lineNum">     146 </span>            :                  * r=NULL here to ensure that any dereference
+<span class="lineNum">     147 </span>            :                  * of r that might be added later in this function
+<span class="lineNum">     148 </span>            :                  * will result in a segfault immediately instead
+<span class="lineNum">     149 </span>            :                  * of nondeterministic failures later.
+<span class="lineNum">     150 </span>            :                  */
+<span class="lineNum">     151 </span><span class="lineCov">          1 :                 r = NULL;</span>
+<span class="lineNum">     152 </span>            :             }
+<span class="lineNum">     153 </span>            : 
+<span class="lineNum">     154 </span><span class="lineCov">          1 :             if (cs-&gt;state != CONN_STATE_WRITE_COMPLETION &amp;&amp;</span>
+<span class="lineNum">     155 </span><span class="lineNoCov">          0 :                 cs-&gt;state != CONN_STATE_SUSPENDED) {</span>
+<span class="lineNum">     156 </span>            :                 /* Something went wrong; close the connection */
+<span class="lineNum">     157 </span><span class="lineNoCov">          0 :                 cs-&gt;state = CONN_STATE_LINGER;</span>
+<span class="lineNum">     158 </span>            :             }
+<span class="lineNum">     159 </span>            :         }
+<span class="lineNum">     160 </span>            :         else {   /* ap_read_request failed - client may have closed */
+<span class="lineNum">     161 </span><span class="lineCov">          1 :             cs-&gt;state = CONN_STATE_LINGER;</span>
+<span class="lineNum">     162 </span>            :         }
+<span class="lineNum">     163 </span>            :     }
+<span class="lineNum">     164 </span>            : 
+<span class="lineNum">     165 </span><span class="lineCov">          2 :     return OK;</span>
+<a name="166"><span class="lineNum">     166 </span>            : }</a>
+<span class="lineNum">     167 </span>            : 
+<span class="lineNum">     168 </span><span class="lineNoCov">          0 : static int ap_process_http_sync_connection(conn_rec *c)</span>
+<span class="lineNum">     169 </span>            : {
+<span class="lineNum">     170 </span>            :     request_rec *r;
+<span class="lineNum">     171 </span><span class="lineNoCov">          0 :     conn_state_t *cs = c-&gt;cs;</span>
+<span class="lineNum">     172 </span><span class="lineNoCov">          0 :     apr_socket_t *csd = NULL;</span>
+<span class="lineNum">     173 </span><span class="lineNoCov">          0 :     int mpm_state = 0;</span>
+<span class="lineNum">     174 </span>            : 
+<span class="lineNum">     175 </span>            :     /*
+<span class="lineNum">     176 </span>            :      * Read and process each request found on our connection
+<span class="lineNum">     177 </span>            :      * until no requests are left or we decide to close.
+<span class="lineNum">     178 </span>            :      */
+<span class="lineNum">     179 </span>            : 
+<span class="lineNum">     180 </span><span class="lineNoCov">          0 :     ap_update_child_status_from_conn(c-&gt;sbh, SERVER_BUSY_READ, c);</span>
+<span class="lineNum">     181 </span><span class="lineNoCov">          0 :     while ((r = ap_read_request(c)) != NULL) {</span>
+<span class="lineNum">     182 </span>            : 
+<span class="lineNum">     183 </span><span class="lineNoCov">          0 :         c-&gt;keepalive = AP_CONN_UNKNOWN;</span>
+<span class="lineNum">     184 </span>            :         /* process the request if it was read without error */
+<span class="lineNum">     185 </span>            : 
+<span class="lineNum">     186 </span><span class="lineNoCov">          0 :         ap_update_child_status(c-&gt;sbh, SERVER_BUSY_WRITE, r);</span>
+<span class="lineNum">     187 </span><span class="lineNoCov">          0 :         if (r-&gt;status == HTTP_OK) {</span>
+<span class="lineNum">     188 </span><span class="lineNoCov">          0 :             if (cs)</span>
+<span class="lineNum">     189 </span><span class="lineNoCov">          0 :                 cs-&gt;state = CONN_STATE_HANDLER;</span>
+<span class="lineNum">     190 </span><span class="lineNoCov">          0 :             ap_process_request(r);</span>
+<span class="lineNum">     191 </span>            :             /* After the call to ap_process_request, the
+<span class="lineNum">     192 </span>            :              * request pool will have been deleted.  We set
+<span class="lineNum">     193 </span>            :              * r=NULL here to ensure that any dereference
+<span class="lineNum">     194 </span>            :              * of r that might be added later in this function
+<span class="lineNum">     195 </span>            :              * will result in a segfault immediately instead
+<span class="lineNum">     196 </span>            :              * of nondeterministic failures later.
+<span class="lineNum">     197 </span>            :              */
+<span class="lineNum">     198 </span><span class="lineNoCov">          0 :             r = NULL;</span>
+<span class="lineNum">     199 </span>            :         }
+<span class="lineNum">     200 </span>            : 
+<span class="lineNum">     201 </span><span class="lineNoCov">          0 :         if (c-&gt;keepalive != AP_CONN_KEEPALIVE || c-&gt;aborted)</span>
+<span class="lineNum">     202 </span>            :             break;
+<span class="lineNum">     203 </span>            : 
+<span class="lineNum">     204 </span><span class="lineNoCov">          0 :         ap_update_child_status(c-&gt;sbh, SERVER_BUSY_KEEPALIVE, NULL);</span>
+<span class="lineNum">     205 </span>            : 
+<span class="lineNum">     206 </span><span class="lineNoCov">          0 :         if (ap_mpm_query(AP_MPMQ_MPM_STATE, &amp;mpm_state)) {</span>
+<span class="lineNum">     207 </span><span class="lineNoCov">          0 :             break;</span>
+<span class="lineNum">     208 </span>            :         }
+<span class="lineNum">     209 </span>            : 
+<span class="lineNum">     210 </span><span class="lineNoCov">          0 :         if (mpm_state == AP_MPMQ_STOPPING) {</span>
+<span class="lineNum">     211 </span><span class="lineNoCov">          0 :           break;</span>
+<span class="lineNum">     212 </span>            :         }
+<span class="lineNum">     213 </span>            : 
+<span class="lineNum">     214 </span><span class="lineNoCov">          0 :         if (!csd) {</span>
+<span class="lineNum">     215 </span><span class="lineNoCov">          0 :             csd = ap_get_conn_socket(c);</span>
+<span class="lineNum">     216 </span>            :         }
+<span class="lineNum">     217 </span><span class="lineNoCov">          0 :         apr_socket_opt_set(csd, APR_INCOMPLETE_READ, 1);</span>
+<span class="lineNum">     218 </span><span class="lineNoCov">          0 :         apr_socket_timeout_set(csd, c-&gt;base_server-&gt;keep_alive_timeout);</span>
+<span class="lineNum">     219 </span>            :         /* Go straight to select() to wait for the next request */
+<span class="lineNum">     220 </span>            :     }
+<span class="lineNum">     221 </span>            : 
+<span class="lineNum">     222 </span><span class="lineNoCov">          0 :     return OK;</span>
+<a name="223"><span class="lineNum">     223 </span>            : }</a>
+<span class="lineNum">     224 </span>            : 
+<span class="lineNum">     225 </span><span class="lineCov">          2 : static int ap_process_http_connection(conn_rec *c)</span>
+<span class="lineNum">     226 </span>            : {
+<span class="lineNum">     227 </span><span class="lineCov">          2 :     if (async_mpm &amp;&amp; !c-&gt;clogging_input_filters) {</span>
+<span class="lineNum">     228 </span><span class="lineCov">          2 :         return ap_process_http_async_connection(c);</span>
+<span class="lineNum">     229 </span>            :     }
+<span class="lineNum">     230 </span>            :     else {
+<span class="lineNum">     231 </span><span class="lineNoCov">          0 :         return ap_process_http_sync_connection(c);</span>
+<span class="lineNum">     232 </span>            :     }
+<a name="233"><span class="lineNum">     233 </span>            : }</a>
+<span class="lineNum">     234 </span>            : 
+<span class="lineNum">     235 </span><span class="lineCov">          3 : static int http_create_request(request_rec *r)</span>
+<span class="lineNum">     236 </span>            : {
+<span class="lineNum">     237 </span><span class="lineCov">          3 :     if (!r-&gt;main &amp;&amp; !r-&gt;prev) {</span>
+<span class="lineNum">     238 </span><span class="lineCov">          2 :         ap_add_output_filter_handle(ap_byterange_filter_handle,</span>
+<span class="lineNum">     239 </span>            :                                     NULL, r, r-&gt;connection);
+<span class="lineNum">     240 </span><span class="lineCov">          2 :         ap_add_output_filter_handle(ap_content_length_filter_handle,</span>
+<span class="lineNum">     241 </span>            :                                     NULL, r, r-&gt;connection);
+<span class="lineNum">     242 </span><span class="lineCov">          2 :         ap_add_output_filter_handle(ap_http_header_filter_handle,</span>
+<span class="lineNum">     243 </span>            :                                     NULL, r, r-&gt;connection);
+<span class="lineNum">     244 </span><span class="lineCov">          2 :         ap_add_output_filter_handle(ap_http_outerror_filter_handle,</span>
+<span class="lineNum">     245 </span>            :                                     NULL, r, r-&gt;connection);
+<span class="lineNum">     246 </span>            :     }
+<span class="lineNum">     247 </span>            : 
+<span class="lineNum">     248 </span><span class="lineCov">          3 :     return OK;</span>
+<a name="249"><span class="lineNum">     249 </span>            : }</a>
+<span class="lineNum">     250 </span>            : 
+<span class="lineNum">     251 </span><span class="lineCov">          2 : static int http_send_options(request_rec *r)</span>
+<span class="lineNum">     252 </span>            : {
+<span class="lineNum">     253 </span><span class="lineCov">          2 :     if ((r-&gt;method_number == M_OPTIONS) &amp;&amp; r-&gt;uri &amp;&amp; (r-&gt;uri[0] == '*') &amp;&amp;</span>
+<span class="lineNum">     254 </span><span class="lineNoCov">          0 :          (r-&gt;uri[1] == '\0')) {</span>
+<span class="lineNum">     255 </span><span class="lineNoCov">          0 :         return DONE;           /* Send HTTP pong, without Allow header */</span>
+<span class="lineNum">     256 </span>            :     }
+<span class="lineNum">     257 </span><span class="lineCov">          2 :     return DECLINED;</span>
+<a name="258"><span class="lineNum">     258 </span>            : }</a>
+<span class="lineNum">     259 </span>            : 
+<span class="lineNum">     260 </span><span class="lineCov">          3 : static int http_post_config(apr_pool_t *p, apr_pool_t *plog, apr_pool_t *ptemp, server_rec *s)</span>
+<span class="lineNum">     261 </span>            : {
+<span class="lineNum">     262 </span>            :     apr_uint64_t val;
+<span class="lineNum">     263 </span><span class="lineCov">          3 :     if (ap_mpm_query(AP_MPMQ_IS_ASYNC, &amp;async_mpm) != APR_SUCCESS) {</span>
+<span class="lineNum">     264 </span><span class="lineNoCov">          0 :         async_mpm = 0;</span>
+<span class="lineNum">     265 </span>            :     }
+<span class="lineNum">     266 </span><span class="lineCov">          3 :     ap_random_insecure_bytes(&amp;val, sizeof(val));</span>
+<span class="lineNum">     267 </span><span class="lineCov">          3 :     ap_multipart_boundary = apr_psprintf(p, &quot;%0&quot; APR_UINT64_T_HEX_FMT, val);</span>
+<span class="lineNum">     268 </span>            : 
+<span class="lineNum">     269 </span><span class="lineCov">          3 :     return OK;</span>
+<a name="270"><span class="lineNum">     270 </span>            : }</a>
+<span class="lineNum">     271 </span>            : 
+<span class="lineNum">     272 </span><span class="lineCov">          4 : static void register_hooks(apr_pool_t *p)</span>
+<span class="lineNum">     273 </span>            : {
+<span class="lineNum">     274 </span><span class="lineCov">          4 :     ap_hook_post_config(http_post_config, NULL, NULL, APR_HOOK_MIDDLE);</span>
+<span class="lineNum">     275 </span><span class="lineCov">          4 :     ap_hook_process_connection(ap_process_http_connection, NULL, NULL,</span>
+<span class="lineNum">     276 </span>            :                                APR_HOOK_REALLY_LAST);
+<span class="lineNum">     277 </span><span class="lineCov">          4 :     ap_hook_map_to_storage(ap_send_http_trace,NULL,NULL,APR_HOOK_MIDDLE);</span>
+<span class="lineNum">     278 </span><span class="lineCov">          4 :     ap_hook_map_to_storage(http_send_options,NULL,NULL,APR_HOOK_MIDDLE);</span>
+<span class="lineNum">     279 </span><span class="lineCov">          4 :     ap_hook_http_scheme(http_scheme,NULL,NULL,APR_HOOK_REALLY_LAST);</span>
+<span class="lineNum">     280 </span><span class="lineCov">          4 :     ap_hook_default_port(http_port,NULL,NULL,APR_HOOK_REALLY_LAST);</span>
+<span class="lineNum">     281 </span><span class="lineCov">          4 :     ap_hook_create_request(http_create_request, NULL, NULL, APR_HOOK_REALLY_LAST);</span>
+<span class="lineNum">     282 </span><span class="lineCov">          4 :     ap_http_input_filter_handle =</span>
+<span class="lineNum">     283 </span><span class="lineCov">          4 :         ap_register_input_filter(&quot;HTTP_IN&quot;, ap_http_filter,</span>
+<span class="lineNum">     284 </span>            :                                  NULL, AP_FTYPE_PROTOCOL);
+<span class="lineNum">     285 </span><span class="lineCov">          4 :     ap_http_header_filter_handle =</span>
+<span class="lineNum">     286 </span><span class="lineCov">          4 :         ap_register_output_filter(&quot;HTTP_HEADER&quot;, ap_http_header_filter,</span>
+<span class="lineNum">     287 </span>            :                                   NULL, AP_FTYPE_PROTOCOL);
+<span class="lineNum">     288 </span><span class="lineCov">          4 :     ap_chunk_filter_handle =</span>
+<span class="lineNum">     289 </span><span class="lineCov">          4 :         ap_register_output_filter(&quot;CHUNK&quot;, ap_http_chunk_filter,</span>
+<span class="lineNum">     290 </span>            :                                   NULL, AP_FTYPE_TRANSCODE);
+<span class="lineNum">     291 </span><span class="lineCov">          4 :     ap_http_outerror_filter_handle =</span>
+<span class="lineNum">     292 </span><span class="lineCov">          4 :         ap_register_output_filter(&quot;HTTP_OUTERROR&quot;, ap_http_outerror_filter,</span>
+<span class="lineNum">     293 </span>            :                                   NULL, AP_FTYPE_PROTOCOL);
+<span class="lineNum">     294 </span><span class="lineCov">          4 :     ap_byterange_filter_handle =</span>
+<span class="lineNum">     295 </span><span class="lineCov">          4 :         ap_register_output_filter(&quot;BYTERANGE&quot;, ap_byterange_filter,</span>
+<span class="lineNum">     296 </span>            :                                   NULL, AP_FTYPE_PROTOCOL);
+<span class="lineNum">     297 </span><span class="lineCov">          4 :     ap_method_registry_init(p);</span>
+<span class="lineNum">     298 </span><span class="lineCov">          4 : }</span>
+<span class="lineNum">     299 </span>            : 
+<span class="lineNum">     300 </span>            : AP_DECLARE_MODULE(http) = {
+<span class="lineNum">     301 </span>            :     STANDARD20_MODULE_STUFF,
+<span class="lineNum">     302 </span>            :     NULL,              /* create per-directory config structure */
+<span class="lineNum">     303 </span>            :     NULL,              /* merge per-directory config structures */
+<span class="lineNum">     304 </span>            :     NULL,              /* create per-server config structure */
+<span class="lineNum">     305 </span>            :     NULL,              /* merge per-server config structures */
+<span class="lineNum">     306 </span>            :     http_cmds,         /* command apr_table_t */
+<span class="lineNum">     307 </span>            :     register_hooks     /* register hooks */
+<span class="lineNum">     308 </span>            : };
+</pre>
+      </td>
+    </tr>
+  </table>
+  <br>
+
+  <table width="100%" border=0 cellspacing=0 cellpadding=0>
+    <tr><td class="ruler"><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
+    <tr><td class="versionInfo">Generated by: <a href="http://ltp.sourceforge.net/coverage/lcov.php" target="_parent">LCOV version 1.11</a></td></tr>
+  </table>
+  <br>
+
+</body>
+</html>

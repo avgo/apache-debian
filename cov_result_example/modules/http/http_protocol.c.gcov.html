@@ -1,0 +1,1752 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+
+<html lang="en">
+
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <title>LCOV - apptest.info - modules/http/http_protocol.c</title>
+  <link rel="stylesheet" type="text/css" href="../../gcov.css">
+</head>
+
+<body>
+
+  <table width="100%" border=0 cellspacing=0 cellpadding=0>
+    <tr><td class="title">LCOV - code coverage report</td></tr>
+    <tr><td class="ruler"><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
+
+    <tr>
+      <td width="100%">
+        <table cellpadding=1 border=0 width="100%">
+          <tr>
+            <td width="10%" class="headerItem">Current view:</td>
+            <td width="35%" class="headerValue"><a href="../../index.html">top level</a> - <a href="index.html">modules/http</a> - http_protocol.c<span style="font-size: 80%;"> (source / <a href="http_protocol.c.func-sort-c.html">functions</a>)</span></td>
+            <td width="5%"></td>
+            <td width="15%"></td>
+            <td width="10%" class="headerCovTableHead">Hit</td>
+            <td width="10%" class="headerCovTableHead">Total</td>
+            <td width="15%" class="headerCovTableHead">Coverage</td>
+          </tr>
+          <tr>
+            <td class="headerItem">Test:</td>
+            <td class="headerValue">apptest.info</td>
+            <td></td>
+            <td class="headerItem">Lines:</td>
+            <td class="headerCovTableEntry">149</td>
+            <td class="headerCovTableEntry">560</td>
+            <td class="headerCovTableEntryLo">26.6 %</td>
+          </tr>
+          <tr>
+            <td class="headerItem">Date:</td>
+            <td class="headerValue">2017-01-31 22:58:06</td>
+            <td></td>
+            <td class="headerItem">Functions:</td>
+            <td class="headerCovTableEntry">19</td>
+            <td class="headerCovTableEntry">33</td>
+            <td class="headerCovTableEntryLo">57.6 %</td>
+          </tr>
+          <tr><td><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
+        </table>
+      </td>
+    </tr>
+
+    <tr><td class="ruler"><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
+  </table>
+
+  <table cellpadding=0 cellspacing=0 border=0>
+    <tr>
+      <td><br></td>
+    </tr>
+    <tr>
+      <td>
+<pre class="sourceHeading">          Line data    Source code</pre>
+<pre class="source">
+<a name="1"><span class="lineNum">       1 </span>            : /* Licensed to the Apache Software Foundation (ASF) under one or more</a>
+<span class="lineNum">       2 </span>            :  * contributor license agreements.  See the NOTICE file distributed with
+<span class="lineNum">       3 </span>            :  * this work for additional information regarding copyright ownership.
+<span class="lineNum">       4 </span>            :  * The ASF licenses this file to You under the Apache License, Version 2.0
+<span class="lineNum">       5 </span>            :  * (the &quot;License&quot;); you may not use this file except in compliance with
+<span class="lineNum">       6 </span>            :  * the License.  You may obtain a copy of the License at
+<span class="lineNum">       7 </span>            :  *
+<span class="lineNum">       8 </span>            :  *     http://www.apache.org/licenses/LICENSE-2.0
+<span class="lineNum">       9 </span>            :  *
+<span class="lineNum">      10 </span>            :  * Unless required by applicable law or agreed to in writing, software
+<span class="lineNum">      11 </span>            :  * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+<span class="lineNum">      12 </span>            :  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+<span class="lineNum">      13 </span>            :  * See the License for the specific language governing permissions and
+<span class="lineNum">      14 </span>            :  * limitations under the License.
+<span class="lineNum">      15 </span>            :  */
+<span class="lineNum">      16 </span>            : 
+<span class="lineNum">      17 </span>            : /*
+<span class="lineNum">      18 </span>            :  * http_protocol.c --- routines which directly communicate with the client.
+<span class="lineNum">      19 </span>            :  *
+<span class="lineNum">      20 </span>            :  * Code originally by Rob McCool; much redone by Robert S. Thau
+<span class="lineNum">      21 </span>            :  * and the Apache Software Foundation.
+<span class="lineNum">      22 </span>            :  */
+<span class="lineNum">      23 </span>            : 
+<span class="lineNum">      24 </span>            : #include &quot;apr.h&quot;
+<span class="lineNum">      25 </span>            : #include &quot;apr_strings.h&quot;
+<span class="lineNum">      26 </span>            : #include &quot;apr_buckets.h&quot;
+<span class="lineNum">      27 </span>            : #include &quot;apr_lib.h&quot;
+<span class="lineNum">      28 </span>            : #include &quot;apr_signal.h&quot;
+<span class="lineNum">      29 </span>            : 
+<span class="lineNum">      30 </span>            : #define APR_WANT_STDIO          /* for sscanf */
+<span class="lineNum">      31 </span>            : #define APR_WANT_STRFUNC
+<span class="lineNum">      32 </span>            : #define APR_WANT_MEMFUNC
+<span class="lineNum">      33 </span>            : #include &quot;apr_want.h&quot;
+<span class="lineNum">      34 </span>            : 
+<span class="lineNum">      35 </span>            : #include &quot;util_filter.h&quot;
+<span class="lineNum">      36 </span>            : #include &quot;ap_config.h&quot;
+<span class="lineNum">      37 </span>            : #include &quot;httpd.h&quot;
+<span class="lineNum">      38 </span>            : #include &quot;http_config.h&quot;
+<span class="lineNum">      39 </span>            : #include &quot;http_core.h&quot;
+<span class="lineNum">      40 </span>            : #include &quot;http_protocol.h&quot;
+<span class="lineNum">      41 </span>            : #include &quot;http_main.h&quot;
+<span class="lineNum">      42 </span>            : #include &quot;http_request.h&quot;
+<span class="lineNum">      43 </span>            : #include &quot;http_vhost.h&quot;
+<span class="lineNum">      44 </span>            : #include &quot;http_log.h&quot;           /* For errors detected in basic auth common
+<span class="lineNum">      45 </span>            :                                  * support code... */
+<span class="lineNum">      46 </span>            : #include &quot;apr_date.h&quot;           /* For apr_date_parse_http and APR_DATE_BAD */
+<span class="lineNum">      47 </span>            : #include &quot;util_charset.h&quot;
+<span class="lineNum">      48 </span>            : #include &quot;util_ebcdic.h&quot;
+<span class="lineNum">      49 </span>            : #include &quot;util_time.h&quot;
+<span class="lineNum">      50 </span>            : #include &quot;ap_mpm.h&quot;
+<span class="lineNum">      51 </span>            : 
+<span class="lineNum">      52 </span>            : #include &quot;mod_core.h&quot;
+<span class="lineNum">      53 </span>            : 
+<span class="lineNum">      54 </span>            : #if APR_HAVE_STDARG_H
+<span class="lineNum">      55 </span>            : #include &lt;stdarg.h&gt;
+<span class="lineNum">      56 </span>            : #endif
+<span class="lineNum">      57 </span>            : #if APR_HAVE_UNISTD_H
+<span class="lineNum">      58 </span>            : #include &lt;unistd.h&gt;
+<span class="lineNum">      59 </span>            : #endif
+<span class="lineNum">      60 </span>            : 
+<span class="lineNum">      61 </span>            : APLOG_USE_MODULE(http);
+<span class="lineNum">      62 </span>            : 
+<span class="lineNum">      63 </span>            : /* New Apache routine to map status codes into array indicies
+<span class="lineNum">      64 </span>            :  *  e.g.  100 -&gt; 0,  101 -&gt; 1,  200 -&gt; 2 ...
+<span class="lineNum">      65 </span>            :  * The number of status lines must equal the value of
+<span class="lineNum">      66 </span>            :  * RESPONSE_CODES (httpd.h) and must be listed in order.
+<span class="lineNum">      67 </span>            :  * No gaps are allowed between X00 and the largest Xnn
+<span class="lineNum">      68 </span>            :  * for any X (see ap_index_of_response).
+<span class="lineNum">      69 </span>            :  * When adding a new code here, add a define to httpd.h
+<span class="lineNum">      70 </span>            :  * as well.
+<span class="lineNum">      71 </span>            :  */
+<span class="lineNum">      72 </span>            : 
+<span class="lineNum">      73 </span>            : static const char * const status_lines[RESPONSE_CODES] =
+<span class="lineNum">      74 </span>            : {
+<span class="lineNum">      75 </span>            :     &quot;100 Continue&quot;,
+<span class="lineNum">      76 </span>            :     &quot;101 Switching Protocols&quot;,
+<span class="lineNum">      77 </span>            :     &quot;102 Processing&quot;,
+<span class="lineNum">      78 </span>            : #define LEVEL_200  3
+<span class="lineNum">      79 </span>            :     &quot;200 OK&quot;,
+<span class="lineNum">      80 </span>            :     &quot;201 Created&quot;,
+<span class="lineNum">      81 </span>            :     &quot;202 Accepted&quot;,
+<span class="lineNum">      82 </span>            :     &quot;203 Non-Authoritative Information&quot;,
+<span class="lineNum">      83 </span>            :     &quot;204 No Content&quot;,
+<span class="lineNum">      84 </span>            :     &quot;205 Reset Content&quot;,
+<span class="lineNum">      85 </span>            :     &quot;206 Partial Content&quot;,
+<span class="lineNum">      86 </span>            :     &quot;207 Multi-Status&quot;,
+<span class="lineNum">      87 </span>            :     &quot;208 Already Reported&quot;,
+<span class="lineNum">      88 </span>            :     NULL, /* 209 */
+<span class="lineNum">      89 </span>            :     NULL, /* 210 */
+<span class="lineNum">      90 </span>            :     NULL, /* 211 */
+<span class="lineNum">      91 </span>            :     NULL, /* 212 */
+<span class="lineNum">      92 </span>            :     NULL, /* 213 */
+<span class="lineNum">      93 </span>            :     NULL, /* 214 */
+<span class="lineNum">      94 </span>            :     NULL, /* 215 */
+<span class="lineNum">      95 </span>            :     NULL, /* 216 */
+<span class="lineNum">      96 </span>            :     NULL, /* 217 */
+<span class="lineNum">      97 </span>            :     NULL, /* 218 */
+<span class="lineNum">      98 </span>            :     NULL, /* 219 */
+<span class="lineNum">      99 </span>            :     NULL, /* 220 */
+<span class="lineNum">     100 </span>            :     NULL, /* 221 */
+<span class="lineNum">     101 </span>            :     NULL, /* 222 */
+<span class="lineNum">     102 </span>            :     NULL, /* 223 */
+<span class="lineNum">     103 </span>            :     NULL, /* 224 */
+<span class="lineNum">     104 </span>            :     NULL, /* 225 */
+<span class="lineNum">     105 </span>            :     &quot;226 IM Used&quot;,
+<span class="lineNum">     106 </span>            : #define LEVEL_300 30
+<span class="lineNum">     107 </span>            :     &quot;300 Multiple Choices&quot;,
+<span class="lineNum">     108 </span>            :     &quot;301 Moved Permanently&quot;,
+<span class="lineNum">     109 </span>            :     &quot;302 Found&quot;,
+<span class="lineNum">     110 </span>            :     &quot;303 See Other&quot;,
+<span class="lineNum">     111 </span>            :     &quot;304 Not Modified&quot;,
+<span class="lineNum">     112 </span>            :     &quot;305 Use Proxy&quot;,
+<span class="lineNum">     113 </span>            :     NULL, /* 306 */
+<span class="lineNum">     114 </span>            :     &quot;307 Temporary Redirect&quot;,
+<span class="lineNum">     115 </span>            :     &quot;308 Permanent Redirect&quot;,
+<span class="lineNum">     116 </span>            : #define LEVEL_400 39
+<span class="lineNum">     117 </span>            :     &quot;400 Bad Request&quot;,
+<span class="lineNum">     118 </span>            :     &quot;401 Unauthorized&quot;,
+<span class="lineNum">     119 </span>            :     &quot;402 Payment Required&quot;,
+<span class="lineNum">     120 </span>            :     &quot;403 Forbidden&quot;,
+<span class="lineNum">     121 </span>            :     &quot;404 Not Found&quot;,
+<span class="lineNum">     122 </span>            :     &quot;405 Method Not Allowed&quot;,
+<span class="lineNum">     123 </span>            :     &quot;406 Not Acceptable&quot;,
+<span class="lineNum">     124 </span>            :     &quot;407 Proxy Authentication Required&quot;,
+<span class="lineNum">     125 </span>            :     &quot;408 Request Timeout&quot;,
+<span class="lineNum">     126 </span>            :     &quot;409 Conflict&quot;,
+<span class="lineNum">     127 </span>            :     &quot;410 Gone&quot;,
+<span class="lineNum">     128 </span>            :     &quot;411 Length Required&quot;,
+<span class="lineNum">     129 </span>            :     &quot;412 Precondition Failed&quot;,
+<span class="lineNum">     130 </span>            :     &quot;413 Request Entity Too Large&quot;,
+<span class="lineNum">     131 </span>            :     &quot;414 Request-URI Too Long&quot;,
+<span class="lineNum">     132 </span>            :     &quot;415 Unsupported Media Type&quot;,
+<span class="lineNum">     133 </span>            :     &quot;416 Requested Range Not Satisfiable&quot;,
+<span class="lineNum">     134 </span>            :     &quot;417 Expectation Failed&quot;,
+<span class="lineNum">     135 </span>            :     NULL, /* 418 */
+<span class="lineNum">     136 </span>            :     NULL, /* 419 */
+<span class="lineNum">     137 </span>            :     NULL, /* 420 */
+<span class="lineNum">     138 </span>            :     NULL, /* 421 */
+<span class="lineNum">     139 </span>            :     &quot;422 Unprocessable Entity&quot;,
+<span class="lineNum">     140 </span>            :     &quot;423 Locked&quot;,
+<span class="lineNum">     141 </span>            :     &quot;424 Failed Dependency&quot;,
+<span class="lineNum">     142 </span>            :     NULL, /* 425 */
+<span class="lineNum">     143 </span>            :     &quot;426 Upgrade Required&quot;,
+<span class="lineNum">     144 </span>            :     NULL, /* 427 */
+<span class="lineNum">     145 </span>            :     &quot;428 Precondition Required&quot;,
+<span class="lineNum">     146 </span>            :     &quot;429 Too Many Requests&quot;,
+<span class="lineNum">     147 </span>            :     NULL, /* 430 */
+<span class="lineNum">     148 </span>            :     &quot;431 Request Header Fields Too Large&quot;,
+<span class="lineNum">     149 </span>            : #define LEVEL_500 71
+<span class="lineNum">     150 </span>            :     &quot;500 Internal Server Error&quot;,
+<span class="lineNum">     151 </span>            :     &quot;501 Not Implemented&quot;,
+<span class="lineNum">     152 </span>            :     &quot;502 Bad Gateway&quot;,
+<span class="lineNum">     153 </span>            :     &quot;503 Service Unavailable&quot;,
+<span class="lineNum">     154 </span>            :     &quot;504 Gateway Timeout&quot;,
+<span class="lineNum">     155 </span>            :     &quot;505 HTTP Version Not Supported&quot;,
+<span class="lineNum">     156 </span>            :     &quot;506 Variant Also Negotiates&quot;,
+<span class="lineNum">     157 </span>            :     &quot;507 Insufficient Storage&quot;,
+<span class="lineNum">     158 </span>            :     &quot;508 Loop Detected&quot;,
+<span class="lineNum">     159 </span>            :     NULL, /* 509 */
+<span class="lineNum">     160 </span>            :     &quot;510 Not Extended&quot;,
+<span class="lineNum">     161 </span>            :     &quot;511 Network Authentication Required&quot;
+<span class="lineNum">     162 </span>            : };
+<span class="lineNum">     163 </span>            : 
+<span class="lineNum">     164 </span>            : APR_HOOK_STRUCT(
+<span class="lineNum">     165 </span>            :     APR_HOOK_LINK(insert_error_filter)
+<a name="166"><span class="lineNum">     166 </span>            : )</a>
+<span class="lineNum">     167 </span>            : 
+<span class="lineNum">     168 </span><span class="lineNoCov">          0 : AP_IMPLEMENT_HOOK_VOID(insert_error_filter, (request_rec *r), (r))</span>
+<span class="lineNum">     169 </span>            : 
+<span class="lineNum">     170 </span>            : /* The index of the first bit field that is used to index into a limit
+<span class="lineNum">     171 </span>            :  * bitmask. M_INVALID + 1 to METHOD_NUMBER_LAST.
+<span class="lineNum">     172 </span>            :  */
+<span class="lineNum">     173 </span>            : #define METHOD_NUMBER_FIRST (M_INVALID + 1)
+<span class="lineNum">     174 </span>            : 
+<span class="lineNum">     175 </span>            : /* The max method number. Method numbers are used to shift bitmasks,
+<span class="lineNum">     176 </span>            :  * so this cannot exceed 63, and all bits high is equal to -1, which is a
+<span class="lineNum">     177 </span>            :  * special flag, so the last bit used has index 62.
+<span class="lineNum">     178 </span>            :  */
+<a name="179"><span class="lineNum">     179 </span>            : #define METHOD_NUMBER_LAST  62</a>
+<span class="lineNum">     180 </span>            : 
+<span class="lineNum">     181 </span><span class="lineCov">          1 : static int is_mpm_running(void)</span>
+<span class="lineNum">     182 </span>            : {
+<span class="lineNum">     183 </span><span class="lineCov">          1 :     int mpm_state = 0;</span>
+<span class="lineNum">     184 </span>            : 
+<span class="lineNum">     185 </span><span class="lineCov">          1 :     if (ap_mpm_query(AP_MPMQ_MPM_STATE, &amp;mpm_state)) {</span>
+<span class="lineNum">     186 </span><span class="lineNoCov">          0 :       return 0;</span>
+<span class="lineNum">     187 </span>            :     }
+<span class="lineNum">     188 </span>            : 
+<span class="lineNum">     189 </span><span class="lineCov">          1 :     if (mpm_state == AP_MPMQ_STOPPING) {</span>
+<span class="lineNum">     190 </span><span class="lineNoCov">          0 :       return 0;</span>
+<span class="lineNum">     191 </span>            :     }
+<span class="lineNum">     192 </span>            : 
+<span class="lineNum">     193 </span><span class="lineCov">          1 :     return 1;</span>
+<span class="lineNum">     194 </span>            : }
+<a name="195"><span class="lineNum">     195 </span>            : </a>
+<span class="lineNum">     196 </span>            : 
+<span class="lineNum">     197 </span><span class="lineCov">          1 : AP_DECLARE(int) ap_set_keepalive(request_rec *r)</span>
+<span class="lineNum">     198 </span>            : {
+<span class="lineNum">     199 </span><span class="lineCov">          1 :     int ka_sent = 0;</span>
+<span class="lineNum">     200 </span><span class="lineCov">          1 :     int left = r-&gt;server-&gt;keep_alive_max - r-&gt;connection-&gt;keepalives;</span>
+<span class="lineNum">     201 </span><span class="lineCov">          1 :     int wimpy = ap_find_token(r-&gt;pool,</span>
+<span class="lineNum">     202 </span><span class="lineCov">          1 :                               apr_table_get(r-&gt;headers_out, &quot;Connection&quot;),</span>
+<span class="lineNum">     203 </span>            :                               &quot;close&quot;);
+<span class="lineNum">     204 </span><span class="lineCov">          1 :     const char *conn = apr_table_get(r-&gt;headers_in, &quot;Connection&quot;);</span>
+<span class="lineNum">     205 </span>            : 
+<span class="lineNum">     206 </span>            :     /* The following convoluted conditional determines whether or not
+<span class="lineNum">     207 </span>            :      * the current connection should remain persistent after this response
+<span class="lineNum">     208 </span>            :      * (a.k.a. HTTP Keep-Alive) and whether or not the output message
+<span class="lineNum">     209 </span>            :      * body should use the HTTP/1.1 chunked transfer-coding.  In English,
+<span class="lineNum">     210 </span>            :      *
+<span class="lineNum">     211 </span>            :      *   IF  we have not marked this connection as errored;
+<span class="lineNum">     212 </span>            :      *   and the client isn't expecting 100-continue (PR47087 - more
+<span class="lineNum">     213 </span>            :      *       input here could be the client continuing when we're
+<span class="lineNum">     214 </span>            :      *       closing the request).
+<span class="lineNum">     215 </span>            :      *   and the response body has a defined length due to the status code
+<span class="lineNum">     216 </span>            :      *       being 304 or 204, the request method being HEAD, already
+<span class="lineNum">     217 </span>            :      *       having defined Content-Length or Transfer-Encoding: chunked, or
+<span class="lineNum">     218 </span>            :      *       the request version being HTTP/1.1 and thus capable of being set
+<span class="lineNum">     219 </span>            :      *       as chunked [we know the (r-&gt;chunked = 1) side-effect is ugly];
+<span class="lineNum">     220 </span>            :      *   and the server configuration enables keep-alive;
+<span class="lineNum">     221 </span>            :      *   and the server configuration has a reasonable inter-request timeout;
+<span class="lineNum">     222 </span>            :      *   and there is no maximum # requests or the max hasn't been reached;
+<span class="lineNum">     223 </span>            :      *   and the response status does not require a close;
+<span class="lineNum">     224 </span>            :      *   and the response generator has not already indicated close;
+<span class="lineNum">     225 </span>            :      *   and the client did not request non-persistence (Connection: close);
+<span class="lineNum">     226 </span>            :      *   and    we haven't been configured to ignore the buggy twit
+<span class="lineNum">     227 </span>            :      *       or they're a buggy twit coming through a HTTP/1.1 proxy
+<span class="lineNum">     228 </span>            :      *   and    the client is requesting an HTTP/1.0-style keep-alive
+<span class="lineNum">     229 </span>            :      *       or the client claims to be HTTP/1.1 compliant (perhaps a proxy);
+<span class="lineNum">     230 </span>            :      *   and this MPM process is not already exiting
+<span class="lineNum">     231 </span>            :      *   THEN we can be persistent, which requires more headers be output.
+<span class="lineNum">     232 </span>            :      *
+<span class="lineNum">     233 </span>            :      * Note that the condition evaluation order is extremely important.
+<span class="lineNum">     234 </span>            :      */
+<span class="lineNum">     235 </span><span class="lineCov">          1 :     if ((r-&gt;connection-&gt;keepalive != AP_CONN_CLOSE)</span>
+<span class="lineNum">     236 </span><span class="lineCov">          1 :         &amp;&amp; !r-&gt;expecting_100</span>
+<span class="lineNum">     237 </span><span class="lineCov">          1 :         &amp;&amp; ((r-&gt;status == HTTP_NOT_MODIFIED)</span>
+<span class="lineNum">     238 </span><span class="lineCov">          1 :             || (r-&gt;status == HTTP_NO_CONTENT)</span>
+<span class="lineNum">     239 </span><span class="lineCov">          1 :             || r-&gt;header_only</span>
+<span class="lineNum">     240 </span><span class="lineCov">          1 :             || apr_table_get(r-&gt;headers_out, &quot;Content-Length&quot;)</span>
+<span class="lineNum">     241 </span><span class="lineNoCov">          0 :             || ap_find_last_token(r-&gt;pool,</span>
+<span class="lineNum">     242 </span><span class="lineNoCov">          0 :                                   apr_table_get(r-&gt;headers_out,</span>
+<span class="lineNum">     243 </span>            :                                                 &quot;Transfer-Encoding&quot;),
+<span class="lineNum">     244 </span>            :                                   &quot;chunked&quot;)
+<span class="lineNum">     245 </span><span class="lineNoCov">          0 :             || ((r-&gt;proto_num &gt;= HTTP_VERSION(1,1))</span>
+<span class="lineNum">     246 </span><span class="lineNoCov">          0 :                 &amp;&amp; (r-&gt;chunked = 1))) /* THIS CODE IS CORRECT, see above. */</span>
+<span class="lineNum">     247 </span><span class="lineCov">          1 :         &amp;&amp; r-&gt;server-&gt;keep_alive</span>
+<span class="lineNum">     248 </span><span class="lineCov">          1 :         &amp;&amp; (r-&gt;server-&gt;keep_alive_timeout &gt; 0)</span>
+<span class="lineNum">     249 </span><span class="lineCov">          1 :         &amp;&amp; ((r-&gt;server-&gt;keep_alive_max == 0)</span>
+<span class="lineNum">     250 </span><span class="lineCov">          1 :             || (left &gt; 0))</span>
+<span class="lineNum">     251 </span><span class="lineCov">          1 :         &amp;&amp; !ap_status_drops_connection(r-&gt;status)</span>
+<span class="lineNum">     252 </span><span class="lineCov">          1 :         &amp;&amp; !wimpy</span>
+<span class="lineNum">     253 </span><span class="lineCov">          1 :         &amp;&amp; !ap_find_token(r-&gt;pool, conn, &quot;close&quot;)</span>
+<span class="lineNum">     254 </span><span class="lineCov">          1 :         &amp;&amp; (!apr_table_get(r-&gt;subprocess_env, &quot;nokeepalive&quot;)</span>
+<span class="lineNum">     255 </span><span class="lineNoCov">          0 :             || apr_table_get(r-&gt;headers_in, &quot;Via&quot;))</span>
+<span class="lineNum">     256 </span><span class="lineCov">          1 :         &amp;&amp; ((ka_sent = ap_find_token(r-&gt;pool, conn, &quot;keep-alive&quot;))</span>
+<span class="lineNum">     257 </span><span class="lineCov">          1 :             || (r-&gt;proto_num &gt;= HTTP_VERSION(1,1)))</span>
+<span class="lineNum">     258 </span><span class="lineCov">          1 :         &amp;&amp; is_mpm_running()) {</span>
+<span class="lineNum">     259 </span>            : 
+<span class="lineNum">     260 </span><span class="lineCov">          1 :         r-&gt;connection-&gt;keepalive = AP_CONN_KEEPALIVE;</span>
+<span class="lineNum">     261 </span><span class="lineCov">          1 :         r-&gt;connection-&gt;keepalives++;</span>
+<span class="lineNum">     262 </span>            : 
+<span class="lineNum">     263 </span>            :         /* If they sent a Keep-Alive token, send one back */
+<span class="lineNum">     264 </span><span class="lineCov">          1 :         if (ka_sent) {</span>
+<span class="lineNum">     265 </span><span class="lineNoCov">          0 :             if (r-&gt;server-&gt;keep_alive_max) {</span>
+<span class="lineNum">     266 </span><span class="lineNoCov">          0 :                 apr_table_setn(r-&gt;headers_out, &quot;Keep-Alive&quot;,</span>
+<span class="lineNum">     267 </span><span class="lineNoCov">          0 :                        apr_psprintf(r-&gt;pool, &quot;timeout=%d, max=%d&quot;,</span>
+<span class="lineNum">     268 </span><span class="lineNoCov">          0 :                             (int)apr_time_sec(r-&gt;server-&gt;keep_alive_timeout),</span>
+<span class="lineNum">     269 </span>            :                             left));
+<span class="lineNum">     270 </span>            :             }
+<span class="lineNum">     271 </span>            :             else {
+<span class="lineNum">     272 </span><span class="lineNoCov">          0 :                 apr_table_setn(r-&gt;headers_out, &quot;Keep-Alive&quot;,</span>
+<span class="lineNum">     273 </span><span class="lineNoCov">          0 :                       apr_psprintf(r-&gt;pool, &quot;timeout=%d&quot;,</span>
+<span class="lineNum">     274 </span><span class="lineNoCov">          0 :                             (int)apr_time_sec(r-&gt;server-&gt;keep_alive_timeout)));</span>
+<span class="lineNum">     275 </span>            :             }
+<span class="lineNum">     276 </span><span class="lineNoCov">          0 :             apr_table_mergen(r-&gt;headers_out, &quot;Connection&quot;, &quot;Keep-Alive&quot;);</span>
+<span class="lineNum">     277 </span>            :         }
+<span class="lineNum">     278 </span>            : 
+<span class="lineNum">     279 </span><span class="lineCov">          1 :         return 1;</span>
+<span class="lineNum">     280 </span>            :     }
+<span class="lineNum">     281 </span>            : 
+<span class="lineNum">     282 </span>            :     /* Otherwise, we need to indicate that we will be closing this
+<span class="lineNum">     283 </span>            :      * connection immediately after the current response.
+<span class="lineNum">     284 </span>            :      *
+<span class="lineNum">     285 </span>            :      * We only really need to send &quot;close&quot; to HTTP/1.1 clients, but we
+<span class="lineNum">     286 </span>            :      * always send it anyway, because a broken proxy may identify itself
+<span class="lineNum">     287 </span>            :      * as HTTP/1.0, but pass our request along with our HTTP/1.1 tag
+<span class="lineNum">     288 </span>            :      * to a HTTP/1.1 client. Better safe than sorry.
+<span class="lineNum">     289 </span>            :      */
+<span class="lineNum">     290 </span><span class="lineNoCov">          0 :     if (!wimpy) {</span>
+<span class="lineNum">     291 </span><span class="lineNoCov">          0 :         apr_table_mergen(r-&gt;headers_out, &quot;Connection&quot;, &quot;close&quot;);</span>
+<span class="lineNum">     292 </span>            :     }
+<span class="lineNum">     293 </span>            : 
+<span class="lineNum">     294 </span>            :     /*
+<span class="lineNum">     295 </span>            :      * If we had previously been a keepalive connection and this
+<span class="lineNum">     296 </span>            :      * is the last one, then bump up the number of keepalives
+<span class="lineNum">     297 </span>            :      * we've had
+<span class="lineNum">     298 </span>            :      */
+<span class="lineNum">     299 </span><span class="lineNoCov">          0 :     if ((r-&gt;connection-&gt;keepalive != AP_CONN_CLOSE)</span>
+<span class="lineNum">     300 </span><span class="lineNoCov">          0 :         &amp;&amp; r-&gt;server-&gt;keep_alive_max</span>
+<span class="lineNum">     301 </span><span class="lineNoCov">          0 :         &amp;&amp; !left) {</span>
+<span class="lineNum">     302 </span><span class="lineNoCov">          0 :         r-&gt;connection-&gt;keepalives++;</span>
+<span class="lineNum">     303 </span>            :     }
+<span class="lineNum">     304 </span><span class="lineNoCov">          0 :     r-&gt;connection-&gt;keepalive = AP_CONN_CLOSE;</span>
+<span class="lineNum">     305 </span>            : 
+<span class="lineNum">     306 </span><span class="lineNoCov">          0 :     return 0;</span>
+<a name="307"><span class="lineNum">     307 </span>            : }</a>
+<span class="lineNum">     308 </span>            : 
+<span class="lineNum">     309 </span><span class="lineCov">          1 : AP_DECLARE(ap_condition_e) ap_condition_if_match(request_rec *r,</span>
+<span class="lineNum">     310 </span>            :         apr_table_t *headers)
+<span class="lineNum">     311 </span>            : {
+<span class="lineNum">     312 </span>            :     const char *if_match, *etag;
+<span class="lineNum">     313 </span>            : 
+<span class="lineNum">     314 </span>            :     /* A server MUST use the strong comparison function (see section 13.3.3)
+<span class="lineNum">     315 </span>            :      * to compare the entity tags in If-Match.
+<span class="lineNum">     316 </span>            :      */
+<span class="lineNum">     317 </span><span class="lineCov">          1 :     if ((if_match = apr_table_get(r-&gt;headers_in, &quot;If-Match&quot;)) != NULL) {</span>
+<span class="lineNum">     318 </span><span class="lineNoCov">          0 :         if (if_match[0] == '*'</span>
+<span class="lineNum">     319 </span><span class="lineNoCov">          0 :                 || ((etag = apr_table_get(headers, &quot;ETag&quot;)) == NULL</span>
+<span class="lineNum">     320 </span><span class="lineNoCov">          0 :                         &amp;&amp; !ap_find_etag_strong(r-&gt;pool, if_match, etag))) {</span>
+<span class="lineNum">     321 </span><span class="lineNoCov">          0 :             return AP_CONDITION_STRONG;</span>
+<span class="lineNum">     322 </span>            :         }
+<span class="lineNum">     323 </span>            :         else {
+<span class="lineNum">     324 </span><span class="lineNoCov">          0 :             return AP_CONDITION_NOMATCH;</span>
+<span class="lineNum">     325 </span>            :         }
+<span class="lineNum">     326 </span>            :     }
+<span class="lineNum">     327 </span>            : 
+<span class="lineNum">     328 </span><span class="lineCov">          1 :     return AP_CONDITION_NONE;</span>
+<a name="329"><span class="lineNum">     329 </span>            : }</a>
+<span class="lineNum">     330 </span>            : 
+<span class="lineNum">     331 </span><span class="lineCov">          1 : AP_DECLARE(ap_condition_e) ap_condition_if_unmodified_since(request_rec *r,</span>
+<span class="lineNum">     332 </span>            :         apr_table_t *headers)
+<span class="lineNum">     333 </span>            : {
+<span class="lineNum">     334 </span>            :     const char *if_unmodified;
+<span class="lineNum">     335 </span>            : 
+<span class="lineNum">     336 </span><span class="lineCov">          1 :     if_unmodified = apr_table_get(r-&gt;headers_in, &quot;If-Unmodified-Since&quot;);</span>
+<span class="lineNum">     337 </span><span class="lineCov">          1 :     if (if_unmodified) {</span>
+<span class="lineNum">     338 </span>            :         apr_int64_t mtime, reqtime;
+<span class="lineNum">     339 </span>            : 
+<span class="lineNum">     340 </span><span class="lineNoCov">          0 :         apr_time_t ius = apr_time_sec(apr_date_parse_http(if_unmodified));</span>
+<span class="lineNum">     341 </span>            : 
+<span class="lineNum">     342 </span>            :         /* All of our comparisons must be in seconds, because that's the
+<span class="lineNum">     343 </span>            :          * highest time resolution the HTTP specification allows.
+<span class="lineNum">     344 </span>            :          */
+<span class="lineNum">     345 </span><span class="lineNoCov">          0 :         mtime = apr_time_sec(apr_date_parse_http(</span>
+<span class="lineNum">     346 </span>            :                         apr_table_get(headers, &quot;Last-Modified&quot;)));
+<span class="lineNum">     347 </span><span class="lineNoCov">          0 :         if (mtime == APR_DATE_BAD) {</span>
+<span class="lineNum">     348 </span><span class="lineNoCov">          0 :             mtime = apr_time_sec(r-&gt;mtime ? r-&gt;mtime : apr_time_now());</span>
+<span class="lineNum">     349 </span>            :         }
+<span class="lineNum">     350 </span>            : 
+<span class="lineNum">     351 </span><span class="lineNoCov">          0 :         reqtime = apr_time_sec(apr_date_parse_http(</span>
+<span class="lineNum">     352 </span>            :                         apr_table_get(headers, &quot;Date&quot;)));
+<span class="lineNum">     353 </span><span class="lineNoCov">          0 :         if (!reqtime) {</span>
+<span class="lineNum">     354 </span><span class="lineNoCov">          0 :             reqtime = apr_time_sec(r-&gt;request_time);</span>
+<span class="lineNum">     355 </span>            :         }
+<span class="lineNum">     356 </span>            : 
+<span class="lineNum">     357 </span><span class="lineNoCov">          0 :         if ((ius != APR_DATE_BAD) &amp;&amp; (mtime &gt; ius)) {</span>
+<span class="lineNum">     358 </span><span class="lineNoCov">          0 :             if (reqtime &lt; mtime + 60) {</span>
+<span class="lineNum">     359 </span><span class="lineNoCov">          0 :                 if (apr_table_get(r-&gt;headers_in, &quot;Range&quot;)) {</span>
+<span class="lineNum">     360 </span>            :                     /* weak matches not allowed with Range requests */
+<span class="lineNum">     361 </span><span class="lineNoCov">          0 :                     return AP_CONDITION_NOMATCH;</span>
+<span class="lineNum">     362 </span>            :                 }
+<span class="lineNum">     363 </span>            :                 else {
+<span class="lineNum">     364 </span><span class="lineNoCov">          0 :                     return AP_CONDITION_WEAK;</span>
+<span class="lineNum">     365 </span>            :                 }
+<span class="lineNum">     366 </span>            :             }
+<span class="lineNum">     367 </span>            :             else {
+<span class="lineNum">     368 </span><span class="lineNoCov">          0 :                 return AP_CONDITION_STRONG;</span>
+<span class="lineNum">     369 </span>            :             }
+<span class="lineNum">     370 </span>            :         }
+<span class="lineNum">     371 </span>            :         else {
+<span class="lineNum">     372 </span><span class="lineNoCov">          0 :             return AP_CONDITION_NOMATCH;</span>
+<span class="lineNum">     373 </span>            :         }
+<span class="lineNum">     374 </span>            :     }
+<span class="lineNum">     375 </span>            : 
+<span class="lineNum">     376 </span><span class="lineCov">          1 :     return AP_CONDITION_NONE;</span>
+<a name="377"><span class="lineNum">     377 </span>            : }</a>
+<span class="lineNum">     378 </span>            : 
+<span class="lineNum">     379 </span><span class="lineCov">          1 : AP_DECLARE(ap_condition_e) ap_condition_if_none_match(request_rec *r,</span>
+<span class="lineNum">     380 </span>            :         apr_table_t *headers)
+<span class="lineNum">     381 </span>            : {
+<span class="lineNum">     382 </span>            :     const char *if_nonematch, *etag;
+<span class="lineNum">     383 </span>            : 
+<span class="lineNum">     384 </span><span class="lineCov">          1 :     if_nonematch = apr_table_get(r-&gt;headers_in, &quot;If-None-Match&quot;);</span>
+<span class="lineNum">     385 </span><span class="lineCov">          1 :     if (if_nonematch != NULL) {</span>
+<span class="lineNum">     386 </span>            : 
+<span class="lineNum">     387 </span><span class="lineNoCov">          0 :         if (if_nonematch[0] == '*') {</span>
+<span class="lineNum">     388 </span><span class="lineNoCov">          0 :             return AP_CONDITION_STRONG;</span>
+<span class="lineNum">     389 </span>            :         }
+<span class="lineNum">     390 </span>            : 
+<span class="lineNum">     391 </span>            :         /* See section 13.3.3 for rules on how to determine if two entities tags
+<span class="lineNum">     392 </span>            :          * match. The weak comparison function can only be used with GET or HEAD
+<span class="lineNum">     393 </span>            :          * requests.
+<span class="lineNum">     394 </span>            :          */
+<span class="lineNum">     395 </span><span class="lineNoCov">          0 :         if (r-&gt;method_number == M_GET) {</span>
+<span class="lineNum">     396 </span><span class="lineNoCov">          0 :             if ((etag = apr_table_get(headers, &quot;ETag&quot;)) != NULL) {</span>
+<span class="lineNum">     397 </span><span class="lineNoCov">          0 :                 if (apr_table_get(r-&gt;headers_in, &quot;Range&quot;)) {</span>
+<span class="lineNum">     398 </span><span class="lineNoCov">          0 :                     if (ap_find_etag_strong(r-&gt;pool, if_nonematch, etag)) {</span>
+<span class="lineNum">     399 </span><span class="lineNoCov">          0 :                         return AP_CONDITION_STRONG;</span>
+<span class="lineNum">     400 </span>            :                     }
+<span class="lineNum">     401 </span>            :                 }
+<span class="lineNum">     402 </span>            :                 else {
+<span class="lineNum">     403 </span><span class="lineNoCov">          0 :                     if (ap_find_etag_weak(r-&gt;pool, if_nonematch, etag)) {</span>
+<span class="lineNum">     404 </span><span class="lineNoCov">          0 :                         return AP_CONDITION_WEAK;</span>
+<span class="lineNum">     405 </span>            :                     }
+<span class="lineNum">     406 </span>            :                 }
+<span class="lineNum">     407 </span>            :             }
+<span class="lineNum">     408 </span>            :         }
+<span class="lineNum">     409 </span>            : 
+<span class="lineNum">     410 </span><span class="lineNoCov">          0 :         else if ((etag = apr_table_get(headers, &quot;ETag&quot;)) != NULL</span>
+<span class="lineNum">     411 </span><span class="lineNoCov">          0 :                 &amp;&amp; ap_find_etag_strong(r-&gt;pool, if_nonematch, etag)) {</span>
+<span class="lineNum">     412 </span><span class="lineNoCov">          0 :             return AP_CONDITION_STRONG;</span>
+<span class="lineNum">     413 </span>            :         }
+<span class="lineNum">     414 </span><span class="lineNoCov">          0 :         return AP_CONDITION_NOMATCH;</span>
+<span class="lineNum">     415 </span>            :     }
+<span class="lineNum">     416 </span>            : 
+<span class="lineNum">     417 </span><span class="lineCov">          1 :     return AP_CONDITION_NONE;</span>
+<a name="418"><span class="lineNum">     418 </span>            : }</a>
+<span class="lineNum">     419 </span>            : 
+<span class="lineNum">     420 </span><span class="lineCov">          1 : AP_DECLARE(ap_condition_e) ap_condition_if_modified_since(request_rec *r,</span>
+<span class="lineNum">     421 </span>            :         apr_table_t *headers)
+<span class="lineNum">     422 </span>            : {
+<span class="lineNum">     423 </span>            :     const char *if_modified_since;
+<span class="lineNum">     424 </span>            : 
+<span class="lineNum">     425 </span><span class="lineCov">          1 :     if ((if_modified_since = apr_table_get(r-&gt;headers_in, &quot;If-Modified-Since&quot;))</span>
+<span class="lineNum">     426 </span>            :             != NULL) {
+<span class="lineNum">     427 </span>            :         apr_int64_t mtime;
+<span class="lineNum">     428 </span>            :         apr_int64_t ims, reqtime;
+<span class="lineNum">     429 </span>            : 
+<span class="lineNum">     430 </span>            :         /* All of our comparisons must be in seconds, because that's the
+<span class="lineNum">     431 </span>            :          * highest time resolution the HTTP specification allows.
+<span class="lineNum">     432 </span>            :          */
+<span class="lineNum">     433 </span>            : 
+<span class="lineNum">     434 </span><span class="lineNoCov">          0 :         mtime = apr_time_sec(apr_date_parse_http(</span>
+<span class="lineNum">     435 </span>            :                         apr_table_get(headers, &quot;Last-Modified&quot;)));
+<span class="lineNum">     436 </span><span class="lineNoCov">          0 :         if (mtime == APR_DATE_BAD) {</span>
+<span class="lineNum">     437 </span><span class="lineNoCov">          0 :             mtime = apr_time_sec(r-&gt;mtime ? r-&gt;mtime : apr_time_now());</span>
+<span class="lineNum">     438 </span>            :         }
+<span class="lineNum">     439 </span>            : 
+<span class="lineNum">     440 </span><span class="lineNoCov">          0 :         reqtime = apr_time_sec(apr_date_parse_http(</span>
+<span class="lineNum">     441 </span>            :                         apr_table_get(headers, &quot;Date&quot;)));
+<span class="lineNum">     442 </span><span class="lineNoCov">          0 :         if (!reqtime) {</span>
+<span class="lineNum">     443 </span><span class="lineNoCov">          0 :             reqtime = apr_time_sec(r-&gt;request_time);</span>
+<span class="lineNum">     444 </span>            :         }
+<span class="lineNum">     445 </span>            : 
+<span class="lineNum">     446 </span><span class="lineNoCov">          0 :         ims = apr_time_sec(apr_date_parse_http(if_modified_since));</span>
+<span class="lineNum">     447 </span>            : 
+<span class="lineNum">     448 </span><span class="lineNoCov">          0 :         if (ims &gt;= mtime &amp;&amp; ims &lt;= reqtime) {</span>
+<span class="lineNum">     449 </span><span class="lineNoCov">          0 :             if (reqtime &lt; mtime + 60) {</span>
+<span class="lineNum">     450 </span><span class="lineNoCov">          0 :                 if (apr_table_get(r-&gt;headers_in, &quot;Range&quot;)) {</span>
+<span class="lineNum">     451 </span>            :                     /* weak matches not allowed with Range requests */
+<span class="lineNum">     452 </span><span class="lineNoCov">          0 :                     return AP_CONDITION_NOMATCH;</span>
+<span class="lineNum">     453 </span>            :                 }
+<span class="lineNum">     454 </span>            :                 else {
+<span class="lineNum">     455 </span><span class="lineNoCov">          0 :                     return AP_CONDITION_WEAK;</span>
+<span class="lineNum">     456 </span>            :                 }
+<span class="lineNum">     457 </span>            :             }
+<span class="lineNum">     458 </span>            :             else {
+<span class="lineNum">     459 </span><span class="lineNoCov">          0 :                 return AP_CONDITION_STRONG;</span>
+<span class="lineNum">     460 </span>            :             }
+<span class="lineNum">     461 </span>            :         }
+<span class="lineNum">     462 </span>            :         else {
+<span class="lineNum">     463 </span><span class="lineNoCov">          0 :             return AP_CONDITION_NOMATCH;</span>
+<span class="lineNum">     464 </span>            :         }
+<span class="lineNum">     465 </span>            :     }
+<span class="lineNum">     466 </span>            : 
+<span class="lineNum">     467 </span><span class="lineCov">          1 :     return AP_CONDITION_NONE;</span>
+<a name="468"><span class="lineNum">     468 </span>            : }</a>
+<span class="lineNum">     469 </span>            : 
+<span class="lineNum">     470 </span><span class="lineCov">          1 : AP_DECLARE(ap_condition_e) ap_condition_if_range(request_rec *r,</span>
+<span class="lineNum">     471 </span>            :         apr_table_t *headers)
+<span class="lineNum">     472 </span>            : {
+<span class="lineNum">     473 </span>            :     const char *if_range, *etag;
+<span class="lineNum">     474 </span>            : 
+<span class="lineNum">     475 </span><span class="lineCov">          1 :     if ((if_range = apr_table_get(r-&gt;headers_in, &quot;If-Range&quot;))</span>
+<span class="lineNum">     476 </span><span class="lineNoCov">          0 :             &amp;&amp; apr_table_get(r-&gt;headers_in, &quot;Range&quot;)) {</span>
+<span class="lineNum">     477 </span><span class="lineNoCov">          0 :         if (if_range[0] == '&quot;') {</span>
+<span class="lineNum">     478 </span>            : 
+<span class="lineNum">     479 </span><span class="lineNoCov">          0 :             if ((etag = apr_table_get(headers, &quot;ETag&quot;))</span>
+<span class="lineNum">     480 </span><span class="lineNoCov">          0 :                     &amp;&amp; !strcmp(if_range, etag)) {</span>
+<span class="lineNum">     481 </span><span class="lineNoCov">          0 :                 return AP_CONDITION_STRONG;</span>
+<span class="lineNum">     482 </span>            :             }
+<span class="lineNum">     483 </span>            :             else {
+<span class="lineNum">     484 </span><span class="lineNoCov">          0 :                 return AP_CONDITION_NOMATCH;</span>
+<span class="lineNum">     485 </span>            :             }
+<span class="lineNum">     486 </span>            : 
+<span class="lineNum">     487 </span>            :         }
+<span class="lineNum">     488 </span>            :         else {
+<span class="lineNum">     489 </span>            :             apr_int64_t mtime;
+<span class="lineNum">     490 </span>            :             apr_int64_t rtime, reqtime;
+<span class="lineNum">     491 </span>            : 
+<span class="lineNum">     492 </span>            :             /* All of our comparisons must be in seconds, because that's the
+<span class="lineNum">     493 </span>            :              * highest time resolution the HTTP specification allows.
+<span class="lineNum">     494 </span>            :              */
+<span class="lineNum">     495 </span>            : 
+<span class="lineNum">     496 </span><span class="lineNoCov">          0 :             mtime = apr_time_sec(apr_date_parse_http(</span>
+<span class="lineNum">     497 </span>            :                             apr_table_get(headers, &quot;Last-Modified&quot;)));
+<span class="lineNum">     498 </span><span class="lineNoCov">          0 :             if (mtime == APR_DATE_BAD) {</span>
+<span class="lineNum">     499 </span><span class="lineNoCov">          0 :                 mtime = apr_time_sec(r-&gt;mtime ? r-&gt;mtime : apr_time_now());</span>
+<span class="lineNum">     500 </span>            :             }
+<span class="lineNum">     501 </span>            : 
+<span class="lineNum">     502 </span><span class="lineNoCov">          0 :             reqtime = apr_time_sec(apr_date_parse_http(</span>
+<span class="lineNum">     503 </span>            :                             apr_table_get(headers, &quot;Date&quot;)));
+<span class="lineNum">     504 </span><span class="lineNoCov">          0 :             if (!reqtime) {</span>
+<span class="lineNum">     505 </span><span class="lineNoCov">          0 :                 reqtime = apr_time_sec(r-&gt;request_time);</span>
+<span class="lineNum">     506 </span>            :             }
+<span class="lineNum">     507 </span>            : 
+<span class="lineNum">     508 </span><span class="lineNoCov">          0 :             rtime = apr_time_sec(apr_date_parse_http(if_range));</span>
+<span class="lineNum">     509 </span>            : 
+<span class="lineNum">     510 </span><span class="lineNoCov">          0 :             if (rtime == mtime) {</span>
+<span class="lineNum">     511 </span><span class="lineNoCov">          0 :                 if (reqtime &lt; mtime + 60) {</span>
+<span class="lineNum">     512 </span>            :                     /* weak matches not allowed with Range requests */
+<span class="lineNum">     513 </span><span class="lineNoCov">          0 :                     return AP_CONDITION_NOMATCH;</span>
+<span class="lineNum">     514 </span>            :                 }
+<span class="lineNum">     515 </span>            :                 else {
+<span class="lineNum">     516 </span><span class="lineNoCov">          0 :                     return AP_CONDITION_STRONG;</span>
+<span class="lineNum">     517 </span>            :                 }
+<span class="lineNum">     518 </span>            :             }
+<span class="lineNum">     519 </span>            :             else {
+<span class="lineNum">     520 </span><span class="lineNoCov">          0 :                 return AP_CONDITION_NOMATCH;</span>
+<span class="lineNum">     521 </span>            :             }
+<span class="lineNum">     522 </span>            :         }
+<span class="lineNum">     523 </span>            :     }
+<span class="lineNum">     524 </span>            : 
+<span class="lineNum">     525 </span><span class="lineCov">          1 :     return AP_CONDITION_NONE;</span>
+<a name="526"><span class="lineNum">     526 </span>            : }</a>
+<span class="lineNum">     527 </span>            : 
+<span class="lineNum">     528 </span><span class="lineCov">          1 : AP_DECLARE(int) ap_meets_conditions(request_rec *r)</span>
+<span class="lineNum">     529 </span>            : {
+<span class="lineNum">     530 </span><span class="lineCov">          1 :     int not_modified = -1; /* unset by default */</span>
+<span class="lineNum">     531 </span>            :     ap_condition_e cond;
+<span class="lineNum">     532 </span>            : 
+<span class="lineNum">     533 </span>            :     /* Check for conditional requests --- note that we only want to do
+<span class="lineNum">     534 </span>            :      * this if we are successful so far and we are not processing a
+<span class="lineNum">     535 </span>            :      * subrequest or an ErrorDocument.
+<span class="lineNum">     536 </span>            :      *
+<span class="lineNum">     537 </span>            :      * The order of the checks is important, since ETag checks are supposed
+<span class="lineNum">     538 </span>            :      * to be more accurate than checks relative to the modification time.
+<span class="lineNum">     539 </span>            :      * However, not all documents are guaranteed to *have* ETags, and some
+<span class="lineNum">     540 </span>            :      * might have Last-Modified values w/o ETags, so this gets a little
+<span class="lineNum">     541 </span>            :      * complicated.
+<span class="lineNum">     542 </span>            :      */
+<span class="lineNum">     543 </span>            : 
+<span class="lineNum">     544 </span><span class="lineCov">          1 :     if (!ap_is_HTTP_SUCCESS(r-&gt;status) || r-&gt;no_local_copy) {</span>
+<span class="lineNum">     545 </span><span class="lineNoCov">          0 :         return OK;</span>
+<span class="lineNum">     546 </span>            :     }
+<span class="lineNum">     547 </span>            : 
+<span class="lineNum">     548 </span>            :     /* If an If-Match request-header field was given
+<span class="lineNum">     549 </span>            :      * AND the field value is not &quot;*&quot; (meaning match anything)
+<span class="lineNum">     550 </span>            :      * AND if our strong ETag does not match any entity tag in that field,
+<span class="lineNum">     551 </span>            :      *     respond with a status of 412 (Precondition Failed).
+<span class="lineNum">     552 </span>            :      */
+<span class="lineNum">     553 </span><span class="lineCov">          1 :     cond = ap_condition_if_match(r, r-&gt;headers_out);</span>
+<span class="lineNum">     554 </span><span class="lineCov">          1 :     if (AP_CONDITION_NOMATCH == cond) {</span>
+<span class="lineNum">     555 </span><span class="lineNoCov">          0 :         not_modified = 0;</span>
+<span class="lineNum">     556 </span>            :     }
+<span class="lineNum">     557 </span><span class="lineCov">          1 :     else if (cond &gt;= AP_CONDITION_WEAK) {</span>
+<span class="lineNum">     558 </span><span class="lineNoCov">          0 :         return HTTP_PRECONDITION_FAILED;</span>
+<span class="lineNum">     559 </span>            :     }
+<span class="lineNum">     560 </span>            : 
+<span class="lineNum">     561 </span>            :     /* Else if a valid If-Unmodified-Since request-header field was given
+<span class="lineNum">     562 </span>            :      * AND the requested resource has been modified since the time
+<span class="lineNum">     563 </span>            :      * specified in this field, then the server MUST
+<span class="lineNum">     564 </span>            :      *     respond with a status of 412 (Precondition Failed).
+<span class="lineNum">     565 </span>            :      */
+<span class="lineNum">     566 </span><span class="lineCov">          1 :     cond = ap_condition_if_unmodified_since(r, r-&gt;headers_out);</span>
+<span class="lineNum">     567 </span><span class="lineCov">          1 :     if (AP_CONDITION_NOMATCH == cond) {</span>
+<span class="lineNum">     568 </span><span class="lineNoCov">          0 :         not_modified = 0;</span>
+<span class="lineNum">     569 </span>            :     }
+<span class="lineNum">     570 </span><span class="lineCov">          1 :     else if (cond &gt;= AP_CONDITION_WEAK) {</span>
+<span class="lineNum">     571 </span><span class="lineNoCov">          0 :         return HTTP_PRECONDITION_FAILED;</span>
+<span class="lineNum">     572 </span>            :     }
+<span class="lineNum">     573 </span>            : 
+<span class="lineNum">     574 </span>            :     /* If an If-None-Match request-header field was given
+<span class="lineNum">     575 </span>            :      * AND the field value is &quot;*&quot; (meaning match anything)
+<span class="lineNum">     576 </span>            :      *     OR our ETag matches any of the entity tags in that field, fail.
+<span class="lineNum">     577 </span>            :      *
+<span class="lineNum">     578 </span>            :      * If the request method was GET or HEAD, failure means the server
+<span class="lineNum">     579 </span>            :      *    SHOULD respond with a 304 (Not Modified) response.
+<span class="lineNum">     580 </span>            :      * For all other request methods, failure means the server MUST
+<span class="lineNum">     581 </span>            :      *    respond with a status of 412 (Precondition Failed).
+<span class="lineNum">     582 </span>            :      *
+<span class="lineNum">     583 </span>            :      * GET or HEAD allow weak etag comparison, all other methods require
+<span class="lineNum">     584 </span>            :      * strong comparison.  We can only use weak if it's not a range request.
+<span class="lineNum">     585 </span>            :      */
+<span class="lineNum">     586 </span><span class="lineCov">          1 :     cond = ap_condition_if_none_match(r, r-&gt;headers_out);</span>
+<span class="lineNum">     587 </span><span class="lineCov">          1 :     if (AP_CONDITION_NOMATCH == cond) {</span>
+<span class="lineNum">     588 </span><span class="lineNoCov">          0 :         not_modified = 0;</span>
+<span class="lineNum">     589 </span>            :     }
+<span class="lineNum">     590 </span><span class="lineCov">          1 :     else if (cond &gt;= AP_CONDITION_WEAK) {</span>
+<span class="lineNum">     591 </span><span class="lineNoCov">          0 :         if (r-&gt;method_number == M_GET) {</span>
+<span class="lineNum">     592 </span><span class="lineNoCov">          0 :             if (not_modified) {</span>
+<span class="lineNum">     593 </span><span class="lineNoCov">          0 :                 not_modified = 1;</span>
+<span class="lineNum">     594 </span>            :             }
+<span class="lineNum">     595 </span>            :         }
+<span class="lineNum">     596 </span>            :         else {
+<span class="lineNum">     597 </span><span class="lineNoCov">          0 :             return HTTP_PRECONDITION_FAILED;</span>
+<span class="lineNum">     598 </span>            :         }
+<span class="lineNum">     599 </span>            :     }
+<span class="lineNum">     600 </span>            : 
+<span class="lineNum">     601 </span>            :     /* If a valid If-Modified-Since request-header field was given
+<span class="lineNum">     602 </span>            :      * AND it is a GET or HEAD request
+<span class="lineNum">     603 </span>            :      * AND the requested resource has not been modified since the time
+<span class="lineNum">     604 </span>            :      * specified in this field, then the server MUST
+<span class="lineNum">     605 </span>            :      *    respond with a status of 304 (Not Modified).
+<span class="lineNum">     606 </span>            :      * A date later than the server's current request time is invalid.
+<span class="lineNum">     607 </span>            :      */
+<span class="lineNum">     608 </span><span class="lineCov">          1 :     cond = ap_condition_if_modified_since(r, r-&gt;headers_out);</span>
+<span class="lineNum">     609 </span><span class="lineCov">          1 :     if (AP_CONDITION_NOMATCH == cond) {</span>
+<span class="lineNum">     610 </span><span class="lineNoCov">          0 :         not_modified = 0;</span>
+<span class="lineNum">     611 </span>            :     }
+<span class="lineNum">     612 </span><span class="lineCov">          1 :     else if (cond &gt;= AP_CONDITION_WEAK) {</span>
+<span class="lineNum">     613 </span><span class="lineNoCov">          0 :         if (r-&gt;method_number == M_GET) {</span>
+<span class="lineNum">     614 </span><span class="lineNoCov">          0 :             if (not_modified) {</span>
+<span class="lineNum">     615 </span><span class="lineNoCov">          0 :                 not_modified = 1;</span>
+<span class="lineNum">     616 </span>            :             }
+<span class="lineNum">     617 </span>            :         }
+<span class="lineNum">     618 </span>            :     }
+<span class="lineNum">     619 </span>            : 
+<span class="lineNum">     620 </span>            :     /* If an If-Range and an Range header is present, we must return
+<span class="lineNum">     621 </span>            :      * 200 OK. The byterange filter will convert it to a range response.
+<span class="lineNum">     622 </span>            :      */
+<span class="lineNum">     623 </span><span class="lineCov">          1 :     cond = ap_condition_if_range(r, r-&gt;headers_out);</span>
+<span class="lineNum">     624 </span><span class="lineCov">          1 :     if (cond &gt; AP_CONDITION_NONE) {</span>
+<span class="lineNum">     625 </span><span class="lineNoCov">          0 :         return OK;</span>
+<span class="lineNum">     626 </span>            :     }
+<span class="lineNum">     627 </span>            : 
+<span class="lineNum">     628 </span><span class="lineCov">          1 :     if (not_modified == 1) {</span>
+<span class="lineNum">     629 </span><span class="lineNoCov">          0 :         return HTTP_NOT_MODIFIED;</span>
+<span class="lineNum">     630 </span>            :     }
+<span class="lineNum">     631 </span>            : 
+<span class="lineNum">     632 </span><span class="lineCov">          1 :     return OK;</span>
+<span class="lineNum">     633 </span>            : }
+<span class="lineNum">     634 </span>            : 
+<span class="lineNum">     635 </span>            : /**
+<span class="lineNum">     636 </span>            :  * Singleton registry of additional methods. This maps new method names
+<span class="lineNum">     637 </span>            :  * such as &quot;MYGET&quot; to methnums, which are int offsets into bitmasks.
+<span class="lineNum">     638 </span>            :  *
+<span class="lineNum">     639 </span>            :  * This follows the same technique as standard M_GET, M_POST, etc. These
+<span class="lineNum">     640 </span>            :  * are dynamically assigned when modules are loaded and &lt;Limit GET MYGET&gt;
+<span class="lineNum">     641 </span>            :  * directives are processed.
+<span class="lineNum">     642 </span>            :  */
+<span class="lineNum">     643 </span>            : static apr_hash_t *methods_registry = NULL;
+<span class="lineNum">     644 </span>            : static int cur_method_number = METHOD_NUMBER_FIRST;
+<a name="645"><span class="lineNum">     645 </span>            : </a>
+<span class="lineNum">     646 </span>            : /* internal function to register one method/number pair */
+<span class="lineNum">     647 </span><span class="lineCov">        104 : static void register_one_method(apr_pool_t *p, const char *methname,</span>
+<span class="lineNum">     648 </span>            :                                 int methnum)
+<span class="lineNum">     649 </span>            : {
+<span class="lineNum">     650 </span><span class="lineCov">        104 :     int *pnum = apr_palloc(p, sizeof(*pnum));</span>
+<span class="lineNum">     651 </span>            : 
+<span class="lineNum">     652 </span><span class="lineCov">        104 :     *pnum = methnum;</span>
+<span class="lineNum">     653 </span><span class="lineCov">        104 :     apr_hash_set(methods_registry, methname, APR_HASH_KEY_STRING, pnum);</span>
+<span class="lineNum">     654 </span><span class="lineCov">        104 : }</span>
+<span class="lineNum">     655 </span>            : 
+<span class="lineNum">     656 </span>            : /* This internal function is used to clear the method registry
+<a name="657"><span class="lineNum">     657 </span>            :  * and reset the cur_method_number counter.</a>
+<span class="lineNum">     658 </span>            :  */
+<span class="lineNum">     659 </span><span class="lineCov">          3 : static apr_status_t ap_method_registry_destroy(void *notused)</span>
+<span class="lineNum">     660 </span>            : {
+<span class="lineNum">     661 </span><span class="lineCov">          3 :     methods_registry = NULL;</span>
+<span class="lineNum">     662 </span><span class="lineCov">          3 :     cur_method_number = METHOD_NUMBER_FIRST;</span>
+<span class="lineNum">     663 </span><span class="lineCov">          3 :     return APR_SUCCESS;</span>
+<a name="664"><span class="lineNum">     664 </span>            : }</a>
+<span class="lineNum">     665 </span>            : 
+<span class="lineNum">     666 </span><span class="lineCov">          4 : AP_DECLARE(void) ap_method_registry_init(apr_pool_t *p)</span>
+<span class="lineNum">     667 </span>            : {
+<span class="lineNum">     668 </span><span class="lineCov">          4 :     methods_registry = apr_hash_make(p);</span>
+<span class="lineNum">     669 </span><span class="lineCov">          4 :     apr_pool_cleanup_register(p, NULL,</span>
+<span class="lineNum">     670 </span>            :                               ap_method_registry_destroy,
+<span class="lineNum">     671 </span>            :                               apr_pool_cleanup_null);
+<span class="lineNum">     672 </span>            : 
+<span class="lineNum">     673 </span>            :     /* put all the standard methods into the registry hash to ease the
+<span class="lineNum">     674 </span>            :        mapping operations between name and number */
+<span class="lineNum">     675 </span><span class="lineCov">          4 :     register_one_method(p, &quot;GET&quot;, M_GET);</span>
+<span class="lineNum">     676 </span><span class="lineCov">          4 :     register_one_method(p, &quot;PUT&quot;, M_PUT);</span>
+<span class="lineNum">     677 </span><span class="lineCov">          4 :     register_one_method(p, &quot;POST&quot;, M_POST);</span>
+<span class="lineNum">     678 </span><span class="lineCov">          4 :     register_one_method(p, &quot;DELETE&quot;, M_DELETE);</span>
+<span class="lineNum">     679 </span><span class="lineCov">          4 :     register_one_method(p, &quot;CONNECT&quot;, M_CONNECT);</span>
+<span class="lineNum">     680 </span><span class="lineCov">          4 :     register_one_method(p, &quot;OPTIONS&quot;, M_OPTIONS);</span>
+<span class="lineNum">     681 </span><span class="lineCov">          4 :     register_one_method(p, &quot;TRACE&quot;, M_TRACE);</span>
+<span class="lineNum">     682 </span><span class="lineCov">          4 :     register_one_method(p, &quot;PATCH&quot;, M_PATCH);</span>
+<span class="lineNum">     683 </span><span class="lineCov">          4 :     register_one_method(p, &quot;PROPFIND&quot;, M_PROPFIND);</span>
+<span class="lineNum">     684 </span><span class="lineCov">          4 :     register_one_method(p, &quot;PROPPATCH&quot;, M_PROPPATCH);</span>
+<span class="lineNum">     685 </span><span class="lineCov">          4 :     register_one_method(p, &quot;MKCOL&quot;, M_MKCOL);</span>
+<span class="lineNum">     686 </span><span class="lineCov">          4 :     register_one_method(p, &quot;COPY&quot;, M_COPY);</span>
+<span class="lineNum">     687 </span><span class="lineCov">          4 :     register_one_method(p, &quot;MOVE&quot;, M_MOVE);</span>
+<span class="lineNum">     688 </span><span class="lineCov">          4 :     register_one_method(p, &quot;LOCK&quot;, M_LOCK);</span>
+<span class="lineNum">     689 </span><span class="lineCov">          4 :     register_one_method(p, &quot;UNLOCK&quot;, M_UNLOCK);</span>
+<span class="lineNum">     690 </span><span class="lineCov">          4 :     register_one_method(p, &quot;VERSION-CONTROL&quot;, M_VERSION_CONTROL);</span>
+<span class="lineNum">     691 </span><span class="lineCov">          4 :     register_one_method(p, &quot;CHECKOUT&quot;, M_CHECKOUT);</span>
+<span class="lineNum">     692 </span><span class="lineCov">          4 :     register_one_method(p, &quot;UNCHECKOUT&quot;, M_UNCHECKOUT);</span>
+<span class="lineNum">     693 </span><span class="lineCov">          4 :     register_one_method(p, &quot;CHECKIN&quot;, M_CHECKIN);</span>
+<span class="lineNum">     694 </span><span class="lineCov">          4 :     register_one_method(p, &quot;UPDATE&quot;, M_UPDATE);</span>
+<span class="lineNum">     695 </span><span class="lineCov">          4 :     register_one_method(p, &quot;LABEL&quot;, M_LABEL);</span>
+<span class="lineNum">     696 </span><span class="lineCov">          4 :     register_one_method(p, &quot;REPORT&quot;, M_REPORT);</span>
+<span class="lineNum">     697 </span><span class="lineCov">          4 :     register_one_method(p, &quot;MKWORKSPACE&quot;, M_MKWORKSPACE);</span>
+<span class="lineNum">     698 </span><span class="lineCov">          4 :     register_one_method(p, &quot;MKACTIVITY&quot;, M_MKACTIVITY);</span>
+<span class="lineNum">     699 </span><span class="lineCov">          4 :     register_one_method(p, &quot;BASELINE-CONTROL&quot;, M_BASELINE_CONTROL);</span>
+<span class="lineNum">     700 </span><span class="lineCov">          4 :     register_one_method(p, &quot;MERGE&quot;, M_MERGE);</span>
+<a name="701"><span class="lineNum">     701 </span><span class="lineCov">          4 : }</span></a>
+<span class="lineNum">     702 </span>            : 
+<span class="lineNum">     703 </span><span class="lineNoCov">          0 : AP_DECLARE(int) ap_method_register(apr_pool_t *p, const char *methname)</span>
+<span class="lineNum">     704 </span>            : {
+<span class="lineNum">     705 </span>            :     int *methnum;
+<span class="lineNum">     706 </span>            : 
+<span class="lineNum">     707 </span><span class="lineNoCov">          0 :     if (methods_registry == NULL) {</span>
+<span class="lineNum">     708 </span><span class="lineNoCov">          0 :         ap_method_registry_init(p);</span>
+<span class="lineNum">     709 </span>            :     }
+<span class="lineNum">     710 </span>            : 
+<span class="lineNum">     711 </span><span class="lineNoCov">          0 :     if (methname == NULL) {</span>
+<span class="lineNum">     712 </span><span class="lineNoCov">          0 :         return M_INVALID;</span>
+<span class="lineNum">     713 </span>            :     }
+<span class="lineNum">     714 </span>            : 
+<span class="lineNum">     715 </span>            :     /* Check if the method was previously registered.  If it was
+<span class="lineNum">     716 </span>            :      * return the associated method number.
+<span class="lineNum">     717 </span>            :      */
+<span class="lineNum">     718 </span><span class="lineNoCov">          0 :     methnum = (int *)apr_hash_get(methods_registry, methname,</span>
+<span class="lineNum">     719 </span>            :                                   APR_HASH_KEY_STRING);
+<span class="lineNum">     720 </span><span class="lineNoCov">          0 :     if (methnum != NULL)</span>
+<span class="lineNum">     721 </span><span class="lineNoCov">          0 :         return *methnum;</span>
+<span class="lineNum">     722 </span>            : 
+<span class="lineNum">     723 </span><span class="lineNoCov">          0 :     if (cur_method_number &gt; METHOD_NUMBER_LAST) {</span>
+<span class="lineNum">     724 </span>            :         /* The method registry  has run out of dynamically
+<span class="lineNum">     725 </span>            :          * assignable method numbers. Log this and return M_INVALID.
+<span class="lineNum">     726 </span>            :          */
+<span class="lineNum">     727 </span><span class="lineNoCov">          0 :         ap_log_perror(APLOG_MARK, APLOG_ERR, 0, p, APLOGNO(01610)</span>
+<span class="lineNum">     728 </span>            :                       &quot;Maximum new request methods %d reached while &quot;
+<span class="lineNum">     729 </span>            :                       &quot;registering method %s.&quot;,
+<span class="lineNum">     730 </span>            :                       METHOD_NUMBER_LAST, methname);
+<span class="lineNum">     731 </span><span class="lineNoCov">          0 :         return M_INVALID;</span>
+<span class="lineNum">     732 </span>            :     }
+<span class="lineNum">     733 </span>            : 
+<span class="lineNum">     734 </span><span class="lineNoCov">          0 :     register_one_method(p, methname, cur_method_number);</span>
+<span class="lineNum">     735 </span><span class="lineNoCov">          0 :     return cur_method_number++;</span>
+<span class="lineNum">     736 </span>            : }
+<span class="lineNum">     737 </span>            : 
+<a name="738"><span class="lineNum">     738 </span>            : #define UNKNOWN_METHOD (-1)</a>
+<span class="lineNum">     739 </span>            : 
+<span class="lineNum">     740 </span><span class="lineCov">          2 : static int lookup_builtin_method(const char *method, apr_size_t len)</span>
+<span class="lineNum">     741 </span>            : {
+<span class="lineNum">     742 </span>            :     /* Note: the following code was generated by the &quot;shilka&quot; tool from
+<span class="lineNum">     743 </span>            :        the &quot;cocom&quot; parsing/compilation toolkit. It is an optimized lookup
+<span class="lineNum">     744 </span>            :        based on analysis of the input keywords. Postprocessing was done
+<span class="lineNum">     745 </span>            :        on the shilka output, but the basic structure and analysis is
+<span class="lineNum">     746 </span>            :        from there. Should new HTTP methods be added, then manual insertion
+<span class="lineNum">     747 </span>            :        into this code is fine, or simply re-running the shilka tool on
+<span class="lineNum">     748 </span>            :        the appropriate input. */
+<span class="lineNum">     749 </span>            : 
+<span class="lineNum">     750 </span>            :     /* Note: it is also quite reasonable to just use our method_registry,
+<span class="lineNum">     751 </span>            :        but I'm assuming (probably incorrectly) we want more speed here
+<span class="lineNum">     752 </span>            :        (based on the optimizations the previous code was doing). */
+<span class="lineNum">     753 </span>            : 
+<span class="lineNum">     754 </span><span class="lineCov">          2 :     switch (len)</span>
+<span class="lineNum">     755 </span>            :     {
+<span class="lineNum">     756 </span>            :     case 3:
+<span class="lineNum">     757 </span><span class="lineCov">          2 :         switch (method[0])</span>
+<span class="lineNum">     758 </span>            :         {
+<span class="lineNum">     759 </span>            :         case 'P':
+<span class="lineNum">     760 </span><span class="lineNoCov">          0 :             return (method[1] == 'U'</span>
+<span class="lineNum">     761 </span><span class="lineNoCov">          0 :                     &amp;&amp; method[2] == 'T'</span>
+<span class="lineNum">     762 </span><span class="lineNoCov">          0 :                     ? M_PUT : UNKNOWN_METHOD);</span>
+<span class="lineNum">     763 </span>            :         case 'G':
+<span class="lineNum">     764 </span><span class="lineCov">          4 :             return (method[1] == 'E'</span>
+<span class="lineNum">     765 </span><span class="lineCov">          2 :                     &amp;&amp; method[2] == 'T'</span>
+<span class="lineNum">     766 </span><span class="lineCov">          4 :                     ? M_GET : UNKNOWN_METHOD);</span>
+<span class="lineNum">     767 </span>            :         default:
+<span class="lineNum">     768 </span><span class="lineNoCov">          0 :             return UNKNOWN_METHOD;</span>
+<span class="lineNum">     769 </span>            :         }
+<span class="lineNum">     770 </span>            : 
+<span class="lineNum">     771 </span>            :     case 4:
+<span class="lineNum">     772 </span><span class="lineNoCov">          0 :         switch (method[0])</span>
+<span class="lineNum">     773 </span>            :         {
+<span class="lineNum">     774 </span>            :         case 'H':
+<span class="lineNum">     775 </span><span class="lineNoCov">          0 :             return (method[1] == 'E'</span>
+<span class="lineNum">     776 </span><span class="lineNoCov">          0 :                     &amp;&amp; method[2] == 'A'</span>
+<span class="lineNum">     777 </span><span class="lineNoCov">          0 :                     &amp;&amp; method[3] == 'D'</span>
+<span class="lineNum">     778 </span><span class="lineNoCov">          0 :                     ? M_GET : UNKNOWN_METHOD);</span>
+<span class="lineNum">     779 </span>            :         case 'P':
+<span class="lineNum">     780 </span><span class="lineNoCov">          0 :             return (method[1] == 'O'</span>
+<span class="lineNum">     781 </span><span class="lineNoCov">          0 :                     &amp;&amp; method[2] == 'S'</span>
+<span class="lineNum">     782 </span><span class="lineNoCov">          0 :                     &amp;&amp; method[3] == 'T'</span>
+<span class="lineNum">     783 </span><span class="lineNoCov">          0 :                     ? M_POST : UNKNOWN_METHOD);</span>
+<span class="lineNum">     784 </span>            :         case 'M':
+<span class="lineNum">     785 </span><span class="lineNoCov">          0 :             return (method[1] == 'O'</span>
+<span class="lineNum">     786 </span><span class="lineNoCov">          0 :                     &amp;&amp; method[2] == 'V'</span>
+<span class="lineNum">     787 </span><span class="lineNoCov">          0 :                     &amp;&amp; method[3] == 'E'</span>
+<span class="lineNum">     788 </span><span class="lineNoCov">          0 :                     ? M_MOVE : UNKNOWN_METHOD);</span>
+<span class="lineNum">     789 </span>            :         case 'L':
+<span class="lineNum">     790 </span><span class="lineNoCov">          0 :             return (method[1] == 'O'</span>
+<span class="lineNum">     791 </span><span class="lineNoCov">          0 :                     &amp;&amp; method[2] == 'C'</span>
+<span class="lineNum">     792 </span><span class="lineNoCov">          0 :                     &amp;&amp; method[3] == 'K'</span>
+<span class="lineNum">     793 </span><span class="lineNoCov">          0 :                     ? M_LOCK : UNKNOWN_METHOD);</span>
+<span class="lineNum">     794 </span>            :         case 'C':
+<span class="lineNum">     795 </span><span class="lineNoCov">          0 :             return (method[1] == 'O'</span>
+<span class="lineNum">     796 </span><span class="lineNoCov">          0 :                     &amp;&amp; method[2] == 'P'</span>
+<span class="lineNum">     797 </span><span class="lineNoCov">          0 :                     &amp;&amp; method[3] == 'Y'</span>
+<span class="lineNum">     798 </span><span class="lineNoCov">          0 :                     ? M_COPY : UNKNOWN_METHOD);</span>
+<span class="lineNum">     799 </span>            :         default:
+<span class="lineNum">     800 </span><span class="lineNoCov">          0 :             return UNKNOWN_METHOD;</span>
+<span class="lineNum">     801 </span>            :         }
+<span class="lineNum">     802 </span>            : 
+<span class="lineNum">     803 </span>            :     case 5:
+<span class="lineNum">     804 </span><span class="lineNoCov">          0 :         switch (method[2])</span>
+<span class="lineNum">     805 </span>            :         {
+<span class="lineNum">     806 </span>            :         case 'T':
+<span class="lineNum">     807 </span><span class="lineNoCov">          0 :             return (memcmp(method, &quot;PATCH&quot;, 5) == 0</span>
+<span class="lineNum">     808 </span><span class="lineNoCov">          0 :                     ? M_PATCH : UNKNOWN_METHOD);</span>
+<span class="lineNum">     809 </span>            :         case 'R':
+<span class="lineNum">     810 </span><span class="lineNoCov">          0 :             return (memcmp(method, &quot;MERGE&quot;, 5) == 0</span>
+<span class="lineNum">     811 </span><span class="lineNoCov">          0 :                     ? M_MERGE : UNKNOWN_METHOD);</span>
+<span class="lineNum">     812 </span>            :         case 'C':
+<span class="lineNum">     813 </span><span class="lineNoCov">          0 :             return (memcmp(method, &quot;MKCOL&quot;, 5) == 0</span>
+<span class="lineNum">     814 </span><span class="lineNoCov">          0 :                     ? M_MKCOL : UNKNOWN_METHOD);</span>
+<span class="lineNum">     815 </span>            :         case 'B':
+<span class="lineNum">     816 </span><span class="lineNoCov">          0 :             return (memcmp(method, &quot;LABEL&quot;, 5) == 0</span>
+<span class="lineNum">     817 </span><span class="lineNoCov">          0 :                     ? M_LABEL : UNKNOWN_METHOD);</span>
+<span class="lineNum">     818 </span>            :         case 'A':
+<span class="lineNum">     819 </span><span class="lineNoCov">          0 :             return (memcmp(method, &quot;TRACE&quot;, 5) == 0</span>
+<span class="lineNum">     820 </span><span class="lineNoCov">          0 :                     ? M_TRACE : UNKNOWN_METHOD);</span>
+<span class="lineNum">     821 </span>            :         default:
+<span class="lineNum">     822 </span><span class="lineNoCov">          0 :             return UNKNOWN_METHOD;</span>
+<span class="lineNum">     823 </span>            :         }
+<span class="lineNum">     824 </span>            : 
+<span class="lineNum">     825 </span>            :     case 6:
+<span class="lineNum">     826 </span><span class="lineNoCov">          0 :         switch (method[0])</span>
+<span class="lineNum">     827 </span>            :         {
+<span class="lineNum">     828 </span>            :         case 'U':
+<span class="lineNum">     829 </span><span class="lineNoCov">          0 :             switch (method[5])</span>
+<span class="lineNum">     830 </span>            :             {
+<span class="lineNum">     831 </span>            :             case 'K':
+<span class="lineNum">     832 </span><span class="lineNoCov">          0 :                 return (memcmp(method, &quot;UNLOCK&quot;, 6) == 0</span>
+<span class="lineNum">     833 </span><span class="lineNoCov">          0 :                         ? M_UNLOCK : UNKNOWN_METHOD);</span>
+<span class="lineNum">     834 </span>            :             case 'E':
+<span class="lineNum">     835 </span><span class="lineNoCov">          0 :                 return (memcmp(method, &quot;UPDATE&quot;, 6) == 0</span>
+<span class="lineNum">     836 </span><span class="lineNoCov">          0 :                         ? M_UPDATE : UNKNOWN_METHOD);</span>
+<span class="lineNum">     837 </span>            :             default:
+<span class="lineNum">     838 </span><span class="lineNoCov">          0 :                 return UNKNOWN_METHOD;</span>
+<span class="lineNum">     839 </span>            :             }
+<span class="lineNum">     840 </span>            :         case 'R':
+<span class="lineNum">     841 </span><span class="lineNoCov">          0 :             return (memcmp(method, &quot;REPORT&quot;, 6) == 0</span>
+<span class="lineNum">     842 </span><span class="lineNoCov">          0 :                     ? M_REPORT : UNKNOWN_METHOD);</span>
+<span class="lineNum">     843 </span>            :         case 'D':
+<span class="lineNum">     844 </span><span class="lineNoCov">          0 :             return (memcmp(method, &quot;DELETE&quot;, 6) == 0</span>
+<span class="lineNum">     845 </span><span class="lineNoCov">          0 :                     ? M_DELETE : UNKNOWN_METHOD);</span>
+<span class="lineNum">     846 </span>            :         default:
+<span class="lineNum">     847 </span><span class="lineNoCov">          0 :             return UNKNOWN_METHOD;</span>
+<span class="lineNum">     848 </span>            :         }
+<span class="lineNum">     849 </span>            : 
+<span class="lineNum">     850 </span>            :     case 7:
+<span class="lineNum">     851 </span><span class="lineNoCov">          0 :         switch (method[1])</span>
+<span class="lineNum">     852 </span>            :         {
+<span class="lineNum">     853 </span>            :         case 'P':
+<span class="lineNum">     854 </span><span class="lineNoCov">          0 :             return (memcmp(method, &quot;OPTIONS&quot;, 7) == 0</span>
+<span class="lineNum">     855 </span><span class="lineNoCov">          0 :                     ? M_OPTIONS : UNKNOWN_METHOD);</span>
+<span class="lineNum">     856 </span>            :         case 'O':
+<span class="lineNum">     857 </span><span class="lineNoCov">          0 :             return (memcmp(method, &quot;CONNECT&quot;, 7) == 0</span>
+<span class="lineNum">     858 </span><span class="lineNoCov">          0 :                     ? M_CONNECT : UNKNOWN_METHOD);</span>
+<span class="lineNum">     859 </span>            :         case 'H':
+<span class="lineNum">     860 </span><span class="lineNoCov">          0 :             return (memcmp(method, &quot;CHECKIN&quot;, 7) == 0</span>
+<span class="lineNum">     861 </span><span class="lineNoCov">          0 :                     ? M_CHECKIN : UNKNOWN_METHOD);</span>
+<span class="lineNum">     862 </span>            :         default:
+<span class="lineNum">     863 </span><span class="lineNoCov">          0 :             return UNKNOWN_METHOD;</span>
+<span class="lineNum">     864 </span>            :         }
+<span class="lineNum">     865 </span>            : 
+<span class="lineNum">     866 </span>            :     case 8:
+<span class="lineNum">     867 </span><span class="lineNoCov">          0 :         switch (method[0])</span>
+<span class="lineNum">     868 </span>            :         {
+<span class="lineNum">     869 </span>            :         case 'P':
+<span class="lineNum">     870 </span><span class="lineNoCov">          0 :             return (memcmp(method, &quot;PROPFIND&quot;, 8) == 0</span>
+<span class="lineNum">     871 </span><span class="lineNoCov">          0 :                     ? M_PROPFIND : UNKNOWN_METHOD);</span>
+<span class="lineNum">     872 </span>            :         case 'C':
+<span class="lineNum">     873 </span><span class="lineNoCov">          0 :             return (memcmp(method, &quot;CHECKOUT&quot;, 8) == 0</span>
+<span class="lineNum">     874 </span><span class="lineNoCov">          0 :                     ? M_CHECKOUT : UNKNOWN_METHOD);</span>
+<span class="lineNum">     875 </span>            :         default:
+<span class="lineNum">     876 </span><span class="lineNoCov">          0 :             return UNKNOWN_METHOD;</span>
+<span class="lineNum">     877 </span>            :         }
+<span class="lineNum">     878 </span>            : 
+<span class="lineNum">     879 </span>            :     case 9:
+<span class="lineNum">     880 </span><span class="lineNoCov">          0 :         return (memcmp(method, &quot;PROPPATCH&quot;, 9) == 0</span>
+<span class="lineNum">     881 </span><span class="lineNoCov">          0 :                 ? M_PROPPATCH : UNKNOWN_METHOD);</span>
+<span class="lineNum">     882 </span>            : 
+<span class="lineNum">     883 </span>            :     case 10:
+<span class="lineNum">     884 </span><span class="lineNoCov">          0 :         switch (method[0])</span>
+<span class="lineNum">     885 </span>            :         {
+<span class="lineNum">     886 </span>            :         case 'U':
+<span class="lineNum">     887 </span><span class="lineNoCov">          0 :             return (memcmp(method, &quot;UNCHECKOUT&quot;, 10) == 0</span>
+<span class="lineNum">     888 </span><span class="lineNoCov">          0 :                     ? M_UNCHECKOUT : UNKNOWN_METHOD);</span>
+<span class="lineNum">     889 </span>            :         case 'M':
+<span class="lineNum">     890 </span><span class="lineNoCov">          0 :             return (memcmp(method, &quot;MKACTIVITY&quot;, 10) == 0</span>
+<span class="lineNum">     891 </span><span class="lineNoCov">          0 :                     ? M_MKACTIVITY : UNKNOWN_METHOD);</span>
+<span class="lineNum">     892 </span>            :         default:
+<span class="lineNum">     893 </span><span class="lineNoCov">          0 :             return UNKNOWN_METHOD;</span>
+<span class="lineNum">     894 </span>            :         }
+<span class="lineNum">     895 </span>            : 
+<span class="lineNum">     896 </span>            :     case 11:
+<span class="lineNum">     897 </span><span class="lineNoCov">          0 :         return (memcmp(method, &quot;MKWORKSPACE&quot;, 11) == 0</span>
+<span class="lineNum">     898 </span><span class="lineNoCov">          0 :                 ? M_MKWORKSPACE : UNKNOWN_METHOD);</span>
+<span class="lineNum">     899 </span>            : 
+<span class="lineNum">     900 </span>            :     case 15:
+<span class="lineNum">     901 </span><span class="lineNoCov">          0 :         return (memcmp(method, &quot;VERSION-CONTROL&quot;, 15) == 0</span>
+<span class="lineNum">     902 </span><span class="lineNoCov">          0 :                 ? M_VERSION_CONTROL : UNKNOWN_METHOD);</span>
+<span class="lineNum">     903 </span>            : 
+<span class="lineNum">     904 </span>            :     case 16:
+<span class="lineNum">     905 </span><span class="lineNoCov">          0 :         return (memcmp(method, &quot;BASELINE-CONTROL&quot;, 16) == 0</span>
+<span class="lineNum">     906 </span><span class="lineNoCov">          0 :                 ? M_BASELINE_CONTROL : UNKNOWN_METHOD);</span>
+<span class="lineNum">     907 </span>            : 
+<span class="lineNum">     908 </span>            :     default:
+<span class="lineNum">     909 </span><span class="lineNoCov">          0 :         return UNKNOWN_METHOD;</span>
+<span class="lineNum">     910 </span>            :     }
+<span class="lineNum">     911 </span>            : 
+<span class="lineNum">     912 </span>            :     /* NOTREACHED */
+<span class="lineNum">     913 </span>            : }
+<span class="lineNum">     914 </span>            : 
+<span class="lineNum">     915 </span>            : /* Get the method number associated with the given string, assumed to
+<span class="lineNum">     916 </span>            :  * contain an HTTP method.  Returns M_INVALID if not recognized.
+<span class="lineNum">     917 </span>            :  *
+<span class="lineNum">     918 </span>            :  * This is the first step toward placing method names in a configurable
+<span class="lineNum">     919 </span>            :  * list.  Hopefully it (and other routines) can eventually be moved to
+<a name="920"><span class="lineNum">     920 </span>            :  * something like a mod_http_methods.c, complete with config stuff.</a>
+<span class="lineNum">     921 </span>            :  */
+<span class="lineNum">     922 </span><span class="lineCov">          2 : AP_DECLARE(int) ap_method_number_of(const char *method)</span>
+<span class="lineNum">     923 </span>            : {
+<span class="lineNum">     924 </span><span class="lineCov">          2 :     int len = strlen(method);</span>
+<span class="lineNum">     925 </span><span class="lineCov">          2 :     int which = lookup_builtin_method(method, len);</span>
+<span class="lineNum">     926 </span>            : 
+<span class="lineNum">     927 </span><span class="lineCov">          2 :     if (which != UNKNOWN_METHOD)</span>
+<span class="lineNum">     928 </span><span class="lineCov">          2 :         return which;</span>
+<span class="lineNum">     929 </span>            : 
+<span class="lineNum">     930 </span>            :     /* check if the method has been dynamically registered */
+<span class="lineNum">     931 </span><span class="lineNoCov">          0 :     if (methods_registry != NULL) {</span>
+<span class="lineNum">     932 </span><span class="lineNoCov">          0 :         int *methnum = apr_hash_get(methods_registry, method, len);</span>
+<span class="lineNum">     933 </span>            : 
+<span class="lineNum">     934 </span><span class="lineNoCov">          0 :         if (methnum != NULL) {</span>
+<span class="lineNum">     935 </span><span class="lineNoCov">          0 :             return *methnum;</span>
+<span class="lineNum">     936 </span>            :         }
+<span class="lineNum">     937 </span>            :     }
+<span class="lineNum">     938 </span>            : 
+<span class="lineNum">     939 </span><span class="lineNoCov">          0 :     return M_INVALID;</span>
+<span class="lineNum">     940 </span>            : }
+<span class="lineNum">     941 </span>            : 
+<span class="lineNum">     942 </span>            : /*
+<a name="943"><span class="lineNum">     943 </span>            :  * Turn a known method number into a name.</a>
+<span class="lineNum">     944 </span>            :  */
+<span class="lineNum">     945 </span><span class="lineNoCov">          0 : AP_DECLARE(const char *) ap_method_name_of(apr_pool_t *p, int methnum)</span>
+<span class="lineNum">     946 </span>            : {
+<span class="lineNum">     947 </span><span class="lineNoCov">          0 :     apr_hash_index_t *hi = apr_hash_first(p, methods_registry);</span>
+<span class="lineNum">     948 </span>            : 
+<span class="lineNum">     949 </span>            :     /* scan through the hash table, looking for a value that matches
+<span class="lineNum">     950 </span>            :        the provided method number. */
+<span class="lineNum">     951 </span><span class="lineNoCov">          0 :     for (; hi; hi = apr_hash_next(hi)) {</span>
+<span class="lineNum">     952 </span>            :         const void *key;
+<span class="lineNum">     953 </span>            :         void *val;
+<span class="lineNum">     954 </span>            : 
+<span class="lineNum">     955 </span><span class="lineNoCov">          0 :         apr_hash_this(hi, &amp;key, NULL, &amp;val);</span>
+<span class="lineNum">     956 </span><span class="lineNoCov">          0 :         if (*(int *)val == methnum)</span>
+<span class="lineNum">     957 </span><span class="lineNoCov">          0 :             return key;</span>
+<span class="lineNum">     958 </span>            :     }
+<span class="lineNum">     959 </span>            : 
+<span class="lineNum">     960 </span>            :     /* it wasn't found in the hash */
+<span class="lineNum">     961 </span><span class="lineNoCov">          0 :     return NULL;</span>
+<span class="lineNum">     962 </span>            : }
+<span class="lineNum">     963 </span>            : 
+<span class="lineNum">     964 </span>            : /* The index is found by its offset from the x00 code of each level.
+<span class="lineNum">     965 </span>            :  * Although this is fast, it will need to be replaced if some nutcase
+<span class="lineNum">     966 </span>            :  * decides to define a high-numbered code before the lower numbers.
+<span class="lineNum">     967 </span>            :  * If that sad event occurs, replace the code below with a linear search
+<span class="lineNum">     968 </span>            :  * from status_lines[shortcut[i]] to status_lines[shortcut[i+1]-1];
+<a name="969"><span class="lineNum">     969 </span>            :  * or use NULL to fill the gaps.</a>
+<span class="lineNum">     970 </span>            :  */
+<span class="lineNum">     971 </span><span class="lineCov">          1 : AP_DECLARE(int) ap_index_of_response(int status)</span>
+<span class="lineNum">     972 </span>            : {
+<span class="lineNum">     973 </span>            :     static int shortcut[6] = {0, LEVEL_200, LEVEL_300, LEVEL_400,
+<span class="lineNum">     974 </span>            :     LEVEL_500, RESPONSE_CODES};
+<span class="lineNum">     975 </span>            :     int i, pos;
+<span class="lineNum">     976 </span>            : 
+<span class="lineNum">     977 </span><span class="lineCov">          1 :     if (status &lt; 100) {               /* Below 100 is illegal for HTTP status */</span>
+<span class="lineNum">     978 </span><span class="lineNoCov">          0 :         return LEVEL_500;</span>
+<span class="lineNum">     979 </span>            :     }
+<span class="lineNum">     980 </span>            : 
+<span class="lineNum">     981 </span><span class="lineCov">          2 :     for (i = 0; i &lt; 5; i++) {</span>
+<span class="lineNum">     982 </span><span class="lineCov">          2 :         status -= 100;</span>
+<span class="lineNum">     983 </span><span class="lineCov">          2 :         if (status &lt; 100) {</span>
+<span class="lineNum">     984 </span><span class="lineCov">          1 :             pos = (status + shortcut[i]);</span>
+<span class="lineNum">     985 </span><span class="lineCov">          1 :             if (pos &lt; shortcut[i + 1] &amp;&amp; status_lines[pos] != NULL) {</span>
+<span class="lineNum">     986 </span><span class="lineCov">          1 :                 return pos;</span>
+<span class="lineNum">     987 </span>            :             }
+<span class="lineNum">     988 </span>            :             else {
+<span class="lineNum">     989 </span><span class="lineNoCov">          0 :                 return LEVEL_500;            /* status unknown (falls in gap) */</span>
+<span class="lineNum">     990 </span>            :             }
+<span class="lineNum">     991 </span>            :         }
+<span class="lineNum">     992 </span>            :     }
+<span class="lineNum">     993 </span><span class="lineNoCov">          0 :     return LEVEL_500;                         /* 600 or above is also illegal */</span>
+<a name="994"><span class="lineNum">     994 </span>            : }</a>
+<span class="lineNum">     995 </span>            : 
+<span class="lineNum">     996 </span><span class="lineCov">          1 : AP_DECLARE(const char *) ap_get_status_line(int status)</span>
+<span class="lineNum">     997 </span>            : {
+<span class="lineNum">     998 </span><span class="lineCov">          1 :     return status_lines[ap_index_of_response(status)];</span>
+<span class="lineNum">     999 </span>            : }
+<span class="lineNum">    1000 </span>            : 
+<a name="1001"><span class="lineNum">    1001 </span>            : /* Build the Allow field-value from the request handler method mask.</a>
+<span class="lineNum">    1002 </span>            :  */
+<span class="lineNum">    1003 </span><span class="lineNoCov">          0 : static char *make_allow(request_rec *r)</span>
+<span class="lineNum">    1004 </span>            : {
+<span class="lineNum">    1005 </span>            :     apr_int64_t mask;
+<span class="lineNum">    1006 </span><span class="lineNoCov">          0 :     apr_array_header_t *allow = apr_array_make(r-&gt;pool, 10, sizeof(char *));</span>
+<span class="lineNum">    1007 </span><span class="lineNoCov">          0 :     apr_hash_index_t *hi = apr_hash_first(r-&gt;pool, methods_registry);</span>
+<span class="lineNum">    1008 </span>            :     /* For TRACE below */
+<span class="lineNum">    1009 </span><span class="lineNoCov">          0 :     core_server_config *conf =</span>
+<span class="lineNum">    1010 </span><span class="lineNoCov">          0 :         ap_get_core_module_config(r-&gt;server-&gt;module_config);</span>
+<span class="lineNum">    1011 </span>            : 
+<span class="lineNum">    1012 </span><span class="lineNoCov">          0 :     mask = r-&gt;allowed_methods-&gt;method_mask;</span>
+<span class="lineNum">    1013 </span>            : 
+<span class="lineNum">    1014 </span><span class="lineNoCov">          0 :     for (; hi; hi = apr_hash_next(hi)) {</span>
+<span class="lineNum">    1015 </span>            :         const void *key;
+<span class="lineNum">    1016 </span>            :         void *val;
+<span class="lineNum">    1017 </span>            : 
+<span class="lineNum">    1018 </span><span class="lineNoCov">          0 :         apr_hash_this(hi, &amp;key, NULL, &amp;val);</span>
+<span class="lineNum">    1019 </span><span class="lineNoCov">          0 :         if ((mask &amp; (AP_METHOD_BIT &lt;&lt; *(int *)val)) != 0) {</span>
+<span class="lineNum">    1020 </span><span class="lineNoCov">          0 :             *(const char **)apr_array_push(allow) = key;</span>
+<span class="lineNum">    1021 </span>            : 
+<span class="lineNum">    1022 </span>            :             /* the M_GET method actually refers to two methods */
+<span class="lineNum">    1023 </span><span class="lineNoCov">          0 :             if (*(int *)val == M_GET)</span>
+<span class="lineNum">    1024 </span><span class="lineNoCov">          0 :                 *(const char **)apr_array_push(allow) = &quot;HEAD&quot;;</span>
+<span class="lineNum">    1025 </span>            :         }
+<span class="lineNum">    1026 </span>            :     }
+<span class="lineNum">    1027 </span>            : 
+<span class="lineNum">    1028 </span>            :     /* TRACE is tested on a per-server basis */
+<span class="lineNum">    1029 </span><span class="lineNoCov">          0 :     if (conf-&gt;trace_enable != AP_TRACE_DISABLE)</span>
+<span class="lineNum">    1030 </span><span class="lineNoCov">          0 :         *(const char **)apr_array_push(allow) = &quot;TRACE&quot;;</span>
+<span class="lineNum">    1031 </span>            : 
+<span class="lineNum">    1032 </span>            :     /* ### this is rather annoying. we should enforce registration of
+<span class="lineNum">    1033 </span>            :        ### these methods */
+<span class="lineNum">    1034 </span><span class="lineNoCov">          0 :     if ((mask &amp; (AP_METHOD_BIT &lt;&lt; M_INVALID))</span>
+<span class="lineNum">    1035 </span><span class="lineNoCov">          0 :         &amp;&amp; (r-&gt;allowed_methods-&gt;method_list != NULL)</span>
+<span class="lineNum">    1036 </span><span class="lineNoCov">          0 :         &amp;&amp; (r-&gt;allowed_methods-&gt;method_list-&gt;nelts != 0)) {</span>
+<span class="lineNum">    1037 </span><span class="lineNoCov">          0 :         apr_array_cat(allow, r-&gt;allowed_methods-&gt;method_list);</span>
+<span class="lineNum">    1038 </span>            :     }
+<span class="lineNum">    1039 </span>            : 
+<span class="lineNum">    1040 </span><span class="lineNoCov">          0 :     return apr_array_pstrcat(r-&gt;pool, allow, ',');</span>
+<a name="1041"><span class="lineNum">    1041 </span>            : }</a>
+<span class="lineNum">    1042 </span>            : 
+<span class="lineNum">    1043 </span><span class="lineNoCov">          0 : AP_DECLARE(int) ap_send_http_options(request_rec *r)</span>
+<span class="lineNum">    1044 </span>            : {
+<span class="lineNum">    1045 </span><span class="lineNoCov">          0 :     if (r-&gt;assbackwards) {</span>
+<span class="lineNum">    1046 </span><span class="lineNoCov">          0 :         return DECLINED;</span>
+<span class="lineNum">    1047 </span>            :     }
+<span class="lineNum">    1048 </span>            : 
+<span class="lineNum">    1049 </span><span class="lineNoCov">          0 :     apr_table_setn(r-&gt;headers_out, &quot;Allow&quot;, make_allow(r));</span>
+<span class="lineNum">    1050 </span>            : 
+<span class="lineNum">    1051 </span>            :     /* the request finalization will send an EOS, which will flush all
+<span class="lineNum">    1052 </span>            :      * the headers out (including the Allow header)
+<span class="lineNum">    1053 </span>            :      */
+<span class="lineNum">    1054 </span>            : 
+<span class="lineNum">    1055 </span><span class="lineNoCov">          0 :     return OK;</span>
+<a name="1056"><span class="lineNum">    1056 </span>            : }</a>
+<span class="lineNum">    1057 </span>            : 
+<span class="lineNum">    1058 </span><span class="lineCov">          2 : AP_DECLARE(void) ap_set_content_type(request_rec *r, const char *ct)</span>
+<span class="lineNum">    1059 </span>            : {
+<span class="lineNum">    1060 </span><span class="lineCov">          2 :     if (!ct) {</span>
+<span class="lineNum">    1061 </span><span class="lineCov">          1 :         r-&gt;content_type = NULL;</span>
+<span class="lineNum">    1062 </span>            :     }
+<span class="lineNum">    1063 </span><span class="lineCov">          1 :     else if (!r-&gt;content_type || strcmp(r-&gt;content_type, ct)) {</span>
+<span class="lineNum">    1064 </span><span class="lineCov">          1 :         r-&gt;content_type = ct;</span>
+<span class="lineNum">    1065 </span>            :     }
+<a name="1066"><span class="lineNum">    1066 </span><span class="lineCov">          2 : }</span></a>
+<span class="lineNum">    1067 </span>            : 
+<span class="lineNum">    1068 </span><span class="lineCov">          1 : AP_DECLARE(void) ap_set_accept_ranges(request_rec *r)</span>
+<span class="lineNum">    1069 </span>            : {
+<span class="lineNum">    1070 </span><span class="lineCov">          1 :     core_dir_config *d = ap_get_core_module_config(r-&gt;per_dir_config);</span>
+<span class="lineNum">    1071 </span><span class="lineCov">          1 :     apr_table_setn(r-&gt;headers_out, &quot;Accept-Ranges&quot;,</span>
+<span class="lineNum">    1072 </span><span class="lineCov">          1 :                   (d-&gt;max_ranges == AP_MAXRANGES_NORANGES) ? &quot;none&quot;</span>
+<a name="1073"><span class="lineNum">    1073 </span>            :                                                            : &quot;bytes&quot;);</a>
+<span class="lineNum">    1074 </span><span class="lineCov">          1 : }</span>
+<span class="lineNum">    1075 </span><span class="lineNoCov">          0 : static const char *add_optional_notes(request_rec *r,</span>
+<span class="lineNum">    1076 </span>            :                                       const char *prefix,
+<span class="lineNum">    1077 </span>            :                                       const char *key,
+<span class="lineNum">    1078 </span>            :                                       const char *suffix)
+<span class="lineNum">    1079 </span>            : {
+<span class="lineNum">    1080 </span>            :     const char *notes, *result;
+<span class="lineNum">    1081 </span>            : 
+<span class="lineNum">    1082 </span><span class="lineNoCov">          0 :     if ((notes = apr_table_get(r-&gt;notes, key)) == NULL) {</span>
+<span class="lineNum">    1083 </span><span class="lineNoCov">          0 :         result = apr_pstrcat(r-&gt;pool, prefix, suffix, NULL);</span>
+<span class="lineNum">    1084 </span>            :     }
+<span class="lineNum">    1085 </span>            :     else {
+<span class="lineNum">    1086 </span><span class="lineNoCov">          0 :         result = apr_pstrcat(r-&gt;pool, prefix, notes, suffix, NULL);</span>
+<span class="lineNum">    1087 </span>            :     }
+<span class="lineNum">    1088 </span>            : 
+<span class="lineNum">    1089 </span><span class="lineNoCov">          0 :     return result;</span>
+<span class="lineNum">    1090 </span>            : }
+<span class="lineNum">    1091 </span>            : 
+<span class="lineNum">    1092 </span>            : /* construct and return the default error message for a given
+<a name="1093"><span class="lineNum">    1093 </span>            :  * HTTP defined error code</a>
+<span class="lineNum">    1094 </span>            :  */
+<span class="lineNum">    1095 </span><span class="lineNoCov">          0 : static const char *get_canned_error_string(int status,</span>
+<span class="lineNum">    1096 </span>            :                                            request_rec *r,
+<span class="lineNum">    1097 </span>            :                                            const char *location)
+<span class="lineNum">    1098 </span>            : {
+<span class="lineNum">    1099 </span><span class="lineNoCov">          0 :     apr_pool_t *p = r-&gt;pool;</span>
+<span class="lineNum">    1100 </span>            :     const char *error_notes, *h1, *s1;
+<span class="lineNum">    1101 </span>            : 
+<span class="lineNum">    1102 </span><span class="lineNoCov">          0 :     switch (status) {</span>
+<span class="lineNum">    1103 </span>            :     case HTTP_MOVED_PERMANENTLY:
+<span class="lineNum">    1104 </span>            :     case HTTP_MOVED_TEMPORARILY:
+<span class="lineNum">    1105 </span>            :     case HTTP_TEMPORARY_REDIRECT:
+<span class="lineNum">    1106 </span>            :     case HTTP_PERMANENT_REDIRECT:
+<span class="lineNum">    1107 </span><span class="lineNoCov">          0 :         return(apr_pstrcat(p,</span>
+<span class="lineNum">    1108 </span>            :                            &quot;&lt;p&gt;The document has moved &lt;a href=\&quot;&quot;,
+<span class="lineNum">    1109 </span>            :                            ap_escape_html(r-&gt;pool, location),
+<span class="lineNum">    1110 </span>            :                            &quot;\&quot;&gt;here&lt;/a&gt;.&lt;/p&gt;\n&quot;,
+<span class="lineNum">    1111 </span>            :                            NULL));
+<span class="lineNum">    1112 </span>            :     case HTTP_SEE_OTHER:
+<span class="lineNum">    1113 </span><span class="lineNoCov">          0 :         return(apr_pstrcat(p,</span>
+<span class="lineNum">    1114 </span>            :                            &quot;&lt;p&gt;The answer to your request is located &quot;
+<span class="lineNum">    1115 </span>            :                            &quot;&lt;a href=\&quot;&quot;,
+<span class="lineNum">    1116 </span>            :                            ap_escape_html(r-&gt;pool, location),
+<span class="lineNum">    1117 </span>            :                            &quot;\&quot;&gt;here&lt;/a&gt;.&lt;/p&gt;\n&quot;,
+<span class="lineNum">    1118 </span>            :                            NULL));
+<span class="lineNum">    1119 </span>            :     case HTTP_USE_PROXY:
+<span class="lineNum">    1120 </span><span class="lineNoCov">          0 :         return(apr_pstrcat(p,</span>
+<span class="lineNum">    1121 </span>            :                            &quot;&lt;p&gt;This resource is only accessible &quot;
+<span class="lineNum">    1122 </span>            :                            &quot;through the proxy\n&quot;,
+<span class="lineNum">    1123 </span>            :                            ap_escape_html(r-&gt;pool, location),
+<span class="lineNum">    1124 </span>            :                            &quot;&lt;br /&gt;\nYou will need to configure &quot;
+<span class="lineNum">    1125 </span>            :                            &quot;your client to use that proxy.&lt;/p&gt;\n&quot;,
+<span class="lineNum">    1126 </span>            :                            NULL));
+<span class="lineNum">    1127 </span>            :     case HTTP_PROXY_AUTHENTICATION_REQUIRED:
+<span class="lineNum">    1128 </span>            :     case HTTP_UNAUTHORIZED:
+<span class="lineNum">    1129 </span><span class="lineNoCov">          0 :         return(&quot;&lt;p&gt;This server could not verify that you\n&quot;</span>
+<span class="lineNum">    1130 </span>            :                &quot;are authorized to access the document\n&quot;
+<span class="lineNum">    1131 </span>            :                &quot;requested.  Either you supplied the wrong\n&quot;
+<span class="lineNum">    1132 </span>            :                &quot;credentials (e.g., bad password), or your\n&quot;
+<span class="lineNum">    1133 </span>            :                &quot;browser doesn't understand how to supply\n&quot;
+<span class="lineNum">    1134 </span>            :                &quot;the credentials required.&lt;/p&gt;\n&quot;);
+<span class="lineNum">    1135 </span>            :     case HTTP_BAD_REQUEST:
+<span class="lineNum">    1136 </span><span class="lineNoCov">          0 :         return(add_optional_notes(r,</span>
+<span class="lineNum">    1137 </span>            :                                   &quot;&lt;p&gt;Your browser sent a request that &quot;
+<span class="lineNum">    1138 </span>            :                                   &quot;this server could not understand.&lt;br /&gt;\n&quot;,
+<span class="lineNum">    1139 </span>            :                                   &quot;error-notes&quot;,
+<span class="lineNum">    1140 </span>            :                                   &quot;&lt;/p&gt;\n&quot;));
+<span class="lineNum">    1141 </span>            :     case HTTP_FORBIDDEN:
+<span class="lineNum">    1142 </span><span class="lineNoCov">          0 :         s1 = apr_pstrcat(p,</span>
+<span class="lineNum">    1143 </span>            :                          &quot;&lt;p&gt;You don't have permission to access &quot;,
+<span class="lineNum">    1144 </span><span class="lineNoCov">          0 :                          ap_escape_html(r-&gt;pool, r-&gt;uri),</span>
+<span class="lineNum">    1145 </span>            :                          &quot;\non this server.&lt;br /&gt;\n&quot;,
+<span class="lineNum">    1146 </span>            :                          NULL);
+<span class="lineNum">    1147 </span><span class="lineNoCov">          0 :         return(add_optional_notes(r, s1, &quot;error-notes&quot;, &quot;&lt;/p&gt;\n&quot;));</span>
+<span class="lineNum">    1148 </span>            :     case HTTP_NOT_FOUND:
+<span class="lineNum">    1149 </span><span class="lineNoCov">          0 :         return(apr_pstrcat(p,</span>
+<span class="lineNum">    1150 </span>            :                            &quot;&lt;p&gt;The requested URL &quot;,
+<span class="lineNum">    1151 </span><span class="lineNoCov">          0 :                            ap_escape_html(r-&gt;pool, r-&gt;uri),</span>
+<span class="lineNum">    1152 </span>            :                            &quot; was not found on this server.&lt;/p&gt;\n&quot;,
+<span class="lineNum">    1153 </span>            :                            NULL));
+<span class="lineNum">    1154 </span>            :     case HTTP_METHOD_NOT_ALLOWED:
+<span class="lineNum">    1155 </span><span class="lineNoCov">          0 :         return(apr_pstrcat(p,</span>
+<span class="lineNum">    1156 </span>            :                            &quot;&lt;p&gt;The requested method &quot;,
+<span class="lineNum">    1157 </span>            :                            ap_escape_html(r-&gt;pool, r-&gt;method),
+<span class="lineNum">    1158 </span>            :                            &quot; is not allowed for the URL &quot;,
+<span class="lineNum">    1159 </span><span class="lineNoCov">          0 :                            ap_escape_html(r-&gt;pool, r-&gt;uri),</span>
+<span class="lineNum">    1160 </span>            :                            &quot;.&lt;/p&gt;\n&quot;,
+<span class="lineNum">    1161 </span>            :                            NULL));
+<span class="lineNum">    1162 </span>            :     case HTTP_NOT_ACCEPTABLE:
+<span class="lineNum">    1163 </span><span class="lineNoCov">          0 :         s1 = apr_pstrcat(p,</span>
+<span class="lineNum">    1164 </span>            :                          &quot;&lt;p&gt;An appropriate representation of the &quot;
+<span class="lineNum">    1165 </span>            :                          &quot;requested resource &quot;,
+<span class="lineNum">    1166 </span><span class="lineNoCov">          0 :                          ap_escape_html(r-&gt;pool, r-&gt;uri),</span>
+<span class="lineNum">    1167 </span>            :                          &quot; could not be found on this server.&lt;/p&gt;\n&quot;,
+<span class="lineNum">    1168 </span>            :                          NULL);
+<span class="lineNum">    1169 </span><span class="lineNoCov">          0 :         return(add_optional_notes(r, s1, &quot;variant-list&quot;, &quot;&quot;));</span>
+<span class="lineNum">    1170 </span>            :     case HTTP_MULTIPLE_CHOICES:
+<span class="lineNum">    1171 </span><span class="lineNoCov">          0 :         return(add_optional_notes(r, &quot;&quot;, &quot;variant-list&quot;, &quot;&quot;));</span>
+<span class="lineNum">    1172 </span>            :     case HTTP_LENGTH_REQUIRED:
+<span class="lineNum">    1173 </span><span class="lineNoCov">          0 :         s1 = apr_pstrcat(p,</span>
+<span class="lineNum">    1174 </span>            :                          &quot;&lt;p&gt;A request of the requested method &quot;,
+<span class="lineNum">    1175 </span>            :                          ap_escape_html(r-&gt;pool, r-&gt;method),
+<span class="lineNum">    1176 </span>            :                          &quot; requires a valid Content-length.&lt;br /&gt;\n&quot;,
+<span class="lineNum">    1177 </span>            :                          NULL);
+<span class="lineNum">    1178 </span><span class="lineNoCov">          0 :         return(add_optional_notes(r, s1, &quot;error-notes&quot;, &quot;&lt;/p&gt;\n&quot;));</span>
+<span class="lineNum">    1179 </span>            :     case HTTP_PRECONDITION_FAILED:
+<span class="lineNum">    1180 </span><span class="lineNoCov">          0 :         return(apr_pstrcat(p,</span>
+<span class="lineNum">    1181 </span>            :                            &quot;&lt;p&gt;The precondition on the request &quot;
+<span class="lineNum">    1182 </span>            :                            &quot;for the URL &quot;,
+<span class="lineNum">    1183 </span><span class="lineNoCov">          0 :                            ap_escape_html(r-&gt;pool, r-&gt;uri),</span>
+<span class="lineNum">    1184 </span>            :                            &quot; evaluated to false.&lt;/p&gt;\n&quot;,
+<span class="lineNum">    1185 </span>            :                            NULL));
+<span class="lineNum">    1186 </span>            :     case HTTP_NOT_IMPLEMENTED:
+<span class="lineNum">    1187 </span><span class="lineNoCov">          0 :         s1 = apr_pstrcat(p,</span>
+<span class="lineNum">    1188 </span>            :                          &quot;&lt;p&gt;&quot;,
+<span class="lineNum">    1189 </span>            :                          ap_escape_html(r-&gt;pool, r-&gt;method), &quot; to &quot;,
+<span class="lineNum">    1190 </span><span class="lineNoCov">          0 :                          ap_escape_html(r-&gt;pool, r-&gt;uri),</span>
+<span class="lineNum">    1191 </span>            :                          &quot; not supported.&lt;br /&gt;\n&quot;,
+<span class="lineNum">    1192 </span>            :                          NULL);
+<span class="lineNum">    1193 </span><span class="lineNoCov">          0 :         return(add_optional_notes(r, s1, &quot;error-notes&quot;, &quot;&lt;/p&gt;\n&quot;));</span>
+<span class="lineNum">    1194 </span>            :     case HTTP_BAD_GATEWAY:
+<span class="lineNum">    1195 </span><span class="lineNoCov">          0 :         s1 = &quot;&lt;p&gt;The proxy server received an invalid&quot; CRLF</span>
+<span class="lineNum">    1196 </span>            :             &quot;response from an upstream server.&lt;br /&gt;&quot; CRLF;
+<span class="lineNum">    1197 </span><span class="lineNoCov">          0 :         return(add_optional_notes(r, s1, &quot;error-notes&quot;, &quot;&lt;/p&gt;\n&quot;));</span>
+<span class="lineNum">    1198 </span>            :     case HTTP_VARIANT_ALSO_VARIES:
+<span class="lineNum">    1199 </span><span class="lineNoCov">          0 :         return(apr_pstrcat(p,</span>
+<span class="lineNum">    1200 </span>            :                            &quot;&lt;p&gt;A variant for the requested &quot;
+<span class="lineNum">    1201 </span>            :                            &quot;resource\n&lt;pre&gt;\n&quot;,
+<span class="lineNum">    1202 </span><span class="lineNoCov">          0 :                            ap_escape_html(r-&gt;pool, r-&gt;uri),</span>
+<span class="lineNum">    1203 </span>            :                            &quot;\n&lt;/pre&gt;\nis itself a negotiable resource. &quot;
+<span class="lineNum">    1204 </span>            :                            &quot;This indicates a configuration error.&lt;/p&gt;\n&quot;,
+<span class="lineNum">    1205 </span>            :                            NULL));
+<span class="lineNum">    1206 </span>            :     case HTTP_REQUEST_TIME_OUT:
+<span class="lineNum">    1207 </span><span class="lineNoCov">          0 :         return(&quot;&lt;p&gt;Server timeout waiting for the HTTP request from the client.&lt;/p&gt;\n&quot;);</span>
+<span class="lineNum">    1208 </span>            :     case HTTP_GONE:
+<span class="lineNum">    1209 </span><span class="lineNoCov">          0 :         return(apr_pstrcat(p,</span>
+<span class="lineNum">    1210 </span>            :                            &quot;&lt;p&gt;The requested resource&lt;br /&gt;&quot;,
+<span class="lineNum">    1211 </span><span class="lineNoCov">          0 :                            ap_escape_html(r-&gt;pool, r-&gt;uri),</span>
+<span class="lineNum">    1212 </span>            :                            &quot;&lt;br /&gt;\nis no longer available on this server &quot;
+<span class="lineNum">    1213 </span>            :                            &quot;and there is no forwarding address.\n&quot;
+<span class="lineNum">    1214 </span>            :                            &quot;Please remove all references to this &quot;
+<span class="lineNum">    1215 </span>            :                            &quot;resource.&lt;/p&gt;\n&quot;,
+<span class="lineNum">    1216 </span>            :                            NULL));
+<span class="lineNum">    1217 </span>            :     case HTTP_REQUEST_ENTITY_TOO_LARGE:
+<span class="lineNum">    1218 </span><span class="lineNoCov">          0 :         return(apr_pstrcat(p,</span>
+<span class="lineNum">    1219 </span>            :                            &quot;The requested resource&lt;br /&gt;&quot;,
+<span class="lineNum">    1220 </span><span class="lineNoCov">          0 :                            ap_escape_html(r-&gt;pool, r-&gt;uri), &quot;&lt;br /&gt;\n&quot;,</span>
+<span class="lineNum">    1221 </span>            :                            &quot;does not allow request data with &quot;,
+<span class="lineNum">    1222 </span>            :                            ap_escape_html(r-&gt;pool, r-&gt;method),
+<span class="lineNum">    1223 </span>            :                            &quot; requests, or the amount of data provided in\n&quot;
+<span class="lineNum">    1224 </span>            :                            &quot;the request exceeds the capacity limit.\n&quot;,
+<span class="lineNum">    1225 </span>            :                            NULL));
+<span class="lineNum">    1226 </span>            :     case HTTP_REQUEST_URI_TOO_LARGE:
+<span class="lineNum">    1227 </span><span class="lineNoCov">          0 :         s1 = &quot;&lt;p&gt;The requested URL's length exceeds the capacity\n&quot;</span>
+<span class="lineNum">    1228 </span>            :              &quot;limit for this server.&lt;br /&gt;\n&quot;;
+<span class="lineNum">    1229 </span><span class="lineNoCov">          0 :         return(add_optional_notes(r, s1, &quot;error-notes&quot;, &quot;&lt;/p&gt;\n&quot;));</span>
+<span class="lineNum">    1230 </span>            :     case HTTP_UNSUPPORTED_MEDIA_TYPE:
+<span class="lineNum">    1231 </span><span class="lineNoCov">          0 :         return(&quot;&lt;p&gt;The supplied request data is not in a format\n&quot;</span>
+<span class="lineNum">    1232 </span>            :                &quot;acceptable for processing by this resource.&lt;/p&gt;\n&quot;);
+<span class="lineNum">    1233 </span>            :     case HTTP_RANGE_NOT_SATISFIABLE:
+<span class="lineNum">    1234 </span><span class="lineNoCov">          0 :         return(&quot;&lt;p&gt;None of the range-specifier values in the Range\n&quot;</span>
+<span class="lineNum">    1235 </span>            :                &quot;request-header field overlap the current extent\n&quot;
+<span class="lineNum">    1236 </span>            :                &quot;of the selected resource.&lt;/p&gt;\n&quot;);
+<span class="lineNum">    1237 </span>            :     case HTTP_EXPECTATION_FAILED:
+<span class="lineNum">    1238 </span><span class="lineNoCov">          0 :         s1 = apr_table_get(r-&gt;headers_in, &quot;Expect&quot;);</span>
+<span class="lineNum">    1239 </span><span class="lineNoCov">          0 :         if (s1)</span>
+<span class="lineNum">    1240 </span><span class="lineNoCov">          0 :             s1 = apr_pstrcat(p,</span>
+<span class="lineNum">    1241 </span>            :                      &quot;&lt;p&gt;The expectation given in the Expect request-header\n&quot;
+<span class="lineNum">    1242 </span>            :                      &quot;field could not be met by this server.\n&quot;
+<span class="lineNum">    1243 </span>            :                      &quot;The client sent&lt;pre&gt;\n    Expect: &quot;,
+<span class="lineNum">    1244 </span>            :                      ap_escape_html(r-&gt;pool, s1), &quot;\n&lt;/pre&gt;\n&quot;,
+<span class="lineNum">    1245 </span>            :                      NULL);
+<span class="lineNum">    1246 </span>            :         else
+<span class="lineNum">    1247 </span><span class="lineNoCov">          0 :             s1 = &quot;&lt;p&gt;No expectation was seen, the Expect request-header \n&quot;</span>
+<span class="lineNum">    1248 </span>            :                  &quot;field was not presented by the client.\n&quot;;
+<span class="lineNum">    1249 </span><span class="lineNoCov">          0 :         return add_optional_notes(r, s1, &quot;error-notes&quot;, &quot;&lt;/p&gt;&quot;</span>
+<span class="lineNum">    1250 </span>            :                    &quot;&lt;p&gt;Only the 100-continue expectation is supported.&lt;/p&gt;\n&quot;);
+<span class="lineNum">    1251 </span>            :     case HTTP_UNPROCESSABLE_ENTITY:
+<span class="lineNum">    1252 </span><span class="lineNoCov">          0 :         return(&quot;&lt;p&gt;The server understands the media type of the\n&quot;</span>
+<span class="lineNum">    1253 </span>            :                &quot;request entity, but was unable to process the\n&quot;
+<span class="lineNum">    1254 </span>            :                &quot;contained instructions.&lt;/p&gt;\n&quot;);
+<span class="lineNum">    1255 </span>            :     case HTTP_LOCKED:
+<span class="lineNum">    1256 </span><span class="lineNoCov">          0 :         return(&quot;&lt;p&gt;The requested resource is currently locked.\n&quot;</span>
+<span class="lineNum">    1257 </span>            :                &quot;The lock must be released or proper identification\n&quot;
+<span class="lineNum">    1258 </span>            :                &quot;given before the method can be applied.&lt;/p&gt;\n&quot;);
+<span class="lineNum">    1259 </span>            :     case HTTP_FAILED_DEPENDENCY:
+<span class="lineNum">    1260 </span><span class="lineNoCov">          0 :         return(&quot;&lt;p&gt;The method could not be performed on the resource\n&quot;</span>
+<span class="lineNum">    1261 </span>            :                &quot;because the requested action depended on another\n&quot;
+<span class="lineNum">    1262 </span>            :                &quot;action and that other action failed.&lt;/p&gt;\n&quot;);
+<span class="lineNum">    1263 </span>            :     case HTTP_UPGRADE_REQUIRED:
+<span class="lineNum">    1264 </span><span class="lineNoCov">          0 :         return(&quot;&lt;p&gt;The requested resource can only be retrieved\n&quot;</span>
+<span class="lineNum">    1265 </span>            :                &quot;using SSL.  The server is willing to upgrade the current\n&quot;
+<span class="lineNum">    1266 </span>            :                &quot;connection to SSL, but your client doesn't support it.\n&quot;
+<span class="lineNum">    1267 </span>            :                &quot;Either upgrade your client, or try requesting the page\n&quot;
+<span class="lineNum">    1268 </span>            :                &quot;using https://\n&quot;);
+<span class="lineNum">    1269 </span>            :     case HTTP_PRECONDITION_REQUIRED:
+<span class="lineNum">    1270 </span><span class="lineNoCov">          0 :         return(&quot;&lt;p&gt;The request is required to be conditional.&lt;/p&gt;\n&quot;);</span>
+<span class="lineNum">    1271 </span>            :     case HTTP_TOO_MANY_REQUESTS:
+<span class="lineNum">    1272 </span><span class="lineNoCov">          0 :         return(&quot;&lt;p&gt;The user has sent too many requests\n&quot;</span>
+<span class="lineNum">    1273 </span>            :                &quot;in a given amount of time.&lt;/p&gt;\n&quot;);
+<span class="lineNum">    1274 </span>            :     case HTTP_REQUEST_HEADER_FIELDS_TOO_LARGE:
+<span class="lineNum">    1275 </span><span class="lineNoCov">          0 :         return(&quot;&lt;p&gt;The server refused this request because\n&quot;</span>
+<span class="lineNum">    1276 </span>            :                &quot;the request header fields are too large.&lt;/p&gt;\n&quot;);
+<span class="lineNum">    1277 </span>            :     case HTTP_INSUFFICIENT_STORAGE:
+<span class="lineNum">    1278 </span><span class="lineNoCov">          0 :         return(&quot;&lt;p&gt;The method could not be performed on the resource\n&quot;</span>
+<span class="lineNum">    1279 </span>            :                &quot;because the server is unable to store the\n&quot;
+<span class="lineNum">    1280 </span>            :                &quot;representation needed to successfully complete the\n&quot;
+<span class="lineNum">    1281 </span>            :                &quot;request.  There is insufficient free space left in\n&quot;
+<span class="lineNum">    1282 </span>            :                &quot;your storage allocation.&lt;/p&gt;\n&quot;);
+<span class="lineNum">    1283 </span>            :     case HTTP_SERVICE_UNAVAILABLE:
+<span class="lineNum">    1284 </span><span class="lineNoCov">          0 :         return(&quot;&lt;p&gt;The server is temporarily unable to service your\n&quot;</span>
+<span class="lineNum">    1285 </span>            :                &quot;request due to maintenance downtime or capacity\n&quot;
+<span class="lineNum">    1286 </span>            :                &quot;problems. Please try again later.&lt;/p&gt;\n&quot;);
+<span class="lineNum">    1287 </span>            :     case HTTP_GATEWAY_TIME_OUT:
+<span class="lineNum">    1288 </span><span class="lineNoCov">          0 :         return(&quot;&lt;p&gt;The gateway did not receive a timely response\n&quot;</span>
+<span class="lineNum">    1289 </span>            :                &quot;from the upstream server or application.&lt;/p&gt;\n&quot;);
+<span class="lineNum">    1290 </span>            :     case HTTP_LOOP_DETECTED:
+<span class="lineNum">    1291 </span><span class="lineNoCov">          0 :         return(&quot;&lt;p&gt;The server terminated an operation because\n&quot;</span>
+<span class="lineNum">    1292 </span>            :                &quot;it encountered an infinite loop.&lt;/p&gt;\n&quot;);
+<span class="lineNum">    1293 </span>            :     case HTTP_NOT_EXTENDED:
+<span class="lineNum">    1294 </span><span class="lineNoCov">          0 :         return(&quot;&lt;p&gt;A mandatory extension policy in the request is not\n&quot;</span>
+<span class="lineNum">    1295 </span>            :                &quot;accepted by the server for this resource.&lt;/p&gt;\n&quot;);
+<span class="lineNum">    1296 </span>            :     case HTTP_NETWORK_AUTHENTICATION_REQUIRED:
+<span class="lineNum">    1297 </span><span class="lineNoCov">          0 :         return(&quot;&lt;p&gt;The client needs to authenticate to gain\n&quot;</span>
+<span class="lineNum">    1298 </span>            :                &quot;network access.&lt;/p&gt;\n&quot;);
+<span class="lineNum">    1299 </span>            :     default:                    /* HTTP_INTERNAL_SERVER_ERROR */
+<span class="lineNum">    1300 </span>            :         /*
+<span class="lineNum">    1301 </span>            :          * This comparison to expose error-notes could be modified to
+<span class="lineNum">    1302 </span>            :          * use a configuration directive and export based on that
+<span class="lineNum">    1303 </span>            :          * directive.  For now &quot;*&quot; is used to designate an error-notes
+<span class="lineNum">    1304 </span>            :          * that is totally safe for any user to see (ie lacks paths,
+<span class="lineNum">    1305 </span>            :          * database passwords, etc.)
+<span class="lineNum">    1306 </span>            :          */
+<span class="lineNum">    1307 </span><span class="lineNoCov">          0 :         if (((error_notes = apr_table_get(r-&gt;notes,</span>
+<span class="lineNum">    1308 </span>            :                                           &quot;error-notes&quot;)) != NULL)
+<span class="lineNum">    1309 </span><span class="lineNoCov">          0 :             &amp;&amp; (h1 = apr_table_get(r-&gt;notes, &quot;verbose-error-to&quot;)) != NULL</span>
+<span class="lineNum">    1310 </span><span class="lineNoCov">          0 :             &amp;&amp; (strcmp(h1, &quot;*&quot;) == 0)) {</span>
+<span class="lineNum">    1311 </span><span class="lineNoCov">          0 :             return(apr_pstrcat(p, error_notes, &quot;&lt;p /&gt;\n&quot;, NULL));</span>
+<span class="lineNum">    1312 </span>            :         }
+<span class="lineNum">    1313 </span>            :         else {
+<span class="lineNum">    1314 </span><span class="lineNoCov">          0 :             return(apr_pstrcat(p,</span>
+<span class="lineNum">    1315 </span>            :                                &quot;&lt;p&gt;The server encountered an internal &quot;
+<span class="lineNum">    1316 </span>            :                                &quot;error or\n&quot;
+<span class="lineNum">    1317 </span>            :                                &quot;misconfiguration and was unable to complete\n&quot;
+<span class="lineNum">    1318 </span>            :                                &quot;your request.&lt;/p&gt;\n&quot;
+<span class="lineNum">    1319 </span>            :                                &quot;&lt;p&gt;Please contact the server &quot;
+<span class="lineNum">    1320 </span>            :                                &quot;administrator at \n &quot;,
+<span class="lineNum">    1321 </span><span class="lineNoCov">          0 :                                ap_escape_html(r-&gt;pool,</span>
+<span class="lineNum">    1322 </span>            :                                               r-&gt;server-&gt;server_admin),
+<span class="lineNum">    1323 </span>            :                                &quot; to inform them of the time this &quot;
+<span class="lineNum">    1324 </span>            :                                &quot;error occurred,\n&quot;
+<span class="lineNum">    1325 </span>            :                                &quot; and the actions you performed just before &quot;
+<span class="lineNum">    1326 </span>            :                                &quot;this error.&lt;/p&gt;\n&quot;
+<span class="lineNum">    1327 </span>            :                                &quot;&lt;p&gt;More information about this error &quot;
+<span class="lineNum">    1328 </span>            :                                &quot;may be available\n&quot;
+<span class="lineNum">    1329 </span>            :                                &quot;in the server error log.&lt;/p&gt;\n&quot;,
+<span class="lineNum">    1330 </span>            :                                NULL));
+<span class="lineNum">    1331 </span>            :         }
+<span class="lineNum">    1332 </span>            :         /*
+<span class="lineNum">    1333 </span>            :          * It would be nice to give the user the information they need to
+<span class="lineNum">    1334 </span>            :          * fix the problem directly since many users don't have access to
+<span class="lineNum">    1335 </span>            :          * the error_log (think University sites) even though they can easily
+<span class="lineNum">    1336 </span>            :          * get this error by misconfiguring an htaccess file.  However, the
+<span class="lineNum">    1337 </span>            :          * e error notes tend to include the real file pathname in this case,
+<span class="lineNum">    1338 </span>            :          * which some people consider to be a breach of privacy.  Until we
+<span class="lineNum">    1339 </span>            :          * can figure out a way to remove the pathname, leave this commented.
+<span class="lineNum">    1340 </span>            :          *
+<span class="lineNum">    1341 </span>            :          * if ((error_notes = apr_table_get(r-&gt;notes,
+<span class="lineNum">    1342 </span>            :          *                                  &quot;error-notes&quot;)) != NULL) {
+<span class="lineNum">    1343 </span>            :          *     return(apr_pstrcat(p, error_notes, &quot;&lt;p /&gt;\n&quot;, NULL);
+<span class="lineNum">    1344 </span>            :          * }
+<span class="lineNum">    1345 </span>            :          * else {
+<span class="lineNum">    1346 </span>            :          *     return &quot;&quot;;
+<span class="lineNum">    1347 </span>            :          * }
+<span class="lineNum">    1348 </span>            :          */
+<span class="lineNum">    1349 </span>            :     }
+<span class="lineNum">    1350 </span>            : }
+<span class="lineNum">    1351 </span>            : 
+<span class="lineNum">    1352 </span>            : /* We should have named this send_canned_response, since it is used for any
+<span class="lineNum">    1353 </span>            :  * response that can be generated by the server from the request record.
+<span class="lineNum">    1354 </span>            :  * This includes all 204 (no content), 3xx (redirect), 4xx (client error),
+<span class="lineNum">    1355 </span>            :  * and 5xx (server error) messages that have not been redirected to another
+<a name="1356"><span class="lineNum">    1356 </span>            :  * handler via the ErrorDocument feature.</a>
+<span class="lineNum">    1357 </span>            :  */
+<span class="lineNum">    1358 </span><span class="lineNoCov">          0 : AP_DECLARE(void) ap_send_error_response(request_rec *r, int recursive_error)</span>
+<span class="lineNum">    1359 </span>            : {
+<span class="lineNum">    1360 </span><span class="lineNoCov">          0 :     int status = r-&gt;status;</span>
+<span class="lineNum">    1361 </span><span class="lineNoCov">          0 :     int idx = ap_index_of_response(status);</span>
+<span class="lineNum">    1362 </span>            :     char *custom_response;
+<span class="lineNum">    1363 </span><span class="lineNoCov">          0 :     const char *location = apr_table_get(r-&gt;headers_out, &quot;Location&quot;);</span>
+<span class="lineNum">    1364 </span>            : 
+<span class="lineNum">    1365 </span>            :     /* At this point, we are starting the response over, so we have to reset
+<span class="lineNum">    1366 </span>            :      * this value.
+<span class="lineNum">    1367 </span>            :      */
+<span class="lineNum">    1368 </span><span class="lineNoCov">          0 :     r-&gt;eos_sent = 0;</span>
+<span class="lineNum">    1369 </span>            : 
+<span class="lineNum">    1370 </span>            :     /* and we need to get rid of any RESOURCE filters that might be lurking
+<span class="lineNum">    1371 </span>            :      * around, thinking they are in the middle of the original request
+<span class="lineNum">    1372 </span>            :      */
+<span class="lineNum">    1373 </span>            : 
+<span class="lineNum">    1374 </span><span class="lineNoCov">          0 :     r-&gt;output_filters = r-&gt;proto_output_filters;</span>
+<span class="lineNum">    1375 </span>            : 
+<span class="lineNum">    1376 </span><span class="lineNoCov">          0 :     ap_run_insert_error_filter(r);</span>
+<span class="lineNum">    1377 </span>            : 
+<span class="lineNum">    1378 </span>            :     /*
+<span class="lineNum">    1379 </span>            :      * It's possible that the Location field might be in r-&gt;err_headers_out
+<span class="lineNum">    1380 </span>            :      * instead of r-&gt;headers_out; use the latter if possible, else the
+<span class="lineNum">    1381 </span>            :      * former.
+<span class="lineNum">    1382 </span>            :      */
+<span class="lineNum">    1383 </span><span class="lineNoCov">          0 :     if (location == NULL) {</span>
+<span class="lineNum">    1384 </span><span class="lineNoCov">          0 :         location = apr_table_get(r-&gt;err_headers_out, &quot;Location&quot;);</span>
+<span class="lineNum">    1385 </span>            :     }
+<span class="lineNum">    1386 </span>            :     /* We need to special-case the handling of 204 and 304 responses,
+<span class="lineNum">    1387 </span>            :      * since they have specific HTTP requirements and do not include a
+<span class="lineNum">    1388 </span>            :      * message body.  Note that being assbackwards here is not an option.
+<span class="lineNum">    1389 </span>            :      */
+<span class="lineNum">    1390 </span><span class="lineNoCov">          0 :     if (status == HTTP_NOT_MODIFIED) {</span>
+<span class="lineNum">    1391 </span><span class="lineNoCov">          0 :         ap_finalize_request_protocol(r);</span>
+<span class="lineNum">    1392 </span><span class="lineNoCov">          0 :         return;</span>
+<span class="lineNum">    1393 </span>            :     }
+<span class="lineNum">    1394 </span>            : 
+<span class="lineNum">    1395 </span><span class="lineNoCov">          0 :     if (status == HTTP_NO_CONTENT) {</span>
+<span class="lineNum">    1396 </span><span class="lineNoCov">          0 :         ap_finalize_request_protocol(r);</span>
+<span class="lineNum">    1397 </span><span class="lineNoCov">          0 :         return;</span>
+<span class="lineNum">    1398 </span>            :     }
+<span class="lineNum">    1399 </span>            : 
+<span class="lineNum">    1400 </span><span class="lineNoCov">          0 :     if (!r-&gt;assbackwards) {</span>
+<span class="lineNum">    1401 </span><span class="lineNoCov">          0 :         apr_table_t *tmp = r-&gt;headers_out;</span>
+<span class="lineNum">    1402 </span>            : 
+<span class="lineNum">    1403 </span>            :         /* For all HTTP/1.x responses for which we generate the message,
+<span class="lineNum">    1404 </span>            :          * we need to avoid inheriting the &quot;normal status&quot; header fields
+<span class="lineNum">    1405 </span>            :          * that may have been set by the request handler before the
+<span class="lineNum">    1406 </span>            :          * error or redirect, except for Location on external redirects.
+<span class="lineNum">    1407 </span>            :          */
+<span class="lineNum">    1408 </span><span class="lineNoCov">          0 :         r-&gt;headers_out = r-&gt;err_headers_out;</span>
+<span class="lineNum">    1409 </span><span class="lineNoCov">          0 :         r-&gt;err_headers_out = tmp;</span>
+<span class="lineNum">    1410 </span><span class="lineNoCov">          0 :         apr_table_clear(r-&gt;err_headers_out);</span>
+<span class="lineNum">    1411 </span>            : 
+<span class="lineNum">    1412 </span><span class="lineNoCov">          0 :         if (ap_is_HTTP_REDIRECT(status) || (status == HTTP_CREATED)) {</span>
+<span class="lineNum">    1413 </span><span class="lineNoCov">          0 :             if ((location != NULL) &amp;&amp; *location) {</span>
+<span class="lineNum">    1414 </span><span class="lineNoCov">          0 :                 apr_table_setn(r-&gt;headers_out, &quot;Location&quot;, location);</span>
+<span class="lineNum">    1415 </span>            :             }
+<span class="lineNum">    1416 </span>            :             else {
+<span class="lineNum">    1417 </span><span class="lineNoCov">          0 :                 location = &quot;&quot;;   /* avoids coredump when printing, below */</span>
+<span class="lineNum">    1418 </span>            :             }
+<span class="lineNum">    1419 </span>            :         }
+<span class="lineNum">    1420 </span>            : 
+<span class="lineNum">    1421 </span><span class="lineNoCov">          0 :         r-&gt;content_languages = NULL;</span>
+<span class="lineNum">    1422 </span><span class="lineNoCov">          0 :         r-&gt;content_encoding = NULL;</span>
+<span class="lineNum">    1423 </span><span class="lineNoCov">          0 :         r-&gt;clength = 0;</span>
+<span class="lineNum">    1424 </span>            : 
+<span class="lineNum">    1425 </span><span class="lineNoCov">          0 :         if (apr_table_get(r-&gt;subprocess_env,</span>
+<span class="lineNum">    1426 </span>            :                           &quot;suppress-error-charset&quot;) != NULL) {
+<span class="lineNum">    1427 </span><span class="lineNoCov">          0 :             core_request_config *request_conf =</span>
+<span class="lineNum">    1428 </span><span class="lineNoCov">          0 :                         ap_get_core_module_config(r-&gt;request_config);</span>
+<span class="lineNum">    1429 </span><span class="lineNoCov">          0 :             request_conf-&gt;suppress_charset = 1; /* avoid adding default</span>
+<span class="lineNum">    1430 </span>            :                                                  * charset later
+<span class="lineNum">    1431 </span>            :                                                  */
+<span class="lineNum">    1432 </span><span class="lineNoCov">          0 :             ap_set_content_type(r, &quot;text/html&quot;);</span>
+<span class="lineNum">    1433 </span>            :         }
+<span class="lineNum">    1434 </span>            :         else {
+<span class="lineNum">    1435 </span><span class="lineNoCov">          0 :             ap_set_content_type(r, &quot;text/html; charset=iso-8859-1&quot;);</span>
+<span class="lineNum">    1436 </span>            :         }
+<span class="lineNum">    1437 </span>            : 
+<span class="lineNum">    1438 </span><span class="lineNoCov">          0 :         if ((status == HTTP_METHOD_NOT_ALLOWED)</span>
+<span class="lineNum">    1439 </span><span class="lineNoCov">          0 :             || (status == HTTP_NOT_IMPLEMENTED)) {</span>
+<span class="lineNum">    1440 </span><span class="lineNoCov">          0 :             apr_table_setn(r-&gt;headers_out, &quot;Allow&quot;, make_allow(r));</span>
+<span class="lineNum">    1441 </span>            :         }
+<span class="lineNum">    1442 </span>            : 
+<span class="lineNum">    1443 </span><span class="lineNoCov">          0 :         if (r-&gt;header_only) {</span>
+<span class="lineNum">    1444 </span><span class="lineNoCov">          0 :             ap_finalize_request_protocol(r);</span>
+<span class="lineNum">    1445 </span><span class="lineNoCov">          0 :             return;</span>
+<span class="lineNum">    1446 </span>            :         }
+<span class="lineNum">    1447 </span>            :     }
+<span class="lineNum">    1448 </span>            : 
+<span class="lineNum">    1449 </span><span class="lineNoCov">          0 :     if ((custom_response = ap_response_code_string(r, idx))) {</span>
+<span class="lineNum">    1450 </span>            :         /*
+<span class="lineNum">    1451 </span>            :          * We have a custom response output. This should only be
+<span class="lineNum">    1452 </span>            :          * a text-string to write back. But if the ErrorDocument
+<span class="lineNum">    1453 </span>            :          * was a local redirect and the requested resource failed
+<span class="lineNum">    1454 </span>            :          * for any reason, the custom_response will still hold the
+<span class="lineNum">    1455 </span>            :          * redirect URL. We don't really want to output this URL
+<span class="lineNum">    1456 </span>            :          * as a text message, so first check the custom response
+<span class="lineNum">    1457 </span>            :          * string to ensure that it is a text-string (using the
+<span class="lineNum">    1458 </span>            :          * same test used in ap_die(), i.e. does it start with a &quot;).
+<span class="lineNum">    1459 </span>            :          *
+<span class="lineNum">    1460 </span>            :          * If it's not a text string, we've got a recursive error or
+<span class="lineNum">    1461 </span>            :          * an external redirect.  If it's a recursive error, ap_die passes
+<span class="lineNum">    1462 </span>            :          * us the second error code so we can write both, and has already
+<span class="lineNum">    1463 </span>            :          * backed up to the original error.  If it's an external redirect,
+<span class="lineNum">    1464 </span>            :          * it hasn't happened yet; we may never know if it fails.
+<span class="lineNum">    1465 </span>            :          */
+<span class="lineNum">    1466 </span><span class="lineNoCov">          0 :         if (custom_response[0] == '\&quot;') {</span>
+<span class="lineNum">    1467 </span><span class="lineNoCov">          0 :             ap_rputs(custom_response + 1, r);</span>
+<span class="lineNum">    1468 </span><span class="lineNoCov">          0 :             ap_finalize_request_protocol(r);</span>
+<span class="lineNum">    1469 </span><span class="lineNoCov">          0 :             return;</span>
+<span class="lineNum">    1470 </span>            :         }
+<span class="lineNum">    1471 </span>            :     }
+<span class="lineNum">    1472 </span>            :     {
+<span class="lineNum">    1473 </span><span class="lineNoCov">          0 :         const char *title = status_lines[idx];</span>
+<span class="lineNum">    1474 </span>            :         const char *h1;
+<span class="lineNum">    1475 </span>            : 
+<span class="lineNum">    1476 </span>            :         /* Accept a status_line set by a module, but only if it begins
+<span class="lineNum">    1477 </span>            :          * with the correct 3 digit status code
+<span class="lineNum">    1478 </span>            :          */
+<span class="lineNum">    1479 </span><span class="lineNoCov">          0 :         if (r-&gt;status_line) {</span>
+<span class="lineNum">    1480 </span>            :             char *end;
+<span class="lineNum">    1481 </span><span class="lineNoCov">          0 :             int len = strlen(r-&gt;status_line);</span>
+<span class="lineNum">    1482 </span><span class="lineNoCov">          0 :             if (len &gt;= 3</span>
+<span class="lineNum">    1483 </span><span class="lineNoCov">          0 :                 &amp;&amp; apr_strtoi64(r-&gt;status_line, &amp;end, 10) == r-&gt;status</span>
+<span class="lineNum">    1484 </span><span class="lineNoCov">          0 :                 &amp;&amp; (end - 3) == r-&gt;status_line</span>
+<span class="lineNum">    1485 </span><span class="lineNoCov">          0 :                 &amp;&amp; (len &lt; 4 || apr_isspace(r-&gt;status_line[3]))</span>
+<span class="lineNum">    1486 </span><span class="lineNoCov">          0 :                 &amp;&amp; (len &lt; 5 || apr_isalnum(r-&gt;status_line[4]))) {</span>
+<span class="lineNum">    1487 </span>            :                 /* Since we passed the above check, we know that length three
+<span class="lineNum">    1488 </span>            :                  * is equivalent to only a 3 digit numeric http status.
+<span class="lineNum">    1489 </span>            :                  * RFC2616 mandates a trailing space, let's add it.
+<span class="lineNum">    1490 </span>            :                  * If we have an empty reason phrase, we also add &quot;Unknown Reason&quot;.
+<span class="lineNum">    1491 </span>            :                  */
+<span class="lineNum">    1492 </span><span class="lineNoCov">          0 :                 if (len == 3) {</span>
+<span class="lineNum">    1493 </span><span class="lineNoCov">          0 :                     r-&gt;status_line = apr_pstrcat(r-&gt;pool, r-&gt;status_line, &quot; Unknown Reason&quot;, NULL);</span>
+<span class="lineNum">    1494 </span><span class="lineNoCov">          0 :                 } else if (len == 4) {</span>
+<span class="lineNum">    1495 </span><span class="lineNoCov">          0 :                     r-&gt;status_line = apr_pstrcat(r-&gt;pool, r-&gt;status_line, &quot;Unknown Reason&quot;, NULL);</span>
+<span class="lineNum">    1496 </span>            :                 }
+<span class="lineNum">    1497 </span><span class="lineNoCov">          0 :                 title = r-&gt;status_line;</span>
+<span class="lineNum">    1498 </span>            :             }
+<span class="lineNum">    1499 </span>            :         }
+<span class="lineNum">    1500 </span>            : 
+<span class="lineNum">    1501 </span>            :         /* folks decided they didn't want the error code in the H1 text */
+<span class="lineNum">    1502 </span><span class="lineNoCov">          0 :         h1 = &amp;title[4];</span>
+<span class="lineNum">    1503 </span>            : 
+<span class="lineNum">    1504 </span>            :         /* can't count on a charset filter being in place here,
+<span class="lineNum">    1505 </span>            :          * so do ebcdic-&gt;ascii translation explicitly (if needed)
+<span class="lineNum">    1506 </span>            :          */
+<span class="lineNum">    1507 </span>            : 
+<span class="lineNum">    1508 </span><span class="lineNoCov">          0 :         ap_rvputs_proto_in_ascii(r,</span>
+<span class="lineNum">    1509 </span>            :                   DOCTYPE_HTML_2_0
+<span class="lineNum">    1510 </span>            :                   &quot;&lt;html&gt;&lt;head&gt;\n&lt;title&gt;&quot;, title,
+<span class="lineNum">    1511 </span>            :                   &quot;&lt;/title&gt;\n&lt;/head&gt;&lt;body&gt;\n&lt;h1&gt;&quot;, h1, &quot;&lt;/h1&gt;\n&quot;,
+<span class="lineNum">    1512 </span>            :                   NULL);
+<span class="lineNum">    1513 </span>            : 
+<span class="lineNum">    1514 </span><span class="lineNoCov">          0 :         ap_rvputs_proto_in_ascii(r,</span>
+<span class="lineNum">    1515 </span>            :                                  get_canned_error_string(status, r, location),
+<span class="lineNum">    1516 </span>            :                                  NULL);
+<span class="lineNum">    1517 </span>            : 
+<span class="lineNum">    1518 </span><span class="lineNoCov">          0 :         if (recursive_error) {</span>
+<span class="lineNum">    1519 </span><span class="lineNoCov">          0 :             ap_rvputs_proto_in_ascii(r, &quot;&lt;p&gt;Additionally, a &quot;,</span>
+<span class="lineNum">    1520 </span><span class="lineNoCov">          0 :                       status_lines[ap_index_of_response(recursive_error)],</span>
+<span class="lineNum">    1521 </span>            :                       &quot;\nerror was encountered while trying to use an &quot;
+<span class="lineNum">    1522 </span>            :                       &quot;ErrorDocument to handle the request.&lt;/p&gt;\n&quot;, NULL);
+<span class="lineNum">    1523 </span>            :         }
+<span class="lineNum">    1524 </span><span class="lineNoCov">          0 :         ap_rvputs_proto_in_ascii(r, ap_psignature(&quot;&lt;hr&gt;\n&quot;, r), NULL);</span>
+<span class="lineNum">    1525 </span><span class="lineNoCov">          0 :         ap_rvputs_proto_in_ascii(r, &quot;&lt;/body&gt;&lt;/html&gt;\n&quot;, NULL);</span>
+<span class="lineNum">    1526 </span>            :     }
+<span class="lineNum">    1527 </span><span class="lineNoCov">          0 :     ap_finalize_request_protocol(r);</span>
+<span class="lineNum">    1528 </span>            : }
+<span class="lineNum">    1529 </span>            : 
+<span class="lineNum">    1530 </span>            : /*
+<span class="lineNum">    1531 </span>            :  * Create a new method list with the specified number of preallocated
+<a name="1532"><span class="lineNum">    1532 </span>            :  * extension slots.</a>
+<span class="lineNum">    1533 </span>            :  */
+<span class="lineNum">    1534 </span><span class="lineCov">          3 : AP_DECLARE(ap_method_list_t *) ap_make_method_list(apr_pool_t *p, int nelts)</span>
+<span class="lineNum">    1535 </span>            : {
+<span class="lineNum">    1536 </span>            :     ap_method_list_t *ml;
+<span class="lineNum">    1537 </span>            : 
+<span class="lineNum">    1538 </span><span class="lineCov">          3 :     ml = (ap_method_list_t *) apr_palloc(p, sizeof(ap_method_list_t));</span>
+<span class="lineNum">    1539 </span><span class="lineCov">          3 :     ml-&gt;method_mask = 0;</span>
+<span class="lineNum">    1540 </span><span class="lineCov">          3 :     ml-&gt;method_list = apr_array_make(p, nelts, sizeof(char *));</span>
+<span class="lineNum">    1541 </span><span class="lineCov">          3 :     return ml;</span>
+<span class="lineNum">    1542 </span>            : }
+<span class="lineNum">    1543 </span>            : 
+<span class="lineNum">    1544 </span>            : /*
+<span class="lineNum">    1545 </span>            :  * Make a copy of a method list (primarily for subrequests that may
+<a name="1546"><span class="lineNum">    1546 </span>            :  * subsequently change it; don't want them changing the parent's, too!).</a>
+<span class="lineNum">    1547 </span>            :  */
+<span class="lineNum">    1548 </span><span class="lineCov">          1 : AP_DECLARE(void) ap_copy_method_list(ap_method_list_t *dest,</span>
+<span class="lineNum">    1549 </span>            :                                      ap_method_list_t *src)
+<span class="lineNum">    1550 </span>            : {
+<span class="lineNum">    1551 </span>            :     int i;
+<span class="lineNum">    1552 </span>            :     char **imethods;
+<span class="lineNum">    1553 </span>            :     char **omethods;
+<span class="lineNum">    1554 </span>            : 
+<span class="lineNum">    1555 </span><span class="lineCov">          1 :     dest-&gt;method_mask = src-&gt;method_mask;</span>
+<span class="lineNum">    1556 </span><span class="lineCov">          1 :     imethods = (char **) src-&gt;method_list-&gt;elts;</span>
+<span class="lineNum">    1557 </span><span class="lineCov">          1 :     for (i = 0; i &lt; src-&gt;method_list-&gt;nelts; ++i) {</span>
+<span class="lineNum">    1558 </span><span class="lineNoCov">          0 :         omethods = (char **) apr_array_push(dest-&gt;method_list);</span>
+<span class="lineNum">    1559 </span><span class="lineNoCov">          0 :         *omethods = apr_pstrdup(dest-&gt;method_list-&gt;pool, imethods[i]);</span>
+<span class="lineNum">    1560 </span>            :     }
+<span class="lineNum">    1561 </span><span class="lineCov">          1 : }</span>
+<span class="lineNum">    1562 </span>            : 
+<span class="lineNum">    1563 </span>            : /*
+<span class="lineNum">    1564 </span>            :  * Return true if the specified HTTP method is in the provided
+<a name="1565"><span class="lineNum">    1565 </span>            :  * method list.</a>
+<span class="lineNum">    1566 </span>            :  */
+<span class="lineNum">    1567 </span><span class="lineNoCov">          0 : AP_DECLARE(int) ap_method_in_list(ap_method_list_t *l, const char *method)</span>
+<span class="lineNum">    1568 </span>            : {
+<span class="lineNum">    1569 </span>            :     int methnum;
+<span class="lineNum">    1570 </span>            :     int i;
+<span class="lineNum">    1571 </span>            :     char **methods;
+<span class="lineNum">    1572 </span>            : 
+<span class="lineNum">    1573 </span>            :     /*
+<span class="lineNum">    1574 </span>            :      * If it's one of our known methods, use the shortcut and check the
+<span class="lineNum">    1575 </span>            :      * bitmask.
+<span class="lineNum">    1576 </span>            :      */
+<span class="lineNum">    1577 </span><span class="lineNoCov">          0 :     methnum = ap_method_number_of(method);</span>
+<span class="lineNum">    1578 </span><span class="lineNoCov">          0 :     if (methnum != M_INVALID) {</span>
+<span class="lineNum">    1579 </span><span class="lineNoCov">          0 :         return !!(l-&gt;method_mask &amp; (AP_METHOD_BIT &lt;&lt; methnum));</span>
+<span class="lineNum">    1580 </span>            :     }
+<span class="lineNum">    1581 </span>            :     /*
+<span class="lineNum">    1582 </span>            :      * Otherwise, see if the method name is in the array or string names
+<span class="lineNum">    1583 </span>            :      */
+<span class="lineNum">    1584 </span><span class="lineNoCov">          0 :     if ((l-&gt;method_list == NULL) || (l-&gt;method_list-&gt;nelts == 0)) {</span>
+<span class="lineNum">    1585 </span><span class="lineNoCov">          0 :         return 0;</span>
+<span class="lineNum">    1586 </span>            :     }
+<span class="lineNum">    1587 </span><span class="lineNoCov">          0 :     methods = (char **)l-&gt;method_list-&gt;elts;</span>
+<span class="lineNum">    1588 </span><span class="lineNoCov">          0 :     for (i = 0; i &lt; l-&gt;method_list-&gt;nelts; ++i) {</span>
+<span class="lineNum">    1589 </span><span class="lineNoCov">          0 :         if (strcmp(method, methods[i]) == 0) {</span>
+<span class="lineNum">    1590 </span><span class="lineNoCov">          0 :             return 1;</span>
+<span class="lineNum">    1591 </span>            :         }
+<span class="lineNum">    1592 </span>            :     }
+<span class="lineNum">    1593 </span><span class="lineNoCov">          0 :     return 0;</span>
+<span class="lineNum">    1594 </span>            : }
+<span class="lineNum">    1595 </span>            : 
+<span class="lineNum">    1596 </span>            : /*
+<a name="1597"><span class="lineNum">    1597 </span>            :  * Add the specified method to a method list (if it isn't already there).</a>
+<span class="lineNum">    1598 </span>            :  */
+<span class="lineNum">    1599 </span><span class="lineNoCov">          0 : AP_DECLARE(void) ap_method_list_add(ap_method_list_t *l, const char *method)</span>
+<span class="lineNum">    1600 </span>            : {
+<span class="lineNum">    1601 </span>            :     int methnum;
+<span class="lineNum">    1602 </span>            :     int i;
+<span class="lineNum">    1603 </span>            :     const char **xmethod;
+<span class="lineNum">    1604 </span>            :     char **methods;
+<span class="lineNum">    1605 </span>            : 
+<span class="lineNum">    1606 </span>            :     /*
+<span class="lineNum">    1607 </span>            :      * If it's one of our known methods, use the shortcut and use the
+<span class="lineNum">    1608 </span>            :      * bitmask.
+<span class="lineNum">    1609 </span>            :      */
+<span class="lineNum">    1610 </span><span class="lineNoCov">          0 :     methnum = ap_method_number_of(method);</span>
+<span class="lineNum">    1611 </span><span class="lineNoCov">          0 :     if (methnum != M_INVALID) {</span>
+<span class="lineNum">    1612 </span><span class="lineNoCov">          0 :         l-&gt;method_mask |= (AP_METHOD_BIT &lt;&lt; methnum);</span>
+<span class="lineNum">    1613 </span><span class="lineNoCov">          0 :         return;</span>
+<span class="lineNum">    1614 </span>            :     }
+<span class="lineNum">    1615 </span>            :     /*
+<span class="lineNum">    1616 </span>            :      * Otherwise, see if the method name is in the array of string names.
+<span class="lineNum">    1617 </span>            :      */
+<span class="lineNum">    1618 </span><span class="lineNoCov">          0 :     if (l-&gt;method_list-&gt;nelts != 0) {</span>
+<span class="lineNum">    1619 </span><span class="lineNoCov">          0 :         methods = (char **)l-&gt;method_list-&gt;elts;</span>
+<span class="lineNum">    1620 </span><span class="lineNoCov">          0 :         for (i = 0; i &lt; l-&gt;method_list-&gt;nelts; ++i) {</span>
+<span class="lineNum">    1621 </span><span class="lineNoCov">          0 :             if (strcmp(method, methods[i]) == 0) {</span>
+<span class="lineNum">    1622 </span><span class="lineNoCov">          0 :                 return;</span>
+<span class="lineNum">    1623 </span>            :             }
+<span class="lineNum">    1624 </span>            :         }
+<span class="lineNum">    1625 </span>            :     }
+<span class="lineNum">    1626 </span><span class="lineNoCov">          0 :     xmethod = (const char **) apr_array_push(l-&gt;method_list);</span>
+<span class="lineNum">    1627 </span><span class="lineNoCov">          0 :     *xmethod = method;</span>
+<span class="lineNum">    1628 </span>            : }
+<span class="lineNum">    1629 </span>            : 
+<span class="lineNum">    1630 </span>            : /*
+<a name="1631"><span class="lineNum">    1631 </span>            :  * Remove the specified method from a method list.</a>
+<span class="lineNum">    1632 </span>            :  */
+<span class="lineNum">    1633 </span><span class="lineNoCov">          0 : AP_DECLARE(void) ap_method_list_remove(ap_method_list_t *l,</span>
+<span class="lineNum">    1634 </span>            :                                        const char *method)
+<span class="lineNum">    1635 </span>            : {
+<span class="lineNum">    1636 </span>            :     int methnum;
+<span class="lineNum">    1637 </span>            :     char **methods;
+<span class="lineNum">    1638 </span>            : 
+<span class="lineNum">    1639 </span>            :     /*
+<span class="lineNum">    1640 </span>            :      * If it's a known methods, either builtin or registered
+<span class="lineNum">    1641 </span>            :      * by a module, use the bitmask.
+<span class="lineNum">    1642 </span>            :      */
+<span class="lineNum">    1643 </span><span class="lineNoCov">          0 :     methnum = ap_method_number_of(method);</span>
+<span class="lineNum">    1644 </span><span class="lineNoCov">          0 :     if (methnum != M_INVALID) {</span>
+<span class="lineNum">    1645 </span><span class="lineNoCov">          0 :         l-&gt;method_mask &amp;= ~(AP_METHOD_BIT &lt;&lt; methnum);</span>
+<span class="lineNum">    1646 </span><span class="lineNoCov">          0 :         return;</span>
+<span class="lineNum">    1647 </span>            :     }
+<span class="lineNum">    1648 </span>            :     /*
+<span class="lineNum">    1649 </span>            :      * Otherwise, see if the method name is in the array of string names.
+<span class="lineNum">    1650 </span>            :      */
+<span class="lineNum">    1651 </span><span class="lineNoCov">          0 :     if (l-&gt;method_list-&gt;nelts != 0) {</span>
+<span class="lineNum">    1652 </span>            :         int i, j, k;
+<span class="lineNum">    1653 </span><span class="lineNoCov">          0 :         methods = (char **)l-&gt;method_list-&gt;elts;</span>
+<span class="lineNum">    1654 </span><span class="lineNoCov">          0 :         for (i = 0; i &lt; l-&gt;method_list-&gt;nelts; ) {</span>
+<span class="lineNum">    1655 </span><span class="lineNoCov">          0 :             if (strcmp(method, methods[i]) == 0) {</span>
+<span class="lineNum">    1656 </span><span class="lineNoCov">          0 :                 for (j = i, k = i + 1; k &lt; l-&gt;method_list-&gt;nelts; ++j, ++k) {</span>
+<span class="lineNum">    1657 </span><span class="lineNoCov">          0 :                     methods[j] = methods[k];</span>
+<span class="lineNum">    1658 </span>            :                 }
+<span class="lineNum">    1659 </span><span class="lineNoCov">          0 :                 --l-&gt;method_list-&gt;nelts;</span>
+<span class="lineNum">    1660 </span>            :             }
+<span class="lineNum">    1661 </span>            :             else {
+<span class="lineNum">    1662 </span><span class="lineNoCov">          0 :                 ++i;</span>
+<span class="lineNum">    1663 </span>            :             }
+<span class="lineNum">    1664 </span>            :         }
+<span class="lineNum">    1665 </span>            :     }
+<span class="lineNum">    1666 </span>            : }
+<span class="lineNum">    1667 </span>            : 
+<span class="lineNum">    1668 </span>            : /*
+<a name="1669"><span class="lineNum">    1669 </span>            :  * Reset a method list to be completely empty.</a>
+<span class="lineNum">    1670 </span>            :  */
+<span class="lineNum">    1671 </span><span class="lineNoCov">          0 : AP_DECLARE(void) ap_clear_method_list(ap_method_list_t *l)</span>
+<span class="lineNum">    1672 </span>            : {
+<span class="lineNum">    1673 </span><span class="lineNoCov">          0 :     l-&gt;method_mask = 0;</span>
+<span class="lineNum">    1674 </span><span class="lineNoCov">          0 :     l-&gt;method_list-&gt;nelts = 0;</span>
+<span class="lineNum">    1675 </span><span class="lineNoCov">          0 : }</span>
+<span class="lineNum">    1676 </span>            : 
+</pre>
+      </td>
+    </tr>
+  </table>
+  <br>
+
+  <table width="100%" border=0 cellspacing=0 cellpadding=0>
+    <tr><td class="ruler"><img src="../../glass.png" width=3 height=3 alt=""></td></tr>
+    <tr><td class="versionInfo">Generated by: <a href="http://ltp.sourceforge.net/coverage/lcov.php" target="_parent">LCOV version 1.11</a></td></tr>
+  </table>
+  <br>
+
+</body>
+</html>

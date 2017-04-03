@@ -1,0 +1,1162 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+
+<html lang="en">
+
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <title>LCOV - apptest.info - server/vhost.c</title>
+  <link rel="stylesheet" type="text/css" href="../gcov.css">
+</head>
+
+<body>
+
+  <table width="100%" border=0 cellspacing=0 cellpadding=0>
+    <tr><td class="title">LCOV - code coverage report</td></tr>
+    <tr><td class="ruler"><img src="../glass.png" width=3 height=3 alt=""></td></tr>
+
+    <tr>
+      <td width="100%">
+        <table cellpadding=1 border=0 width="100%">
+          <tr>
+            <td width="10%" class="headerItem">Current view:</td>
+            <td width="35%" class="headerValue"><a href="../index.html">top level</a> - <a href="index.html">server</a> - vhost.c<span style="font-size: 80%;"> (source / <a href="vhost.c.func-sort-c.html">functions</a>)</span></td>
+            <td width="5%"></td>
+            <td width="15%"></td>
+            <td width="10%" class="headerCovTableHead">Hit</td>
+            <td width="10%" class="headerCovTableHead">Total</td>
+            <td width="15%" class="headerCovTableHead">Coverage</td>
+          </tr>
+          <tr>
+            <td class="headerItem">Test:</td>
+            <td class="headerValue">apptest.info</td>
+            <td></td>
+            <td class="headerItem">Lines:</td>
+            <td class="headerCovTableEntry">60</td>
+            <td class="headerCovTableEntry">341</td>
+            <td class="headerCovTableEntryLo">17.6 %</td>
+          </tr>
+          <tr>
+            <td class="headerItem">Date:</td>
+            <td class="headerValue">2017-01-31 22:58:06</td>
+            <td></td>
+            <td class="headerItem">Functions:</td>
+            <td class="headerCovTableEntry">10</td>
+            <td class="headerCovTableEntry">23</td>
+            <td class="headerCovTableEntryLo">43.5 %</td>
+          </tr>
+          <tr><td><img src="../glass.png" width=3 height=3 alt=""></td></tr>
+        </table>
+      </td>
+    </tr>
+
+    <tr><td class="ruler"><img src="../glass.png" width=3 height=3 alt=""></td></tr>
+  </table>
+
+  <table cellpadding=0 cellspacing=0 border=0>
+    <tr>
+      <td><br></td>
+    </tr>
+    <tr>
+      <td>
+<pre class="sourceHeading">          Line data    Source code</pre>
+<pre class="source">
+<a name="1"><span class="lineNum">       1 </span>            : /* Licensed to the Apache Software Foundation (ASF) under one or more</a>
+<span class="lineNum">       2 </span>            :  * contributor license agreements.  See the NOTICE file distributed with
+<span class="lineNum">       3 </span>            :  * this work for additional information regarding copyright ownership.
+<span class="lineNum">       4 </span>            :  * The ASF licenses this file to You under the Apache License, Version 2.0
+<span class="lineNum">       5 </span>            :  * (the &quot;License&quot;); you may not use this file except in compliance with
+<span class="lineNum">       6 </span>            :  * the License.  You may obtain a copy of the License at
+<span class="lineNum">       7 </span>            :  *
+<span class="lineNum">       8 </span>            :  *     http://www.apache.org/licenses/LICENSE-2.0
+<span class="lineNum">       9 </span>            :  *
+<span class="lineNum">      10 </span>            :  * Unless required by applicable law or agreed to in writing, software
+<span class="lineNum">      11 </span>            :  * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+<span class="lineNum">      12 </span>            :  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+<span class="lineNum">      13 </span>            :  * See the License for the specific language governing permissions and
+<span class="lineNum">      14 </span>            :  * limitations under the License.
+<span class="lineNum">      15 </span>            :  */
+<span class="lineNum">      16 </span>            : 
+<span class="lineNum">      17 </span>            : /**
+<span class="lineNum">      18 </span>            :  * @file  vhost.c
+<span class="lineNum">      19 </span>            :  * @brief functions pertaining to virtual host addresses
+<span class="lineNum">      20 </span>            :  *        (configuration and run-time)
+<span class="lineNum">      21 </span>            :  */
+<span class="lineNum">      22 </span>            : 
+<span class="lineNum">      23 </span>            : #include &quot;apr.h&quot;
+<span class="lineNum">      24 </span>            : #include &quot;apr_strings.h&quot;
+<span class="lineNum">      25 </span>            : #include &quot;apr_lib.h&quot;
+<span class="lineNum">      26 </span>            : 
+<span class="lineNum">      27 </span>            : #define APR_WANT_STRFUNC
+<span class="lineNum">      28 </span>            : #include &quot;apr_want.h&quot;
+<span class="lineNum">      29 </span>            : 
+<span class="lineNum">      30 </span>            : #include &quot;ap_config.h&quot;
+<span class="lineNum">      31 </span>            : #include &quot;httpd.h&quot;
+<span class="lineNum">      32 </span>            : #include &quot;http_config.h&quot;
+<span class="lineNum">      33 </span>            : #include &quot;http_log.h&quot;
+<span class="lineNum">      34 </span>            : #include &quot;http_vhost.h&quot;
+<span class="lineNum">      35 </span>            : #include &quot;http_protocol.h&quot;
+<span class="lineNum">      36 </span>            : #include &quot;http_core.h&quot;
+<span class="lineNum">      37 </span>            : 
+<span class="lineNum">      38 </span>            : #if APR_HAVE_ARPA_INET_H
+<span class="lineNum">      39 </span>            : #include &lt;arpa/inet.h&gt;
+<span class="lineNum">      40 </span>            : #endif
+<span class="lineNum">      41 </span>            : 
+<span class="lineNum">      42 </span>            : /* we know core's module_index is 0 */
+<span class="lineNum">      43 </span>            : #undef APLOG_MODULE_INDEX
+<span class="lineNum">      44 </span>            : #define APLOG_MODULE_INDEX AP_CORE_MODULE_INDEX
+<span class="lineNum">      45 </span>            : 
+<span class="lineNum">      46 </span>            : /*
+<span class="lineNum">      47 </span>            :  * After all the definitions there's an explanation of how it's all put
+<span class="lineNum">      48 </span>            :  * together.
+<span class="lineNum">      49 </span>            :  */
+<span class="lineNum">      50 </span>            : 
+<span class="lineNum">      51 </span>            : /* meta-list of name-vhosts.  Each server_rec can be in possibly multiple
+<span class="lineNum">      52 </span>            :  * lists of name-vhosts.
+<span class="lineNum">      53 </span>            :  */
+<span class="lineNum">      54 </span>            : typedef struct name_chain name_chain;
+<span class="lineNum">      55 </span>            : struct name_chain {
+<span class="lineNum">      56 </span>            :     name_chain *next;
+<span class="lineNum">      57 </span>            :     server_addr_rec *sar;       /* the record causing it to be in
+<span class="lineNum">      58 </span>            :                                  * this chain (needed for port comparisons) */
+<span class="lineNum">      59 </span>            :     server_rec *server;         /* the server to use on a match */
+<span class="lineNum">      60 </span>            : };
+<span class="lineNum">      61 </span>            : 
+<span class="lineNum">      62 </span>            : /* meta-list of ip addresses.  Each server_rec can be in possibly multiple
+<span class="lineNum">      63 </span>            :  * hash chains since it can have multiple ips.
+<span class="lineNum">      64 </span>            :  */
+<span class="lineNum">      65 </span>            : typedef struct ipaddr_chain ipaddr_chain;
+<span class="lineNum">      66 </span>            : struct ipaddr_chain {
+<span class="lineNum">      67 </span>            :     ipaddr_chain *next;
+<span class="lineNum">      68 </span>            :     server_addr_rec *sar;       /* the record causing it to be in
+<span class="lineNum">      69 </span>            :                                  * this chain (need for both ip addr and port
+<span class="lineNum">      70 </span>            :                                  * comparisons) */
+<span class="lineNum">      71 </span>            :     server_rec *server;         /* the server to use if this matches */
+<span class="lineNum">      72 </span>            :     name_chain *names;          /* if non-NULL then a list of name-vhosts
+<span class="lineNum">      73 </span>            :                                  * sharing this address */
+<span class="lineNum">      74 </span>            :     name_chain *initialnames;   /* no runtime use, temporary storage of first
+<span class="lineNum">      75 </span>            :                                  * NVH'es names */
+<span class="lineNum">      76 </span>            : };
+<span class="lineNum">      77 </span>            : 
+<span class="lineNum">      78 </span>            : /* This defines the size of the hash table used for hashing ip addresses
+<span class="lineNum">      79 </span>            :  * of virtual hosts.  It must be a power of two.
+<span class="lineNum">      80 </span>            :  */
+<span class="lineNum">      81 </span>            : #ifndef IPHASH_TABLE_SIZE
+<span class="lineNum">      82 </span>            : #define IPHASH_TABLE_SIZE 256
+<span class="lineNum">      83 </span>            : #endif
+<span class="lineNum">      84 </span>            : 
+<span class="lineNum">      85 </span>            : /* A (n) bucket hash table, each entry has a pointer to a server rec and
+<span class="lineNum">      86 </span>            :  * a pointer to the other entries in that bucket.  Each individual address,
+<span class="lineNum">      87 </span>            :  * even for virtualhosts with multiple addresses, has an entry in this hash
+<span class="lineNum">      88 </span>            :  * table.  There are extra buckets for _default_, and name-vhost entries.
+<span class="lineNum">      89 </span>            :  *
+<span class="lineNum">      90 </span>            :  * Note that after config time this is constant, so it is thread-safe.
+<span class="lineNum">      91 </span>            :  */
+<span class="lineNum">      92 </span>            : static ipaddr_chain *iphash_table[IPHASH_TABLE_SIZE];
+<span class="lineNum">      93 </span>            : 
+<span class="lineNum">      94 </span>            : /* dump out statistics about the hash function */
+<span class="lineNum">      95 </span>            : /* #define IPHASH_STATISTICS */
+<span class="lineNum">      96 </span>            : 
+<span class="lineNum">      97 </span>            : /* list of the _default_ servers */
+<span class="lineNum">      98 </span>            : static ipaddr_chain *default_list;
+<span class="lineNum">      99 </span>            : 
+<span class="lineNum">     100 </span>            : /* whether a config error was seen */
+<span class="lineNum">     101 </span>            : static int config_error = 0;
+<span class="lineNum">     102 </span>            : 
+<span class="lineNum">     103 </span>            : /* config check function */
+<span class="lineNum">     104 </span>            : static int vhost_check_config(apr_pool_t *p, apr_pool_t *plog,
+<span class="lineNum">     105 </span>            :                               apr_pool_t *ptemp, server_rec *s);
+<span class="lineNum">     106 </span>            : 
+<span class="lineNum">     107 </span>            : /*
+<span class="lineNum">     108 </span>            :  * How it's used:
+<span class="lineNum">     109 </span>            :  *
+<span class="lineNum">     110 </span>            :  * The ip address determines which chain in iphash_table is interesting, then
+<span class="lineNum">     111 </span>            :  * a comparison is done down that chain to find the first ipaddr_chain whose
+<span class="lineNum">     112 </span>            :  * sar matches the address:port pair.
+<span class="lineNum">     113 </span>            :  *
+<span class="lineNum">     114 </span>            :  * If that ipaddr_chain has names == NULL then you're done, it's an ip-vhost.
+<span class="lineNum">     115 </span>            :  *
+<span class="lineNum">     116 </span>            :  * Otherwise it's a name-vhost list, and the default is the server in the
+<span class="lineNum">     117 </span>            :  * ipaddr_chain record.  We tuck away the ipaddr_chain record in the
+<span class="lineNum">     118 </span>            :  * conn_rec field vhost_lookup_data.  Later on after the headers we get a
+<span class="lineNum">     119 </span>            :  * second chance, and we use the name_chain to figure out what name-vhost
+<span class="lineNum">     120 </span>            :  * matches the headers.
+<span class="lineNum">     121 </span>            :  *
+<span class="lineNum">     122 </span>            :  * If there was no ip address match in the iphash_table then do a lookup
+<span class="lineNum">     123 </span>            :  * in the default_list.
+<span class="lineNum">     124 </span>            :  *
+<span class="lineNum">     125 </span>            :  * How it's put together ... well you should be able to figure that out
+<span class="lineNum">     126 </span>            :  * from how it's used.  Or something like that.
+<span class="lineNum">     127 </span>            :  */
+<span class="lineNum">     128 </span>            : 
+<a name="129"><span class="lineNum">     129 </span>            : </a>
+<span class="lineNum">     130 </span>            : /* called at the beginning of the config */
+<span class="lineNum">     131 </span><span class="lineCov">          4 : AP_DECLARE(void) ap_init_vhost_config(apr_pool_t *p)</span>
+<span class="lineNum">     132 </span>            : {
+<span class="lineNum">     133 </span><span class="lineCov">          4 :     memset(iphash_table, 0, sizeof(iphash_table));</span>
+<span class="lineNum">     134 </span><span class="lineCov">          4 :     default_list = NULL;</span>
+<span class="lineNum">     135 </span><span class="lineCov">          4 :     ap_hook_check_config(vhost_check_config, NULL, NULL, APR_HOOK_MIDDLE);</span>
+<span class="lineNum">     136 </span><span class="lineCov">          4 : }</span>
+<span class="lineNum">     137 </span>            : 
+<span class="lineNum">     138 </span>            : 
+<span class="lineNum">     139 </span>            : /*
+<span class="lineNum">     140 </span>            :  * Parses a host of the form &lt;address&gt;[:port]
+<span class="lineNum">     141 </span>            :  * paddr is used to create a list in the order of input
+<span class="lineNum">     142 </span>            :  * **paddr is the -&gt;next pointer of the last entry (or s-&gt;addrs)
+<span class="lineNum">     143 </span>            :  * *paddr is the variable used to keep track of **paddr between calls
+<a name="144"><span class="lineNum">     144 </span>            :  * port is the default port to assume</a>
+<span class="lineNum">     145 </span>            :  */
+<span class="lineNum">     146 </span><span class="lineNoCov">          0 : static const char *get_addresses(apr_pool_t *p, const char *w_,</span>
+<span class="lineNum">     147 </span>            :                                  server_addr_rec ***paddr,
+<span class="lineNum">     148 </span>            :                                  apr_port_t default_port)
+<span class="lineNum">     149 </span>            : {
+<span class="lineNum">     150 </span>            :     apr_sockaddr_t *my_addr;
+<span class="lineNum">     151 </span>            :     server_addr_rec *sar;
+<span class="lineNum">     152 </span>            :     char *w, *host, *scope_id;
+<span class="lineNum">     153 </span>            :     int wild_port;
+<span class="lineNum">     154 </span>            :     apr_size_t wlen;
+<span class="lineNum">     155 </span>            :     apr_port_t port;
+<span class="lineNum">     156 </span>            :     apr_status_t rv;
+<span class="lineNum">     157 </span>            : 
+<span class="lineNum">     158 </span><span class="lineNoCov">          0 :     if (*w_ == '\0')</span>
+<span class="lineNum">     159 </span><span class="lineNoCov">          0 :         return NULL;</span>
+<span class="lineNum">     160 </span>            : 
+<span class="lineNum">     161 </span><span class="lineNoCov">          0 :     wlen = strlen(w_);                   /* wlen must be &gt; 0 at this point */</span>
+<span class="lineNum">     162 </span><span class="lineNoCov">          0 :     w = apr_pstrmemdup(p, w_, wlen);</span>
+<span class="lineNum">     163 </span>            :     /* apr_parse_addr_port() doesn't understand &quot;:*&quot; so handle that first. */
+<span class="lineNum">     164 </span><span class="lineNoCov">          0 :     wild_port = 0;</span>
+<span class="lineNum">     165 </span><span class="lineNoCov">          0 :     if (w[wlen - 1] == '*') {</span>
+<span class="lineNum">     166 </span><span class="lineNoCov">          0 :         if (wlen &lt; 2) {</span>
+<span class="lineNum">     167 </span><span class="lineNoCov">          0 :             wild_port = 1;</span>
+<span class="lineNum">     168 </span>            :         }
+<span class="lineNum">     169 </span><span class="lineNoCov">          0 :         else if (w[wlen - 2] == ':') {</span>
+<span class="lineNum">     170 </span><span class="lineNoCov">          0 :             w[wlen - 2] = '\0';</span>
+<span class="lineNum">     171 </span><span class="lineNoCov">          0 :             wild_port = 1;</span>
+<span class="lineNum">     172 </span>            :         }
+<span class="lineNum">     173 </span>            :     }
+<span class="lineNum">     174 </span><span class="lineNoCov">          0 :     rv = apr_parse_addr_port(&amp;host, &amp;scope_id, &amp;port, w, p);</span>
+<span class="lineNum">     175 </span>            :     /* If the string is &quot;80&quot;, apr_parse_addr_port() will be happy and set
+<span class="lineNum">     176 </span>            :      * host to NULL and port to 80, so watch out for that.
+<span class="lineNum">     177 </span>            :      */
+<span class="lineNum">     178 </span><span class="lineNoCov">          0 :     if (rv != APR_SUCCESS) {</span>
+<span class="lineNum">     179 </span><span class="lineNoCov">          0 :         return &quot;The address or port is invalid&quot;;</span>
+<span class="lineNum">     180 </span>            :     }
+<span class="lineNum">     181 </span><span class="lineNoCov">          0 :     if (!host) {</span>
+<span class="lineNum">     182 </span><span class="lineNoCov">          0 :         return &quot;Missing address for VirtualHost&quot;;</span>
+<span class="lineNum">     183 </span>            :     }
+<span class="lineNum">     184 </span><span class="lineNoCov">          0 :     if (scope_id) {</span>
+<span class="lineNum">     185 </span><span class="lineNoCov">          0 :         return &quot;Scope ids are not supported&quot;;</span>
+<span class="lineNum">     186 </span>            :     }
+<span class="lineNum">     187 </span><span class="lineNoCov">          0 :     if (!port &amp;&amp; !wild_port) {</span>
+<span class="lineNum">     188 </span><span class="lineNoCov">          0 :         port = default_port;</span>
+<span class="lineNum">     189 </span>            :     }
+<span class="lineNum">     190 </span>            : 
+<span class="lineNum">     191 </span><span class="lineNoCov">          0 :     if (strcmp(host, &quot;*&quot;) == 0 || strcasecmp(host, &quot;_default_&quot;) == 0) {</span>
+<span class="lineNum">     192 </span><span class="lineNoCov">          0 :         rv = apr_sockaddr_info_get(&amp;my_addr, NULL, APR_UNSPEC, port, 0, p);</span>
+<span class="lineNum">     193 </span><span class="lineNoCov">          0 :         if (rv) {</span>
+<span class="lineNum">     194 </span><span class="lineNoCov">          0 :             return &quot;Could not determine a wildcard address ('0.0.0.0') -- &quot;</span>
+<span class="lineNum">     195 </span>            :                 &quot;check resolver configuration.&quot;;
+<span class="lineNum">     196 </span>            :         }
+<span class="lineNum">     197 </span>            :     }
+<span class="lineNum">     198 </span>            :     else {
+<span class="lineNum">     199 </span><span class="lineNoCov">          0 :         rv = apr_sockaddr_info_get(&amp;my_addr, host, APR_UNSPEC, port, 0, p);</span>
+<span class="lineNum">     200 </span><span class="lineNoCov">          0 :         if (rv != APR_SUCCESS) {</span>
+<span class="lineNum">     201 </span><span class="lineNoCov">          0 :             ap_log_error(APLOG_MARK, APLOG_ERR, rv, NULL, APLOGNO(00547)</span>
+<span class="lineNum">     202 </span>            :                 &quot;Could not resolve host name %s -- ignoring!&quot;, host);
+<span class="lineNum">     203 </span><span class="lineNoCov">          0 :             return NULL;</span>
+<span class="lineNum">     204 </span>            :         }
+<span class="lineNum">     205 </span>            :     }
+<span class="lineNum">     206 </span>            : 
+<span class="lineNum">     207 </span>            :     /* Remember all addresses for the host */
+<span class="lineNum">     208 </span>            : 
+<span class="lineNum">     209 </span>            :     do {
+<span class="lineNum">     210 </span><span class="lineNoCov">          0 :         sar = apr_pcalloc(p, sizeof(server_addr_rec));</span>
+<span class="lineNum">     211 </span><span class="lineNoCov">          0 :         **paddr = sar;</span>
+<span class="lineNum">     212 </span><span class="lineNoCov">          0 :         *paddr = &amp;sar-&gt;next;</span>
+<span class="lineNum">     213 </span><span class="lineNoCov">          0 :         sar-&gt;host_addr = my_addr;</span>
+<span class="lineNum">     214 </span><span class="lineNoCov">          0 :         sar-&gt;host_port = port;</span>
+<span class="lineNum">     215 </span><span class="lineNoCov">          0 :         sar-&gt;virthost = host;</span>
+<span class="lineNum">     216 </span><span class="lineNoCov">          0 :         my_addr = my_addr-&gt;next;</span>
+<span class="lineNum">     217 </span><span class="lineNoCov">          0 :     } while (my_addr);</span>
+<span class="lineNum">     218 </span>            : 
+<span class="lineNum">     219 </span><span class="lineNoCov">          0 :     return NULL;</span>
+<span class="lineNum">     220 </span>            : }
+<span class="lineNum">     221 </span>            : 
+<a name="222"><span class="lineNum">     222 </span>            : </a>
+<span class="lineNum">     223 </span>            : /* parse the &lt;VirtualHost&gt; addresses */
+<span class="lineNum">     224 </span><span class="lineNoCov">          0 : const char *ap_parse_vhost_addrs(apr_pool_t *p,</span>
+<span class="lineNum">     225 </span>            :                                  const char *hostname,
+<span class="lineNum">     226 </span>            :                                  server_rec *s)
+<span class="lineNum">     227 </span>            : {
+<span class="lineNum">     228 </span>            :     server_addr_rec **addrs;
+<span class="lineNum">     229 </span>            :     const char *err;
+<span class="lineNum">     230 </span>            : 
+<span class="lineNum">     231 </span>            :     /* start the list of addreses */
+<span class="lineNum">     232 </span><span class="lineNoCov">          0 :     addrs = &amp;s-&gt;addrs;</span>
+<span class="lineNum">     233 </span><span class="lineNoCov">          0 :     while (hostname[0]) {</span>
+<span class="lineNum">     234 </span><span class="lineNoCov">          0 :         err = get_addresses(p, ap_getword_conf(p, &amp;hostname), &amp;addrs, s-&gt;port);</span>
+<span class="lineNum">     235 </span><span class="lineNoCov">          0 :         if (err) {</span>
+<span class="lineNum">     236 </span><span class="lineNoCov">          0 :             *addrs = NULL;</span>
+<span class="lineNum">     237 </span><span class="lineNoCov">          0 :             return err;</span>
+<span class="lineNum">     238 </span>            :         }
+<span class="lineNum">     239 </span>            :     }
+<span class="lineNum">     240 </span>            :     /* terminate the list */
+<span class="lineNum">     241 </span><span class="lineNoCov">          0 :     *addrs = NULL;</span>
+<span class="lineNum">     242 </span><span class="lineNoCov">          0 :     if (s-&gt;addrs) {</span>
+<span class="lineNum">     243 </span><span class="lineNoCov">          0 :         if (s-&gt;addrs-&gt;host_port) {</span>
+<span class="lineNum">     244 </span>            :             /* override the default port which is inherited from main_server */
+<span class="lineNum">     245 </span><span class="lineNoCov">          0 :             s-&gt;port = s-&gt;addrs-&gt;host_port;</span>
+<span class="lineNum">     246 </span>            :         }
+<span class="lineNum">     247 </span>            :     }
+<span class="lineNum">     248 </span><span class="lineNoCov">          0 :     return NULL;</span>
+<span class="lineNum">     249 </span>            : }
+<a name="250"><span class="lineNum">     250 </span>            : </a>
+<span class="lineNum">     251 </span>            : 
+<span class="lineNum">     252 </span><span class="lineNoCov">          0 : AP_DECLARE_NONSTD(const char *)ap_set_name_virtual_host(cmd_parms *cmd,</span>
+<span class="lineNum">     253 </span>            :                                                         void *dummy,
+<span class="lineNum">     254 </span>            :                                                         const char *arg)
+<span class="lineNum">     255 </span>            : {
+<span class="lineNum">     256 </span>            :     static int warnonce = 0;
+<span class="lineNum">     257 </span><span class="lineNoCov">          0 :     if (++warnonce == 1) {</span>
+<span class="lineNum">     258 </span><span class="lineNoCov">          0 :         ap_log_error(APLOG_MARK, APLOG_NOTICE|APLOG_STARTUP, APR_SUCCESS, NULL, APLOGNO(00548)</span>
+<span class="lineNum">     259 </span>            :                      &quot;NameVirtualHost has no effect and will be removed in the &quot;
+<span class="lineNum">     260 </span>            :                      &quot;next release %s:%d&quot;,
+<span class="lineNum">     261 </span>            :                      cmd-&gt;directive-&gt;filename,
+<span class="lineNum">     262 </span>            :                      cmd-&gt;directive-&gt;line_num);
+<span class="lineNum">     263 </span>            :     }
+<span class="lineNum">     264 </span>            : 
+<span class="lineNum">     265 </span><span class="lineNoCov">          0 :     return NULL;</span>
+<span class="lineNum">     266 </span>            : }
+<span class="lineNum">     267 </span>            : 
+<span class="lineNum">     268 </span>            : 
+<span class="lineNum">     269 </span>            : /* hash table statistics, keep this in here for the beta period so
+<span class="lineNum">     270 </span>            :  * we can find out if the hash function is ok
+<span class="lineNum">     271 </span>            :  */
+<span class="lineNum">     272 </span>            : #ifdef IPHASH_STATISTICS
+<span class="lineNum">     273 </span>            : static int iphash_compare(const void *a, const void *b)
+<span class="lineNum">     274 </span>            : {
+<span class="lineNum">     275 </span>            :     return (*(const int *) b - *(const int *) a);
+<span class="lineNum">     276 </span>            : }
+<span class="lineNum">     277 </span>            : 
+<span class="lineNum">     278 </span>            : 
+<span class="lineNum">     279 </span>            : static void dump_iphash_statistics(server_rec *main_s)
+<span class="lineNum">     280 </span>            : {
+<span class="lineNum">     281 </span>            :     unsigned count[IPHASH_TABLE_SIZE];
+<span class="lineNum">     282 </span>            :     int i;
+<span class="lineNum">     283 </span>            :     ipaddr_chain *src;
+<span class="lineNum">     284 </span>            :     unsigned total;
+<span class="lineNum">     285 </span>            :     char buf[HUGE_STRING_LEN];
+<span class="lineNum">     286 </span>            :     char *p;
+<span class="lineNum">     287 </span>            : 
+<span class="lineNum">     288 </span>            :     total = 0;
+<span class="lineNum">     289 </span>            :     for (i = 0; i &lt; IPHASH_TABLE_SIZE; ++i) {
+<span class="lineNum">     290 </span>            :         count[i] = 0;
+<span class="lineNum">     291 </span>            :         for (src = iphash_table[i]; src; src = src-&gt;next) {
+<span class="lineNum">     292 </span>            :             ++count[i];
+<span class="lineNum">     293 </span>            :             if (i &lt; IPHASH_TABLE_SIZE) {
+<span class="lineNum">     294 </span>            :                 /* don't count the slop buckets in the total */
+<span class="lineNum">     295 </span>            :                 ++total;
+<span class="lineNum">     296 </span>            :             }
+<span class="lineNum">     297 </span>            :         }
+<span class="lineNum">     298 </span>            :     }
+<span class="lineNum">     299 </span>            :     qsort(count, IPHASH_TABLE_SIZE, sizeof(count[0]), iphash_compare);
+<span class="lineNum">     300 </span>            :     p = buf + apr_snprintf(buf, sizeof(buf),
+<span class="lineNum">     301 </span>            :                            &quot;iphash: total hashed = %u, avg chain = %u, &quot;
+<span class="lineNum">     302 </span>            :                            &quot;chain lengths (count x len):&quot;,
+<span class="lineNum">     303 </span>            :                            total, total / IPHASH_TABLE_SIZE);
+<span class="lineNum">     304 </span>            :     total = 1;
+<span class="lineNum">     305 </span>            :     for (i = 1; i &lt; IPHASH_TABLE_SIZE; ++i) {
+<span class="lineNum">     306 </span>            :         if (count[i - 1] != count[i]) {
+<span class="lineNum">     307 </span>            :             p += apr_snprintf(p, sizeof(buf) - (p - buf), &quot; %ux%u&quot;,
+<span class="lineNum">     308 </span>            :                               total, count[i - 1]);
+<span class="lineNum">     309 </span>            :             total = 1;
+<span class="lineNum">     310 </span>            :         }
+<span class="lineNum">     311 </span>            :         else {
+<span class="lineNum">     312 </span>            :             ++total;
+<span class="lineNum">     313 </span>            :         }
+<span class="lineNum">     314 </span>            :     }
+<span class="lineNum">     315 </span>            :     p += apr_snprintf(p, sizeof(buf) - (p - buf), &quot; %ux%u&quot;,
+<span class="lineNum">     316 </span>            :                       total, count[IPHASH_TABLE_SIZE - 1]);
+<span class="lineNum">     317 </span>            :     ap_log_error(APLOG_MARK, APLOG_DEBUG, main_s, buf);
+<span class="lineNum">     318 </span>            : }
+<span class="lineNum">     319 </span>            : #endif
+<span class="lineNum">     320 </span>            : 
+<span class="lineNum">     321 </span>            : 
+<span class="lineNum">     322 </span>            : /* This hashing function is designed to get good distribution in the cases
+<span class="lineNum">     323 </span>            :  * where the server is handling entire &quot;networks&quot; of servers.  i.e. a
+<span class="lineNum">     324 </span>            :  * whack of /24s.  This is probably the most common configuration for
+<span class="lineNum">     325 </span>            :  * ISPs with large virtual servers.
+<span class="lineNum">     326 </span>            :  *
+<span class="lineNum">     327 </span>            :  * NOTE: This function is symmetric (i.e. collapses all 4 octets
+<span class="lineNum">     328 </span>            :  * into one), so machine byte order (big/little endianness) does not matter.
+<span class="lineNum">     329 </span>            :  *
+<a name="330"><span class="lineNum">     330 </span>            :  * Hash function provided by David Hankins.</a>
+<span class="lineNum">     331 </span>            :  */
+<span class="lineNum">     332 </span><span class="lineCov">          1 : static APR_INLINE unsigned hash_inaddr(unsigned key)</span>
+<span class="lineNum">     333 </span>            : {
+<span class="lineNum">     334 </span><span class="lineCov">          1 :     key ^= (key &gt;&gt; 16);</span>
+<span class="lineNum">     335 </span><span class="lineCov">          1 :     return ((key &gt;&gt; 8) ^ key) % IPHASH_TABLE_SIZE;</span>
+<a name="336"><span class="lineNum">     336 </span>            : }</a>
+<span class="lineNum">     337 </span>            : 
+<span class="lineNum">     338 </span><span class="lineCov">          1 : static APR_INLINE unsigned hash_addr(struct apr_sockaddr_t *sa)</span>
+<span class="lineNum">     339 </span>            : {
+<span class="lineNum">     340 </span>            :     unsigned key;
+<span class="lineNum">     341 </span>            : 
+<span class="lineNum">     342 </span>            :     /* The key is the last four bytes of the IP address.
+<span class="lineNum">     343 </span>            :      * For IPv4, this is the entire address, as always.
+<span class="lineNum">     344 </span>            :      * For IPv6, this is usually part of the MAC address.
+<span class="lineNum">     345 </span>            :      */
+<span class="lineNum">     346 </span><span class="lineCov">          1 :     key = *(unsigned *)((char *)sa-&gt;ipaddr_ptr + sa-&gt;ipaddr_len - 4);</span>
+<span class="lineNum">     347 </span><span class="lineCov">          1 :     return hash_inaddr(key);</span>
+<a name="348"><span class="lineNum">     348 </span>            : }</a>
+<span class="lineNum">     349 </span>            : 
+<span class="lineNum">     350 </span><span class="lineNoCov">          0 : static ipaddr_chain *new_ipaddr_chain(apr_pool_t *p,</span>
+<span class="lineNum">     351 </span>            :                                       server_rec *s, server_addr_rec *sar)
+<span class="lineNum">     352 </span>            : {
+<span class="lineNum">     353 </span>            :     ipaddr_chain *new;
+<span class="lineNum">     354 </span>            : 
+<span class="lineNum">     355 </span><span class="lineNoCov">          0 :     new = apr_palloc(p, sizeof(*new));</span>
+<span class="lineNum">     356 </span><span class="lineNoCov">          0 :     new-&gt;names = NULL;</span>
+<span class="lineNum">     357 </span><span class="lineNoCov">          0 :     new-&gt;initialnames = NULL;</span>
+<span class="lineNum">     358 </span><span class="lineNoCov">          0 :     new-&gt;server = s;</span>
+<span class="lineNum">     359 </span><span class="lineNoCov">          0 :     new-&gt;sar = sar;</span>
+<span class="lineNum">     360 </span><span class="lineNoCov">          0 :     new-&gt;next = NULL;</span>
+<span class="lineNum">     361 </span><span class="lineNoCov">          0 :     return new;</span>
+<span class="lineNum">     362 </span>            : }
+<a name="363"><span class="lineNum">     363 </span>            : </a>
+<span class="lineNum">     364 </span>            : 
+<span class="lineNum">     365 </span><span class="lineNoCov">          0 : static name_chain *new_name_chain(apr_pool_t *p,</span>
+<span class="lineNum">     366 </span>            :                                   server_rec *s, server_addr_rec *sar)
+<span class="lineNum">     367 </span>            : {
+<span class="lineNum">     368 </span>            :     name_chain *new;
+<span class="lineNum">     369 </span>            : 
+<span class="lineNum">     370 </span><span class="lineNoCov">          0 :     new = apr_palloc(p, sizeof(*new));</span>
+<span class="lineNum">     371 </span><span class="lineNoCov">          0 :     new-&gt;server = s;</span>
+<span class="lineNum">     372 </span><span class="lineNoCov">          0 :     new-&gt;sar = sar;</span>
+<span class="lineNum">     373 </span><span class="lineNoCov">          0 :     new-&gt;next = NULL;</span>
+<span class="lineNum">     374 </span><span class="lineNoCov">          0 :     return new;</span>
+<span class="lineNum">     375 </span>            : }
+<a name="376"><span class="lineNum">     376 </span>            : </a>
+<span class="lineNum">     377 </span>            : 
+<span class="lineNum">     378 </span><span class="lineCov">          1 : static APR_INLINE ipaddr_chain *find_ipaddr(apr_sockaddr_t *sa)</span>
+<span class="lineNum">     379 </span>            : {
+<span class="lineNum">     380 </span>            :     unsigned bucket;
+<span class="lineNum">     381 </span><span class="lineCov">          1 :     ipaddr_chain *trav = NULL;</span>
+<span class="lineNum">     382 </span><span class="lineCov">          1 :     ipaddr_chain *wild_match = NULL;</span>
+<span class="lineNum">     383 </span>            : 
+<span class="lineNum">     384 </span>            :     /* scan the hash table for an exact match first */
+<span class="lineNum">     385 </span><span class="lineCov">          1 :     bucket = hash_addr(sa);</span>
+<span class="lineNum">     386 </span><span class="lineCov">          1 :     for (trav = iphash_table[bucket]; trav; trav = trav-&gt;next) {</span>
+<span class="lineNum">     387 </span><span class="lineNoCov">          0 :         server_addr_rec *sar = trav-&gt;sar;</span>
+<span class="lineNum">     388 </span><span class="lineNoCov">          0 :         apr_sockaddr_t *cur = sar-&gt;host_addr;</span>
+<span class="lineNum">     389 </span>            : 
+<span class="lineNum">     390 </span><span class="lineNoCov">          0 :         if (cur-&gt;port == sa-&gt;port) {</span>
+<span class="lineNum">     391 </span><span class="lineNoCov">          0 :             if (apr_sockaddr_equal(cur, sa)) {</span>
+<span class="lineNum">     392 </span><span class="lineNoCov">          0 :                 return trav;</span>
+<span class="lineNum">     393 </span>            :             }
+<span class="lineNum">     394 </span>            :         }
+<span class="lineNum">     395 </span><span class="lineNoCov">          0 :         if (wild_match == NULL &amp;&amp; (cur-&gt;port == 0 || sa-&gt;port == 0)) {</span>
+<span class="lineNum">     396 </span><span class="lineNoCov">          0 :             if (apr_sockaddr_equal(cur, sa)) {</span>
+<span class="lineNum">     397 </span>            :                 /* don't break, continue looking for an exact match */
+<span class="lineNum">     398 </span><span class="lineNoCov">          0 :                 wild_match = trav;</span>
+<span class="lineNum">     399 </span>            :             }
+<span class="lineNum">     400 </span>            :         }
+<span class="lineNum">     401 </span>            :     }
+<span class="lineNum">     402 </span><span class="lineCov">          1 :     return wild_match;</span>
+<a name="403"><span class="lineNum">     403 </span>            : }</a>
+<span class="lineNum">     404 </span>            : 
+<span class="lineNum">     405 </span><span class="lineCov">          1 : static ipaddr_chain *find_default_server(apr_port_t port)</span>
+<span class="lineNum">     406 </span>            : {
+<span class="lineNum">     407 </span>            :     server_addr_rec *sar;
+<span class="lineNum">     408 </span><span class="lineCov">          1 :     ipaddr_chain *trav = NULL;</span>
+<span class="lineNum">     409 </span><span class="lineCov">          1 :     ipaddr_chain *wild_match = NULL;</span>
+<span class="lineNum">     410 </span>            : 
+<span class="lineNum">     411 </span><span class="lineCov">          1 :     for (trav = default_list; trav; trav = trav-&gt;next) {</span>
+<span class="lineNum">     412 </span><span class="lineNoCov">          0 :         sar = trav-&gt;sar;</span>
+<span class="lineNum">     413 </span><span class="lineNoCov">          0 :         if (sar-&gt;host_port == port) {</span>
+<span class="lineNum">     414 </span>            :             /* match! */
+<span class="lineNum">     415 </span><span class="lineNoCov">          0 :             return trav;</span>
+<span class="lineNum">     416 </span>            :         }
+<span class="lineNum">     417 </span><span class="lineNoCov">          0 :         if (wild_match == NULL &amp;&amp; sar-&gt;host_port == 0) {</span>
+<span class="lineNum">     418 </span>            :             /* don't break, continue looking for an exact match */
+<span class="lineNum">     419 </span><span class="lineNoCov">          0 :             wild_match = trav;</span>
+<span class="lineNum">     420 </span>            :         }
+<span class="lineNum">     421 </span>            :     }
+<span class="lineNum">     422 </span><span class="lineCov">          1 :     return wild_match;</span>
+<span class="lineNum">     423 </span>            : }
+<span class="lineNum">     424 </span>            : 
+<span class="lineNum">     425 </span>            : #if APR_HAVE_IPV6
+<span class="lineNum">     426 </span>            : #define IS_IN6_ANYADDR(ad) ((ad)-&gt;family == APR_INET6                   \
+<span class="lineNum">     427 </span>            :                             &amp;&amp; IN6_IS_ADDR_UNSPECIFIED(&amp;(ad)-&gt;sa.sin6.sin6_addr))
+<span class="lineNum">     428 </span>            : #else
+<span class="lineNum">     429 </span>            : #define IS_IN6_ANYADDR(ad) (0)
+<a name="430"><span class="lineNum">     430 </span>            : #endif</a>
+<span class="lineNum">     431 </span>            : 
+<span class="lineNum">     432 </span><span class="lineNoCov">          0 : static void dump_a_vhost(apr_file_t *f, ipaddr_chain *ic)</span>
+<span class="lineNum">     433 </span>            : {
+<span class="lineNum">     434 </span>            :     name_chain *nc;
+<span class="lineNum">     435 </span>            :     int len;
+<span class="lineNum">     436 </span>            :     char buf[MAX_STRING_LEN];
+<span class="lineNum">     437 </span><span class="lineNoCov">          0 :     apr_sockaddr_t *ha = ic-&gt;sar-&gt;host_addr;</span>
+<span class="lineNum">     438 </span>            : 
+<span class="lineNum">     439 </span><span class="lineNoCov">          0 :     if ((ha-&gt;family == APR_INET &amp;&amp; ha-&gt;sa.sin.sin_addr.s_addr == INADDR_ANY)</span>
+<span class="lineNum">     440 </span><span class="lineNoCov">          0 :         || IS_IN6_ANYADDR(ha)) {</span>
+<span class="lineNum">     441 </span><span class="lineNoCov">          0 :         len = apr_snprintf(buf, sizeof(buf), &quot;*:%u&quot;,</span>
+<span class="lineNum">     442 </span><span class="lineNoCov">          0 :                            ic-&gt;sar-&gt;host_port);</span>
+<span class="lineNum">     443 </span>            :     }
+<span class="lineNum">     444 </span>            :     else {
+<span class="lineNum">     445 </span><span class="lineNoCov">          0 :         len = apr_snprintf(buf, sizeof(buf), &quot;%pI&quot;, ha);</span>
+<span class="lineNum">     446 </span>            :     }
+<span class="lineNum">     447 </span><span class="lineNoCov">          0 :     if (ic-&gt;sar-&gt;host_port == 0) {</span>
+<span class="lineNum">     448 </span><span class="lineNoCov">          0 :         buf[len-1] = '*';</span>
+<span class="lineNum">     449 </span>            :     }
+<span class="lineNum">     450 </span><span class="lineNoCov">          0 :     if (ic-&gt;names == NULL) {</span>
+<span class="lineNum">     451 </span><span class="lineNoCov">          0 :         apr_file_printf(f, &quot;%-22s %s (%s:%u)\n&quot;, buf,</span>
+<span class="lineNum">     452 </span><span class="lineNoCov">          0 :                         ic-&gt;server-&gt;server_hostname,</span>
+<span class="lineNum">     453 </span><span class="lineNoCov">          0 :                         ic-&gt;server-&gt;defn_name, ic-&gt;server-&gt;defn_line_number);</span>
+<span class="lineNum">     454 </span><span class="lineNoCov">          0 :         return;</span>
+<span class="lineNum">     455 </span>            :     }
+<span class="lineNum">     456 </span><span class="lineNoCov">          0 :     apr_file_printf(f, &quot;%-22s is a NameVirtualHost\n&quot;</span>
+<span class="lineNum">     457 </span>            :                     &quot;%8s default server %s (%s:%u)\n&quot;,
+<span class="lineNum">     458 </span><span class="lineNoCov">          0 :                     buf, &quot;&quot;, ic-&gt;server-&gt;server_hostname,</span>
+<span class="lineNum">     459 </span><span class="lineNoCov">          0 :                     ic-&gt;server-&gt;defn_name, ic-&gt;server-&gt;defn_line_number);</span>
+<span class="lineNum">     460 </span><span class="lineNoCov">          0 :     for (nc = ic-&gt;names; nc; nc = nc-&gt;next) {</span>
+<span class="lineNum">     461 </span><span class="lineNoCov">          0 :         if (nc-&gt;sar-&gt;host_port) {</span>
+<span class="lineNum">     462 </span><span class="lineNoCov">          0 :             apr_file_printf(f, &quot;%8s port %u &quot;, &quot;&quot;, nc-&gt;sar-&gt;host_port);</span>
+<span class="lineNum">     463 </span>            :         }
+<span class="lineNum">     464 </span>            :         else {
+<span class="lineNum">     465 </span><span class="lineNoCov">          0 :             apr_file_printf(f, &quot;%8s port * &quot;, &quot;&quot;);</span>
+<span class="lineNum">     466 </span>            :         }
+<span class="lineNum">     467 </span><span class="lineNoCov">          0 :         apr_file_printf(f, &quot;namevhost %s (%s:%u)\n&quot;,</span>
+<span class="lineNum">     468 </span><span class="lineNoCov">          0 :                         nc-&gt;server-&gt;server_hostname,</span>
+<span class="lineNum">     469 </span><span class="lineNoCov">          0 :                         nc-&gt;server-&gt;defn_name, nc-&gt;server-&gt;defn_line_number);</span>
+<span class="lineNum">     470 </span><span class="lineNoCov">          0 :         if (nc-&gt;server-&gt;names) {</span>
+<span class="lineNum">     471 </span><span class="lineNoCov">          0 :             apr_array_header_t *names = nc-&gt;server-&gt;names;</span>
+<span class="lineNum">     472 </span><span class="lineNoCov">          0 :             char **name = (char **)names-&gt;elts;</span>
+<span class="lineNum">     473 </span>            :             int i;
+<span class="lineNum">     474 </span><span class="lineNoCov">          0 :             for (i = 0; i &lt; names-&gt;nelts; ++i) {</span>
+<span class="lineNum">     475 </span><span class="lineNoCov">          0 :                 if (name[i]) {</span>
+<span class="lineNum">     476 </span><span class="lineNoCov">          0 :                     apr_file_printf(f, &quot;%16s alias %s\n&quot;, &quot;&quot;, name[i]);</span>
+<span class="lineNum">     477 </span>            :                 }
+<span class="lineNum">     478 </span>            :             }
+<span class="lineNum">     479 </span>            :         }
+<span class="lineNum">     480 </span><span class="lineNoCov">          0 :         if (nc-&gt;server-&gt;wild_names) {</span>
+<span class="lineNum">     481 </span><span class="lineNoCov">          0 :             apr_array_header_t *names = nc-&gt;server-&gt;wild_names;</span>
+<span class="lineNum">     482 </span><span class="lineNoCov">          0 :             char **name = (char **)names-&gt;elts;</span>
+<span class="lineNum">     483 </span>            :             int i;
+<span class="lineNum">     484 </span><span class="lineNoCov">          0 :             for (i = 0; i &lt; names-&gt;nelts; ++i) {</span>
+<span class="lineNum">     485 </span><span class="lineNoCov">          0 :                 if (name[i]) {</span>
+<span class="lineNum">     486 </span><span class="lineNoCov">          0 :                     apr_file_printf(f, &quot;%16s wild alias %s\n&quot;, &quot;&quot;, name[i]);</span>
+<span class="lineNum">     487 </span>            :                 }
+<span class="lineNum">     488 </span>            :             }
+<span class="lineNum">     489 </span>            :         }
+<span class="lineNum">     490 </span>            :     }
+<a name="491"><span class="lineNum">     491 </span>            : }</a>
+<span class="lineNum">     492 </span>            : 
+<span class="lineNum">     493 </span><span class="lineNoCov">          0 : static void dump_vhost_config(apr_file_t *f)</span>
+<span class="lineNum">     494 </span>            : {
+<span class="lineNum">     495 </span>            :     ipaddr_chain *ic;
+<span class="lineNum">     496 </span>            :     int i;
+<span class="lineNum">     497 </span>            : 
+<span class="lineNum">     498 </span><span class="lineNoCov">          0 :     apr_file_printf(f, &quot;VirtualHost configuration:\n&quot;);</span>
+<span class="lineNum">     499 </span>            : 
+<span class="lineNum">     500 </span>            :     /* non-wildcard servers */
+<span class="lineNum">     501 </span><span class="lineNoCov">          0 :     for (i = 0; i &lt; IPHASH_TABLE_SIZE; ++i) {</span>
+<span class="lineNum">     502 </span><span class="lineNoCov">          0 :         for (ic = iphash_table[i]; ic; ic = ic-&gt;next) {</span>
+<span class="lineNum">     503 </span><span class="lineNoCov">          0 :             dump_a_vhost(f, ic);</span>
+<span class="lineNum">     504 </span>            :         }
+<span class="lineNum">     505 </span>            :     }
+<span class="lineNum">     506 </span>            : 
+<span class="lineNum">     507 </span>            :     /* wildcard servers */
+<span class="lineNum">     508 </span><span class="lineNoCov">          0 :     for (ic = default_list; ic; ic = ic-&gt;next) {</span>
+<span class="lineNum">     509 </span><span class="lineNoCov">          0 :         dump_a_vhost(f, ic);</span>
+<span class="lineNum">     510 </span>            :     }
+<span class="lineNum">     511 </span><span class="lineNoCov">          0 : }</span>
+<span class="lineNum">     512 </span>            : 
+<span class="lineNum">     513 </span>            : 
+<span class="lineNum">     514 </span>            : /*
+<span class="lineNum">     515 </span>            :  * When a second or later virtual host maps to the same IP chain,
+<span class="lineNum">     516 </span>            :  * add the relevant server names to the chain.  Special care is taken
+<a name="517"><span class="lineNum">     517 </span>            :  * to avoid adding ic-&gt;names until we're sure there are multiple VH'es.</a>
+<span class="lineNum">     518 </span>            :  */
+<span class="lineNum">     519 </span><span class="lineNoCov">          0 : static void add_name_vhost_config(apr_pool_t *p, server_rec *main_s,</span>
+<span class="lineNum">     520 </span>            :                                  server_rec *s, server_addr_rec *sar,
+<span class="lineNum">     521 </span>            :                                  ipaddr_chain *ic)
+<span class="lineNum">     522 </span>            : {
+<span class="lineNum">     523 </span>            : 
+<span class="lineNum">     524 </span><span class="lineNoCov">          0 :    name_chain *nc = new_name_chain(p, s, sar);</span>
+<span class="lineNum">     525 </span><span class="lineNoCov">          0 :    nc-&gt;next = ic-&gt;names;</span>
+<span class="lineNum">     526 </span>            : 
+<span class="lineNum">     527 </span>            :    /* iterating backwards, so each one we see becomes the current default server */
+<span class="lineNum">     528 </span><span class="lineNoCov">          0 :    ic-&gt;server = s;</span>
+<span class="lineNum">     529 </span>            : 
+<span class="lineNum">     530 </span><span class="lineNoCov">          0 :    if (ic-&gt;names == NULL) {</span>
+<span class="lineNum">     531 </span><span class="lineNoCov">          0 :        if (ic-&gt;initialnames == NULL) {</span>
+<span class="lineNum">     532 </span>            :            /* first pass, set these names aside in case we see another VH.
+<span class="lineNum">     533 </span>            :             * Until then, this looks like an IP-based VH to runtime.
+<span class="lineNum">     534 </span>            :             */
+<span class="lineNum">     535 </span><span class="lineNoCov">          0 :            ic-&gt;initialnames = nc;</span>
+<span class="lineNum">     536 </span>            :        }
+<span class="lineNum">     537 </span>            :        else {
+<span class="lineNum">     538 </span>            :            /* second pass through this chain -- this really is an NVH, and we
+<span class="lineNum">     539 </span>            :             * have two sets of names to link in.
+<span class="lineNum">     540 </span>            :             */
+<span class="lineNum">     541 </span><span class="lineNoCov">          0 :            nc-&gt;next = ic-&gt;initialnames;</span>
+<span class="lineNum">     542 </span><span class="lineNoCov">          0 :            ic-&gt;names = nc;</span>
+<span class="lineNum">     543 </span><span class="lineNoCov">          0 :            ic-&gt;initialnames = NULL;</span>
+<span class="lineNum">     544 </span>            :        }
+<span class="lineNum">     545 </span>            :    }
+<span class="lineNum">     546 </span>            :    else {
+<span class="lineNum">     547 </span>            :        /* 3rd or more -- just keep stacking the names */
+<span class="lineNum">     548 </span><span class="lineNoCov">          0 :        ic-&gt;names = nc;</span>
+<span class="lineNum">     549 </span>            :    }
+<span class="lineNum">     550 </span><span class="lineNoCov">          0 : }</span>
+<a name="551"><span class="lineNum">     551 </span>            : </a>
+<span class="lineNum">     552 </span>            : /* compile the tables and such we need to do the run-time vhost lookups */
+<span class="lineNum">     553 </span><span class="lineCov">          3 : AP_DECLARE(void) ap_fini_vhost_config(apr_pool_t *p, server_rec *main_s)</span>
+<span class="lineNum">     554 </span>            : {
+<span class="lineNum">     555 </span>            :     server_addr_rec *sar;
+<span class="lineNum">     556 </span>            :     int has_default_vhost_addr;
+<span class="lineNum">     557 </span>            :     server_rec *s;
+<span class="lineNum">     558 </span>            :     int i;
+<span class="lineNum">     559 </span>            :     ipaddr_chain **iphash_table_tail[IPHASH_TABLE_SIZE];
+<span class="lineNum">     560 </span>            : 
+<span class="lineNum">     561 </span>            :     /* Main host first */
+<span class="lineNum">     562 </span><span class="lineCov">          3 :     s = main_s;</span>
+<span class="lineNum">     563 </span>            : 
+<span class="lineNum">     564 </span><span class="lineCov">          3 :     if (!s-&gt;server_hostname) {</span>
+<span class="lineNum">     565 </span><span class="lineNoCov">          0 :         s-&gt;server_hostname = ap_get_local_host(p);</span>
+<span class="lineNum">     566 </span>            :     }
+<span class="lineNum">     567 </span>            : 
+<span class="lineNum">     568 </span>            :     /* initialize the tails */
+<span class="lineNum">     569 </span><span class="lineCov">        771 :     for (i = 0; i &lt; IPHASH_TABLE_SIZE; ++i) {</span>
+<span class="lineNum">     570 </span><span class="lineCov">        768 :         iphash_table_tail[i] = &amp;iphash_table[i];</span>
+<span class="lineNum">     571 </span>            :     }
+<span class="lineNum">     572 </span>            : 
+<span class="lineNum">     573 </span>            :     /* The next things to go into the hash table are the virtual hosts
+<span class="lineNum">     574 </span>            :      * themselves.  They're listed off of main_s-&gt;next in the reverse
+<span class="lineNum">     575 </span>            :      * order they occured in the config file, so we insert them at
+<span class="lineNum">     576 </span>            :      * the iphash_table_tail but don't advance the tail.
+<span class="lineNum">     577 </span>            :      */
+<span class="lineNum">     578 </span>            : 
+<span class="lineNum">     579 </span><span class="lineCov">          3 :     for (s = main_s-&gt;next; s; s = s-&gt;next) {</span>
+<span class="lineNum">     580 </span><span class="lineNoCov">          0 :         server_addr_rec *sar_prev = NULL;</span>
+<span class="lineNum">     581 </span><span class="lineNoCov">          0 :         has_default_vhost_addr = 0;</span>
+<span class="lineNum">     582 </span><span class="lineNoCov">          0 :         for (sar = s-&gt;addrs; sar; sar = sar-&gt;next) {</span>
+<span class="lineNum">     583 </span>            :             ipaddr_chain *ic;
+<span class="lineNum">     584 </span><span class="lineNoCov">          0 :             char inaddr_any[16] = {0}; /* big enough to handle IPv4 or IPv6 */</span>
+<span class="lineNum">     585 </span>            :             /* XXX: this treats 0.0.0.0 as a &quot;default&quot; server which matches no-exact-match for IPv6 */
+<span class="lineNum">     586 </span><span class="lineNoCov">          0 :             if (!memcmp(sar-&gt;host_addr-&gt;ipaddr_ptr, inaddr_any, sar-&gt;host_addr-&gt;ipaddr_len)) {</span>
+<span class="lineNum">     587 </span><span class="lineNoCov">          0 :                 ic = find_default_server(sar-&gt;host_port);</span>
+<span class="lineNum">     588 </span>            : 
+<span class="lineNum">     589 </span><span class="lineNoCov">          0 :                 if (ic &amp;&amp; sar-&gt;host_port == ic-&gt;sar-&gt;host_port) { /* we're a match for an existing &quot;default server&quot;  */</span>
+<span class="lineNum">     590 </span><span class="lineNoCov">          0 :                     if (!sar_prev || memcmp(sar_prev-&gt;host_addr-&gt;ipaddr_ptr, inaddr_any, sar_prev-&gt;host_addr-&gt;ipaddr_len)</span>
+<span class="lineNum">     591 </span><span class="lineNoCov">          0 :                                   || sar_prev-&gt;host_port != sar-&gt;host_port) { </span>
+<span class="lineNum">     592 </span><span class="lineNoCov">          0 :                         add_name_vhost_config(p, main_s, s, sar, ic);</span>
+<span class="lineNum">     593 </span>            :                     }
+<span class="lineNum">     594 </span>            :                 }
+<span class="lineNum">     595 </span>            :                 else { 
+<span class="lineNum">     596 </span>            :                     /* No default server, or we found a default server but
+<span class="lineNum">     597 </span>            :                     ** exactly one of us is a wildcard port, which means we want
+<span class="lineNum">     598 </span>            :                     ** two ip-based vhosts not an NVH with two names
+<span class="lineNum">     599 </span>            :                     */
+<span class="lineNum">     600 </span><span class="lineNoCov">          0 :                     ic = new_ipaddr_chain(p, s, sar);</span>
+<span class="lineNum">     601 </span><span class="lineNoCov">          0 :                     ic-&gt;next = default_list;</span>
+<span class="lineNum">     602 </span><span class="lineNoCov">          0 :                     default_list = ic;</span>
+<span class="lineNum">     603 </span><span class="lineNoCov">          0 :                     add_name_vhost_config(p, main_s, s, sar, ic);</span>
+<span class="lineNum">     604 </span>            :                 }
+<span class="lineNum">     605 </span><span class="lineNoCov">          0 :                 has_default_vhost_addr = 1;</span>
+<span class="lineNum">     606 </span>            :             }
+<span class="lineNum">     607 </span>            :             else {
+<span class="lineNum">     608 </span>            :                 /* see if it matches something we've already got */
+<span class="lineNum">     609 </span><span class="lineNoCov">          0 :                 ic = find_ipaddr(sar-&gt;host_addr);</span>
+<span class="lineNum">     610 </span>            : 
+<span class="lineNum">     611 </span><span class="lineNoCov">          0 :                 if (!ic || sar-&gt;host_port != ic-&gt;sar-&gt;host_port) {</span>
+<span class="lineNum">     612 </span>            :                     /* No matching server, or we found a matching server but
+<span class="lineNum">     613 </span>            :                     ** exactly one of us is a wildcard port, which means we want
+<span class="lineNum">     614 </span>            :                     ** two ip-based vhosts not an NVH with two names
+<span class="lineNum">     615 </span>            :                     */
+<span class="lineNum">     616 </span><span class="lineNoCov">          0 :                     unsigned bucket = hash_addr(sar-&gt;host_addr);</span>
+<span class="lineNum">     617 </span><span class="lineNoCov">          0 :                     ic = new_ipaddr_chain(p, s, sar);</span>
+<span class="lineNum">     618 </span><span class="lineNoCov">          0 :                     ic-&gt;next = *iphash_table_tail[bucket];</span>
+<span class="lineNum">     619 </span><span class="lineNoCov">          0 :                     *iphash_table_tail[bucket] = ic;</span>
+<span class="lineNum">     620 </span>            :                 }
+<span class="lineNum">     621 </span><span class="lineNoCov">          0 :                 add_name_vhost_config(p, main_s, s, sar, ic);</span>
+<span class="lineNum">     622 </span>            :             }
+<span class="lineNum">     623 </span><span class="lineNoCov">          0 :             sar_prev = sar;</span>
+<span class="lineNum">     624 </span>            :         }
+<span class="lineNum">     625 </span>            : 
+<span class="lineNum">     626 </span>            :         /* Ok now we want to set up a server_hostname if the user was
+<span class="lineNum">     627 </span>            :          * silly enough to forget one.
+<span class="lineNum">     628 </span>            :          * XXX: This is silly we should just crash and burn.
+<span class="lineNum">     629 </span>            :          */
+<span class="lineNum">     630 </span><span class="lineNoCov">          0 :         if (!s-&gt;server_hostname) {</span>
+<span class="lineNum">     631 </span><span class="lineNoCov">          0 :             if (has_default_vhost_addr) {</span>
+<span class="lineNum">     632 </span><span class="lineNoCov">          0 :                 s-&gt;server_hostname = main_s-&gt;server_hostname;</span>
+<span class="lineNum">     633 </span>            :             }
+<span class="lineNum">     634 </span><span class="lineNoCov">          0 :             else if (!s-&gt;addrs) {</span>
+<span class="lineNum">     635 </span>            :                 /* what else can we do?  at this point this vhost has
+<span class="lineNum">     636 </span>            :                     no configured name, probably because they used
+<span class="lineNum">     637 </span>            :                     DNS in the VirtualHost statement.  It's disabled
+<span class="lineNum">     638 </span>            :                     anyhow by the host matching code.  -djg */
+<span class="lineNum">     639 </span><span class="lineNoCov">          0 :                 s-&gt;server_hostname =</span>
+<span class="lineNum">     640 </span><span class="lineNoCov">          0 :                     apr_pstrdup(p, &quot;bogus_host_without_forward_dns&quot;);</span>
+<span class="lineNum">     641 </span>            :             }
+<span class="lineNum">     642 </span>            :             else {
+<span class="lineNum">     643 </span>            :                 apr_status_t rv;
+<span class="lineNum">     644 </span>            :                 char *hostname;
+<span class="lineNum">     645 </span>            : 
+<span class="lineNum">     646 </span><span class="lineNoCov">          0 :                 rv = apr_getnameinfo(&amp;hostname, s-&gt;addrs-&gt;host_addr, 0);</span>
+<span class="lineNum">     647 </span><span class="lineNoCov">          0 :                 if (rv == APR_SUCCESS) {</span>
+<span class="lineNum">     648 </span><span class="lineNoCov">          0 :                     s-&gt;server_hostname = apr_pstrdup(p, hostname);</span>
+<span class="lineNum">     649 </span>            :                 }
+<span class="lineNum">     650 </span>            :                 else {
+<span class="lineNum">     651 </span>            :                     /* again, what can we do?  They didn't specify a
+<span class="lineNum">     652 </span>            :                        ServerName, and their DNS isn't working. -djg */
+<span class="lineNum">     653 </span>            :                     char *ipaddr_str;
+<span class="lineNum">     654 </span>            : 
+<span class="lineNum">     655 </span><span class="lineNoCov">          0 :                     apr_sockaddr_ip_get(&amp;ipaddr_str, s-&gt;addrs-&gt;host_addr);</span>
+<span class="lineNum">     656 </span><span class="lineNoCov">          0 :                     ap_log_error(APLOG_MARK, APLOG_ERR, rv, main_s, APLOGNO(00549)</span>
+<span class="lineNum">     657 </span>            :                                  &quot;Failed to resolve server name &quot;
+<span class="lineNum">     658 </span>            :                                  &quot;for %s (check DNS) -- or specify an explicit &quot;
+<span class="lineNum">     659 </span>            :                                  &quot;ServerName&quot;,
+<span class="lineNum">     660 </span>            :                                  ipaddr_str);
+<span class="lineNum">     661 </span><span class="lineNoCov">          0 :                     s-&gt;server_hostname =</span>
+<span class="lineNum">     662 </span><span class="lineNoCov">          0 :                         apr_pstrdup(p, &quot;bogus_host_without_reverse_dns&quot;);</span>
+<span class="lineNum">     663 </span>            :                 }
+<span class="lineNum">     664 </span>            :             }
+<span class="lineNum">     665 </span>            :         }
+<span class="lineNum">     666 </span>            :     }
+<span class="lineNum">     667 </span>            : 
+<span class="lineNum">     668 </span>            : #ifdef IPHASH_STATISTICS
+<span class="lineNum">     669 </span>            :     dump_iphash_statistics(main_s);
+<span class="lineNum">     670 </span>            : #endif
+<span class="lineNum">     671 </span><span class="lineCov">          3 :     if (ap_exists_config_define(&quot;DUMP_VHOSTS&quot;)) {</span>
+<span class="lineNum">     672 </span><span class="lineNoCov">          0 :         apr_file_t *thefile = NULL;</span>
+<span class="lineNum">     673 </span><span class="lineNoCov">          0 :         apr_file_open_stdout(&amp;thefile, p);</span>
+<span class="lineNum">     674 </span><span class="lineNoCov">          0 :         dump_vhost_config(thefile);</span>
+<span class="lineNum">     675 </span>            :     }
+<a name="676"><span class="lineNum">     676 </span><span class="lineCov">          3 : }</span></a>
+<span class="lineNum">     677 </span>            : 
+<span class="lineNum">     678 </span><span class="lineCov">          3 : static int vhost_check_config(apr_pool_t *p, apr_pool_t *plog,</span>
+<span class="lineNum">     679 </span>            :                               apr_pool_t *ptemp, server_rec *s)
+<span class="lineNum">     680 </span>            : {
+<span class="lineNum">     681 </span><span class="lineCov">          3 :     return config_error ? !OK : OK;</span>
+<span class="lineNum">     682 </span>            : }
+<span class="lineNum">     683 </span>            : 
+<span class="lineNum">     684 </span>            : /*****************************************************************************
+<span class="lineNum">     685 </span>            :  * run-time vhost matching functions
+<span class="lineNum">     686 </span>            :  */
+<span class="lineNum">     687 </span>            : 
+<span class="lineNum">     688 </span>            : /* Lowercase and remove any trailing dot and/or :port from the hostname,
+<span class="lineNum">     689 </span>            :  * and check that it is sane.
+<span class="lineNum">     690 </span>            :  *
+<span class="lineNum">     691 </span>            :  * In most configurations the exact syntax of the hostname isn't
+<span class="lineNum">     692 </span>            :  * important so strict sanity checking isn't necessary. However, in
+<span class="lineNum">     693 </span>            :  * mass hosting setups (using mod_vhost_alias or mod_rewrite) where
+<span class="lineNum">     694 </span>            :  * the hostname is interpolated into the filename, we need to be sure
+<span class="lineNum">     695 </span>            :  * that the interpolation doesn't expose parts of the filesystem.
+<span class="lineNum">     696 </span>            :  * We don't do strict RFC 952 / RFC 1123 syntax checking in order
+<span class="lineNum">     697 </span>            :  * to support iDNS and people who erroneously use underscores.
+<span class="lineNum">     698 </span>            :  * Instead we just check for filesystem metacharacters: directory
+<a name="699"><span class="lineNum">     699 </span>            :  * separators / and \ and sequences of more than one dot.</a>
+<span class="lineNum">     700 </span>            :  */
+<span class="lineNum">     701 </span><span class="lineCov">          1 : static void fix_hostname(request_rec *r)</span>
+<span class="lineNum">     702 </span>            : {
+<span class="lineNum">     703 </span>            :     char *host, *scope_id;
+<span class="lineNum">     704 </span>            :     char *dst;
+<span class="lineNum">     705 </span>            :     apr_port_t port;
+<span class="lineNum">     706 </span>            :     apr_status_t rv;
+<span class="lineNum">     707 </span>            :     const char *c;
+<span class="lineNum">     708 </span>            : 
+<span class="lineNum">     709 </span>            :     /* According to RFC 2616, Host header field CAN be blank. */
+<span class="lineNum">     710 </span><span class="lineCov">          1 :     if (!*r-&gt;hostname) {</span>
+<span class="lineNum">     711 </span><span class="lineNoCov">          0 :         return;</span>
+<span class="lineNum">     712 </span>            :     }
+<span class="lineNum">     713 </span>            : 
+<span class="lineNum">     714 </span>            :     /* apr_parse_addr_port will interpret a bare integer as a port
+<span class="lineNum">     715 </span>            :      * which is incorrect in this context.  So treat it separately.
+<span class="lineNum">     716 </span>            :      */
+<span class="lineNum">     717 </span><span class="lineCov">          1 :     for (c = r-&gt;hostname; apr_isdigit(*c); ++c);</span>
+<span class="lineNum">     718 </span><span class="lineCov">          1 :     if (!*c) {  /* pure integer */</span>
+<span class="lineNum">     719 </span><span class="lineNoCov">          0 :         return;</span>
+<span class="lineNum">     720 </span>            :     }
+<span class="lineNum">     721 </span>            : 
+<span class="lineNum">     722 </span><span class="lineCov">          1 :     rv = apr_parse_addr_port(&amp;host, &amp;scope_id, &amp;port, r-&gt;hostname, r-&gt;pool);</span>
+<span class="lineNum">     723 </span><span class="lineCov">          1 :     if (rv != APR_SUCCESS || scope_id) {</span>
+<span class="lineNum">     724 </span>            :         goto bad;
+<span class="lineNum">     725 </span>            :     }
+<span class="lineNum">     726 </span>            : 
+<span class="lineNum">     727 </span><span class="lineCov">          1 :     if (port) {</span>
+<span class="lineNum">     728 </span>            :         /* Don't throw the Host: header's port number away:
+<span class="lineNum">     729 </span>            :            save it in parsed_uri -- ap_get_server_port() needs it! */
+<span class="lineNum">     730 </span>            :         /* @@@ XXX there should be a better way to pass the port.
+<span class="lineNum">     731 </span>            :          *         Like r-&gt;hostname, there should be a r-&gt;portno
+<span class="lineNum">     732 </span>            :          */
+<span class="lineNum">     733 </span><span class="lineCov">          1 :         r-&gt;parsed_uri.port = port;</span>
+<span class="lineNum">     734 </span><span class="lineCov">          1 :         r-&gt;parsed_uri.port_str = apr_itoa(r-&gt;pool, (int)port);</span>
+<span class="lineNum">     735 </span>            :     }
+<span class="lineNum">     736 </span>            : 
+<span class="lineNum">     737 </span>            :     /* if the hostname is an IPv6 numeric address string, it was validated
+<span class="lineNum">     738 </span>            :      * already; otherwise, further validation is needed
+<span class="lineNum">     739 </span>            :      */
+<span class="lineNum">     740 </span><span class="lineCov">          1 :     if (r-&gt;hostname[0] != '[') {</span>
+<span class="lineNum">     741 </span><span class="lineCov">         10 :         for (dst = host; *dst; dst++) {</span>
+<span class="lineNum">     742 </span><span class="lineCov">          9 :             if (apr_islower(*dst)) {</span>
+<span class="lineNum">     743 </span>            :                 /* leave char unchanged */
+<span class="lineNum">     744 </span>            :             }
+<span class="lineNum">     745 </span><span class="lineNoCov">          0 :             else if (*dst == '.') {</span>
+<span class="lineNum">     746 </span><span class="lineNoCov">          0 :                 if (*(dst + 1) == '.') {</span>
+<span class="lineNum">     747 </span><span class="lineNoCov">          0 :                     goto bad;</span>
+<span class="lineNum">     748 </span>            :                 }
+<span class="lineNum">     749 </span>            :             }
+<span class="lineNum">     750 </span><span class="lineNoCov">          0 :             else if (apr_isupper(*dst)) {</span>
+<span class="lineNum">     751 </span><span class="lineNoCov">          0 :                 *dst = apr_tolower(*dst);</span>
+<span class="lineNum">     752 </span>            :             }
+<span class="lineNum">     753 </span><span class="lineNoCov">          0 :             else if (*dst == '/' || *dst == '\\') {</span>
+<span class="lineNum">     754 </span>            :                 goto bad;
+<span class="lineNum">     755 </span>            :             }
+<span class="lineNum">     756 </span>            :         }
+<span class="lineNum">     757 </span>            :         /* strip trailing gubbins */
+<span class="lineNum">     758 </span><span class="lineCov">          1 :         if (dst &gt; host &amp;&amp; dst[-1] == '.') {</span>
+<span class="lineNum">     759 </span><span class="lineNoCov">          0 :             dst[-1] = '\0';</span>
+<span class="lineNum">     760 </span>            :         }
+<span class="lineNum">     761 </span>            :     }
+<span class="lineNum">     762 </span><span class="lineCov">          1 :     r-&gt;hostname = host;</span>
+<span class="lineNum">     763 </span><span class="lineCov">          1 :     return;</span>
+<span class="lineNum">     764 </span>            : 
+<span class="lineNum">     765 </span>            : bad:
+<span class="lineNum">     766 </span><span class="lineNoCov">          0 :     r-&gt;status = HTTP_BAD_REQUEST;</span>
+<span class="lineNum">     767 </span><span class="lineNoCov">          0 :     ap_log_rerror(APLOG_MARK, APLOG_DEBUG, 0, r, APLOGNO(00550)</span>
+<span class="lineNum">     768 </span>            :                   &quot;Client sent malformed Host header: %s&quot;,
+<span class="lineNum">     769 </span>            :                   r-&gt;hostname);
+<span class="lineNum">     770 </span><span class="lineNoCov">          0 :     return;</span>
+<span class="lineNum">     771 </span>            : }
+<span class="lineNum">     772 </span>            : 
+<a name="773"><span class="lineNum">     773 </span>            : </a>
+<span class="lineNum">     774 </span>            : /* return 1 if host matches ServerName or ServerAliases */
+<span class="lineNum">     775 </span><span class="lineNoCov">          0 : static int matches_aliases(server_rec *s, const char *host)</span>
+<span class="lineNum">     776 </span>            : {
+<span class="lineNum">     777 </span>            :     int i;
+<span class="lineNum">     778 </span>            :     apr_array_header_t *names;
+<span class="lineNum">     779 </span>            : 
+<span class="lineNum">     780 </span>            :     /* match ServerName */
+<span class="lineNum">     781 </span><span class="lineNoCov">          0 :     if (!strcasecmp(host, s-&gt;server_hostname)) {</span>
+<span class="lineNum">     782 </span><span class="lineNoCov">          0 :         return 1;</span>
+<span class="lineNum">     783 </span>            :     }
+<span class="lineNum">     784 </span>            : 
+<span class="lineNum">     785 </span>            :     /* search all the aliases from ServerAlias directive */
+<span class="lineNum">     786 </span><span class="lineNoCov">          0 :     names = s-&gt;names;</span>
+<span class="lineNum">     787 </span><span class="lineNoCov">          0 :     if (names) {</span>
+<span class="lineNum">     788 </span><span class="lineNoCov">          0 :         char **name = (char **) names-&gt;elts;</span>
+<span class="lineNum">     789 </span><span class="lineNoCov">          0 :         for (i = 0; i &lt; names-&gt;nelts; ++i) {</span>
+<span class="lineNum">     790 </span><span class="lineNoCov">          0 :             if(!name[i]) continue;</span>
+<span class="lineNum">     791 </span><span class="lineNoCov">          0 :             if (!strcasecmp(host, name[i]))</span>
+<span class="lineNum">     792 </span><span class="lineNoCov">          0 :                 return 1;</span>
+<span class="lineNum">     793 </span>            :         }
+<span class="lineNum">     794 </span>            :     }
+<span class="lineNum">     795 </span><span class="lineNoCov">          0 :     names = s-&gt;wild_names;</span>
+<span class="lineNum">     796 </span><span class="lineNoCov">          0 :     if (names) {</span>
+<span class="lineNum">     797 </span><span class="lineNoCov">          0 :         char **name = (char **) names-&gt;elts;</span>
+<span class="lineNum">     798 </span><span class="lineNoCov">          0 :         for (i = 0; i &lt; names-&gt;nelts; ++i) {</span>
+<span class="lineNum">     799 </span><span class="lineNoCov">          0 :             if(!name[i]) continue;</span>
+<span class="lineNum">     800 </span><span class="lineNoCov">          0 :             if (!ap_strcasecmp_match(host, name[i]))</span>
+<span class="lineNum">     801 </span><span class="lineNoCov">          0 :                 return 1;</span>
+<span class="lineNum">     802 </span>            :         }
+<span class="lineNum">     803 </span>            :     }
+<span class="lineNum">     804 </span><span class="lineNoCov">          0 :     return 0;</span>
+<span class="lineNum">     805 </span>            : }
+<span class="lineNum">     806 </span>            : 
+<span class="lineNum">     807 </span>            : 
+<span class="lineNum">     808 </span>            : /* Suppose a request came in on the same socket as this r, and included
+<span class="lineNum">     809 </span>            :  * a header &quot;Host: host:port&quot;, would it map to r-&gt;server?  It's more
+<span class="lineNum">     810 </span>            :  * than just that though.  When we do the normal matches for each request
+<span class="lineNum">     811 </span>            :  * we don't even bother considering Host: etc on non-namevirtualhosts,
+<span class="lineNum">     812 </span>            :  * we just call it a match.  But here we require the host:port to match
+<a name="813"><span class="lineNum">     813 </span>            :  * the ServerName and/or ServerAliases.</a>
+<span class="lineNum">     814 </span>            :  */
+<span class="lineNum">     815 </span><span class="lineNoCov">          0 : AP_DECLARE(int) ap_matches_request_vhost(request_rec *r, const char *host,</span>
+<span class="lineNum">     816 </span>            :                                          apr_port_t port)
+<span class="lineNum">     817 </span>            : {
+<span class="lineNum">     818 </span>            :     server_rec *s;
+<span class="lineNum">     819 </span>            :     server_addr_rec *sar;
+<span class="lineNum">     820 </span>            : 
+<span class="lineNum">     821 </span><span class="lineNoCov">          0 :     s = r-&gt;server;</span>
+<span class="lineNum">     822 </span>            : 
+<span class="lineNum">     823 </span>            :     /* search all the &lt;VirtualHost&gt; values */
+<span class="lineNum">     824 </span>            :     /* XXX: If this is a NameVirtualHost then we may not be doing the Right Thing
+<span class="lineNum">     825 </span>            :      * consider:
+<span class="lineNum">     826 </span>            :      *
+<span class="lineNum">     827 </span>            :      *     NameVirtualHost 10.1.1.1
+<span class="lineNum">     828 </span>            :      *     &lt;VirtualHost 10.1.1.1&gt;
+<span class="lineNum">     829 </span>            :      *     ServerName v1
+<span class="lineNum">     830 </span>            :      *     &lt;/VirtualHost&gt;
+<span class="lineNum">     831 </span>            :      *     &lt;VirtualHost 10.1.1.1&gt;
+<span class="lineNum">     832 </span>            :      *     ServerName v2
+<span class="lineNum">     833 </span>            :      *     &lt;/VirtualHost&gt;
+<span class="lineNum">     834 </span>            :      *
+<span class="lineNum">     835 </span>            :      * Suppose r-&gt;server is v2, and we're asked to match &quot;10.1.1.1&quot;.  We'll say
+<span class="lineNum">     836 </span>            :      * &quot;yup it's v2&quot;, when really it isn't... if a request came in for 10.1.1.1
+<span class="lineNum">     837 </span>            :      * it would really go to v1.
+<span class="lineNum">     838 </span>            :      */
+<span class="lineNum">     839 </span><span class="lineNoCov">          0 :     for (sar = s-&gt;addrs; sar; sar = sar-&gt;next) {</span>
+<span class="lineNum">     840 </span><span class="lineNoCov">          0 :         if ((sar-&gt;host_port == 0 || port == sar-&gt;host_port)</span>
+<span class="lineNum">     841 </span><span class="lineNoCov">          0 :             &amp;&amp; !strcasecmp(host, sar-&gt;virthost)) {</span>
+<span class="lineNum">     842 </span><span class="lineNoCov">          0 :             return 1;</span>
+<span class="lineNum">     843 </span>            :         }
+<span class="lineNum">     844 </span>            :     }
+<span class="lineNum">     845 </span>            : 
+<span class="lineNum">     846 </span>            :     /* the Port has to match now, because the rest don't have ports associated
+<span class="lineNum">     847 </span>            :      * with them. */
+<span class="lineNum">     848 </span><span class="lineNoCov">          0 :     if (port != s-&gt;port) {</span>
+<span class="lineNum">     849 </span><span class="lineNoCov">          0 :         return 0;</span>
+<span class="lineNum">     850 </span>            :     }
+<span class="lineNum">     851 </span>            : 
+<span class="lineNum">     852 </span><span class="lineNoCov">          0 :     return matches_aliases(s, host);</span>
+<span class="lineNum">     853 </span>            : }
+<a name="854"><span class="lineNum">     854 </span>            : </a>
+<span class="lineNum">     855 </span>            : 
+<span class="lineNum">     856 </span><span class="lineNoCov">          0 : static void check_hostalias(request_rec *r)</span>
+<span class="lineNum">     857 </span>            : {
+<span class="lineNum">     858 </span>            :     /*
+<span class="lineNum">     859 </span>            :      * Even if the request has a Host: header containing a port we ignore
+<span class="lineNum">     860 </span>            :      * that port.  We always use the physical port of the socket.  There
+<span class="lineNum">     861 </span>            :      * are a few reasons for this:
+<span class="lineNum">     862 </span>            :      *
+<span class="lineNum">     863 </span>            :      * - the default of 80 or 443 for SSL is easier to handle this way
+<span class="lineNum">     864 </span>            :      * - there is less of a possibility of a security problem
+<span class="lineNum">     865 </span>            :      * - it simplifies the data structure
+<span class="lineNum">     866 </span>            :      * - the client may have no idea that a proxy somewhere along the way
+<span class="lineNum">     867 </span>            :      *   translated the request to another ip:port
+<span class="lineNum">     868 </span>            :      * - except for the addresses from the VirtualHost line, none of the other
+<span class="lineNum">     869 </span>            :      *   names we'll match have ports associated with them
+<span class="lineNum">     870 </span>            :      */
+<span class="lineNum">     871 </span><span class="lineNoCov">          0 :     const char *host = r-&gt;hostname;</span>
+<span class="lineNum">     872 </span>            :     apr_port_t port;
+<span class="lineNum">     873 </span>            :     server_rec *s;
+<span class="lineNum">     874 </span>            :     server_rec *virthost_s;
+<span class="lineNum">     875 </span>            :     server_rec *last_s;
+<span class="lineNum">     876 </span>            :     name_chain *src;
+<span class="lineNum">     877 </span>            : 
+<span class="lineNum">     878 </span><span class="lineNoCov">          0 :     virthost_s = NULL;</span>
+<span class="lineNum">     879 </span><span class="lineNoCov">          0 :     last_s = NULL;</span>
+<span class="lineNum">     880 </span>            : 
+<span class="lineNum">     881 </span><span class="lineNoCov">          0 :     port = r-&gt;connection-&gt;local_addr-&gt;port;</span>
+<span class="lineNum">     882 </span>            : 
+<span class="lineNum">     883 </span>            :     /* Recall that the name_chain is a list of server_addr_recs, some of
+<span class="lineNum">     884 </span>            :      * whose ports may not match.  Also each server may appear more than
+<span class="lineNum">     885 </span>            :      * once in the chain -- specifically, it will appear once for each
+<span class="lineNum">     886 </span>            :      * address from its VirtualHost line which matched.  We only want to
+<span class="lineNum">     887 </span>            :      * do the full ServerName/ServerAlias comparisons once for each
+<span class="lineNum">     888 </span>            :      * server, fortunately we know that all the VirtualHost addresses for
+<span class="lineNum">     889 </span>            :      * a single server are adjacent to each other.
+<span class="lineNum">     890 </span>            :      */
+<span class="lineNum">     891 </span>            : 
+<span class="lineNum">     892 </span><span class="lineNoCov">          0 :     for (src = r-&gt;connection-&gt;vhost_lookup_data; src; src = src-&gt;next) {</span>
+<span class="lineNum">     893 </span>            :         server_addr_rec *sar;
+<span class="lineNum">     894 </span>            : 
+<span class="lineNum">     895 </span>            :         /* We only consider addresses on the name_chain which have a matching
+<span class="lineNum">     896 </span>            :          * port
+<span class="lineNum">     897 </span>            :          */
+<span class="lineNum">     898 </span><span class="lineNoCov">          0 :         sar = src-&gt;sar;</span>
+<span class="lineNum">     899 </span><span class="lineNoCov">          0 :         if (sar-&gt;host_port != 0 &amp;&amp; port != sar-&gt;host_port) {</span>
+<span class="lineNum">     900 </span><span class="lineNoCov">          0 :             continue;</span>
+<span class="lineNum">     901 </span>            :         }
+<span class="lineNum">     902 </span>            : 
+<span class="lineNum">     903 </span><span class="lineNoCov">          0 :         s = src-&gt;server;</span>
+<span class="lineNum">     904 </span>            : 
+<span class="lineNum">     905 </span>            :         /* If we still need to do ServerName and ServerAlias checks for this
+<span class="lineNum">     906 </span>            :          * server, do them now.
+<span class="lineNum">     907 </span>            :          */
+<span class="lineNum">     908 </span><span class="lineNoCov">          0 :         if (s != last_s) {</span>
+<span class="lineNum">     909 </span>            :             /* does it match any ServerName or ServerAlias directive? */
+<span class="lineNum">     910 </span><span class="lineNoCov">          0 :             if (matches_aliases(s, host)) {</span>
+<span class="lineNum">     911 </span><span class="lineNoCov">          0 :                 goto found;</span>
+<span class="lineNum">     912 </span>            :             }
+<span class="lineNum">     913 </span>            :         }
+<span class="lineNum">     914 </span><span class="lineNoCov">          0 :         last_s = s;</span>
+<span class="lineNum">     915 </span>            : 
+<span class="lineNum">     916 </span>            :         /* Fallback: does it match the virthost from the sar? */
+<span class="lineNum">     917 </span><span class="lineNoCov">          0 :         if (!strcasecmp(host, sar-&gt;virthost)) {</span>
+<span class="lineNum">     918 </span>            :             /* only the first match is used */
+<span class="lineNum">     919 </span><span class="lineNoCov">          0 :             if (virthost_s == NULL) {</span>
+<span class="lineNum">     920 </span><span class="lineNoCov">          0 :                 virthost_s = s;</span>
+<span class="lineNum">     921 </span>            :             }
+<span class="lineNum">     922 </span>            :         }
+<span class="lineNum">     923 </span>            :     }
+<span class="lineNum">     924 </span>            : 
+<span class="lineNum">     925 </span>            :     /* If ServerName and ServerAlias check failed, we end up here.  If it
+<span class="lineNum">     926 </span>            :      * matches a VirtualHost, virthost_s is set. Use that as fallback
+<span class="lineNum">     927 </span>            :      */
+<span class="lineNum">     928 </span><span class="lineNoCov">          0 :     if (virthost_s) {</span>
+<span class="lineNum">     929 </span><span class="lineNoCov">          0 :         s = virthost_s;</span>
+<span class="lineNum">     930 </span><span class="lineNoCov">          0 :         goto found;</span>
+<span class="lineNum">     931 </span>            :     }
+<span class="lineNum">     932 </span>            : 
+<span class="lineNum">     933 </span><span class="lineNoCov">          0 :     return;</span>
+<span class="lineNum">     934 </span>            : 
+<span class="lineNum">     935 </span>            : found:
+<span class="lineNum">     936 </span>            :     /* s is the first matching server, we're done */
+<span class="lineNum">     937 </span><span class="lineNoCov">          0 :     r-&gt;server = s;</span>
+<span class="lineNum">     938 </span>            : }
+<a name="939"><span class="lineNum">     939 </span>            : </a>
+<span class="lineNum">     940 </span>            : 
+<span class="lineNum">     941 </span><span class="lineNoCov">          0 : static void check_serverpath(request_rec *r)</span>
+<span class="lineNum">     942 </span>            : {
+<span class="lineNum">     943 </span>            :     server_rec *s;
+<span class="lineNum">     944 </span>            :     server_rec *last_s;
+<span class="lineNum">     945 </span>            :     name_chain *src;
+<span class="lineNum">     946 </span>            :     apr_port_t port;
+<span class="lineNum">     947 </span>            : 
+<span class="lineNum">     948 </span><span class="lineNoCov">          0 :     port = r-&gt;connection-&gt;local_addr-&gt;port;</span>
+<span class="lineNum">     949 </span>            : 
+<span class="lineNum">     950 </span>            :     /*
+<span class="lineNum">     951 </span>            :      * This is in conjunction with the ServerPath code in http_core, so we
+<span class="lineNum">     952 </span>            :      * get the right host attached to a non- Host-sending request.
+<span class="lineNum">     953 </span>            :      *
+<span class="lineNum">     954 </span>            :      * See the comment in check_hostalias about how each vhost can be
+<span class="lineNum">     955 </span>            :      * listed multiple times.
+<span class="lineNum">     956 </span>            :      */
+<span class="lineNum">     957 </span>            : 
+<span class="lineNum">     958 </span><span class="lineNoCov">          0 :     last_s = NULL;</span>
+<span class="lineNum">     959 </span><span class="lineNoCov">          0 :     for (src = r-&gt;connection-&gt;vhost_lookup_data; src; src = src-&gt;next) {</span>
+<span class="lineNum">     960 </span>            :         /* We only consider addresses on the name_chain which have a matching
+<span class="lineNum">     961 </span>            :          * port
+<span class="lineNum">     962 </span>            :          */
+<span class="lineNum">     963 </span><span class="lineNoCov">          0 :         if (src-&gt;sar-&gt;host_port != 0 &amp;&amp; port != src-&gt;sar-&gt;host_port) {</span>
+<span class="lineNum">     964 </span><span class="lineNoCov">          0 :             continue;</span>
+<span class="lineNum">     965 </span>            :         }
+<span class="lineNum">     966 </span>            : 
+<span class="lineNum">     967 </span><span class="lineNoCov">          0 :         s = src-&gt;server;</span>
+<span class="lineNum">     968 </span><span class="lineNoCov">          0 :         if (s == last_s) {</span>
+<span class="lineNum">     969 </span><span class="lineNoCov">          0 :             continue;</span>
+<span class="lineNum">     970 </span>            :         }
+<span class="lineNum">     971 </span><span class="lineNoCov">          0 :         last_s = s;</span>
+<span class="lineNum">     972 </span>            : 
+<span class="lineNum">     973 </span><span class="lineNoCov">          0 :         if (s-&gt;path &amp;&amp; !strncmp(r-&gt;uri, s-&gt;path, s-&gt;pathlen) &amp;&amp;</span>
+<span class="lineNum">     974 </span><span class="lineNoCov">          0 :             (s-&gt;path[s-&gt;pathlen - 1] == '/' ||</span>
+<span class="lineNum">     975 </span><span class="lineNoCov">          0 :              r-&gt;uri[s-&gt;pathlen] == '/' ||</span>
+<span class="lineNum">     976 </span><span class="lineNoCov">          0 :              r-&gt;uri[s-&gt;pathlen] == '\0')) {</span>
+<span class="lineNum">     977 </span><span class="lineNoCov">          0 :             r-&gt;server = s;</span>
+<span class="lineNum">     978 </span><span class="lineNoCov">          0 :             return;</span>
+<span class="lineNum">     979 </span>            :         }
+<span class="lineNum">     980 </span>            :     }
+<span class="lineNum">     981 </span>            : }
+<a name="982"><span class="lineNum">     982 </span>            : </a>
+<span class="lineNum">     983 </span>            : 
+<span class="lineNum">     984 </span><span class="lineCov">          1 : AP_DECLARE(void) ap_update_vhost_from_headers(request_rec *r)</span>
+<span class="lineNum">     985 </span>            : {
+<span class="lineNum">     986 </span>            :     /* must set this for HTTP/1.1 support */
+<span class="lineNum">     987 </span><span class="lineCov">          1 :     if (r-&gt;hostname || (r-&gt;hostname = apr_table_get(r-&gt;headers_in, &quot;Host&quot;))) {</span>
+<span class="lineNum">     988 </span><span class="lineCov">          1 :         fix_hostname(r);</span>
+<span class="lineNum">     989 </span><span class="lineCov">          1 :         if (r-&gt;status != HTTP_OK)</span>
+<span class="lineNum">     990 </span><span class="lineCov">          1 :             return;</span>
+<span class="lineNum">     991 </span>            :     }
+<span class="lineNum">     992 </span>            :     /* check if we tucked away a name_chain */
+<span class="lineNum">     993 </span><span class="lineCov">          1 :     if (r-&gt;connection-&gt;vhost_lookup_data) {</span>
+<span class="lineNum">     994 </span><span class="lineNoCov">          0 :         if (r-&gt;hostname)</span>
+<span class="lineNum">     995 </span><span class="lineNoCov">          0 :             check_hostalias(r);</span>
+<span class="lineNum">     996 </span>            :         else
+<span class="lineNum">     997 </span><span class="lineNoCov">          0 :             check_serverpath(r);</span>
+<span class="lineNum">     998 </span>            :     }
+<span class="lineNum">     999 </span>            : }
+<span class="lineNum">    1000 </span>            : 
+<span class="lineNum">    1001 </span>            : /**
+<a name="1002"><span class="lineNum">    1002 </span>            :  * For every virtual host on this connection, call func_cb.</a>
+<span class="lineNum">    1003 </span>            :  */
+<span class="lineNum">    1004 </span><span class="lineNoCov">          0 : AP_DECLARE(int) ap_vhost_iterate_given_conn(conn_rec *conn,</span>
+<span class="lineNum">    1005 </span>            :                                             ap_vhost_iterate_conn_cb func_cb,
+<span class="lineNum">    1006 </span>            :                                             void* baton)
+<span class="lineNum">    1007 </span>            : {
+<span class="lineNum">    1008 </span>            :     server_rec *s;
+<span class="lineNum">    1009 </span>            :     server_rec *last_s;
+<span class="lineNum">    1010 </span>            :     name_chain *src;
+<span class="lineNum">    1011 </span>            :     apr_port_t port;
+<span class="lineNum">    1012 </span><span class="lineNoCov">          0 :     int rv = 0;</span>
+<span class="lineNum">    1013 </span>            : 
+<span class="lineNum">    1014 </span><span class="lineNoCov">          0 :     if (conn-&gt;vhost_lookup_data) {</span>
+<span class="lineNum">    1015 </span><span class="lineNoCov">          0 :         last_s = NULL;</span>
+<span class="lineNum">    1016 </span><span class="lineNoCov">          0 :         port = conn-&gt;local_addr-&gt;port;</span>
+<span class="lineNum">    1017 </span>            : 
+<span class="lineNum">    1018 </span><span class="lineNoCov">          0 :         for (src = conn-&gt;vhost_lookup_data; src; src = src-&gt;next) {</span>
+<span class="lineNum">    1019 </span>            :             server_addr_rec *sar;
+<span class="lineNum">    1020 </span>            : 
+<span class="lineNum">    1021 </span>            :             /* We only consider addresses on the name_chain which have a
+<span class="lineNum">    1022 </span>            :              * matching port.
+<span class="lineNum">    1023 </span>            :              */
+<span class="lineNum">    1024 </span><span class="lineNoCov">          0 :             sar = src-&gt;sar;</span>
+<span class="lineNum">    1025 </span><span class="lineNoCov">          0 :             if (sar-&gt;host_port != 0 &amp;&amp; port != sar-&gt;host_port) {</span>
+<span class="lineNum">    1026 </span><span class="lineNoCov">          0 :                 continue;</span>
+<span class="lineNum">    1027 </span>            :             }
+<span class="lineNum">    1028 </span>            : 
+<span class="lineNum">    1029 </span><span class="lineNoCov">          0 :             s = src-&gt;server;</span>
+<span class="lineNum">    1030 </span>            : 
+<span class="lineNum">    1031 </span><span class="lineNoCov">          0 :             if (s == last_s) {</span>
+<span class="lineNum">    1032 </span>            :                 /* we've already done a callback for this vhost. */
+<span class="lineNum">    1033 </span><span class="lineNoCov">          0 :                 continue;</span>
+<span class="lineNum">    1034 </span>            :             }
+<span class="lineNum">    1035 </span>            : 
+<span class="lineNum">    1036 </span><span class="lineNoCov">          0 :             last_s = s;</span>
+<span class="lineNum">    1037 </span>            : 
+<span class="lineNum">    1038 </span><span class="lineNoCov">          0 :             rv = func_cb(baton, conn, s);</span>
+<span class="lineNum">    1039 </span>            : 
+<span class="lineNum">    1040 </span><span class="lineNoCov">          0 :             if (rv != 0) {</span>
+<span class="lineNum">    1041 </span><span class="lineNoCov">          0 :                 break;</span>
+<span class="lineNum">    1042 </span>            :             }
+<span class="lineNum">    1043 </span>            :         }
+<span class="lineNum">    1044 </span>            :     }
+<span class="lineNum">    1045 </span>            :     else {
+<span class="lineNum">    1046 </span><span class="lineNoCov">          0 :         rv = func_cb(baton, conn, conn-&gt;base_server);</span>
+<span class="lineNum">    1047 </span>            :     }
+<span class="lineNum">    1048 </span>            : 
+<span class="lineNum">    1049 </span><span class="lineNoCov">          0 :     return rv;</span>
+<span class="lineNum">    1050 </span>            : }
+<span class="lineNum">    1051 </span>            : 
+<span class="lineNum">    1052 </span>            : /* Called for a new connection which has a known local_addr.  Note that the
+<a name="1053"><span class="lineNum">    1053 </span>            :  * new connection is assumed to have conn-&gt;server == main server.</a>
+<span class="lineNum">    1054 </span>            :  */
+<span class="lineNum">    1055 </span><span class="lineCov">          1 : AP_DECLARE(void) ap_update_vhost_given_ip(conn_rec *conn)</span>
+<span class="lineNum">    1056 </span>            : {
+<span class="lineNum">    1057 </span>            :     ipaddr_chain *trav;
+<span class="lineNum">    1058 </span>            :     apr_port_t port;
+<span class="lineNum">    1059 </span>            : 
+<span class="lineNum">    1060 </span>            :     /* scan the hash table for an exact match first */
+<span class="lineNum">    1061 </span><span class="lineCov">          1 :     trav = find_ipaddr(conn-&gt;local_addr);</span>
+<span class="lineNum">    1062 </span>            : 
+<span class="lineNum">    1063 </span><span class="lineCov">          1 :     if (trav) {</span>
+<span class="lineNum">    1064 </span>            :         /* save the name_chain for later in case this is a name-vhost */
+<span class="lineNum">    1065 </span><span class="lineNoCov">          0 :         conn-&gt;vhost_lookup_data = trav-&gt;names;</span>
+<span class="lineNum">    1066 </span><span class="lineNoCov">          0 :         conn-&gt;base_server = trav-&gt;server;</span>
+<span class="lineNum">    1067 </span><span class="lineNoCov">          0 :         return;</span>
+<span class="lineNum">    1068 </span>            :     }
+<span class="lineNum">    1069 </span>            : 
+<span class="lineNum">    1070 </span>            :     /* maybe there's a default server or wildcard name-based vhost
+<span class="lineNum">    1071 </span>            :      * matching this port
+<span class="lineNum">    1072 </span>            :      */
+<span class="lineNum">    1073 </span><span class="lineCov">          1 :     port = conn-&gt;local_addr-&gt;port;</span>
+<span class="lineNum">    1074 </span>            : 
+<span class="lineNum">    1075 </span><span class="lineCov">          1 :     trav = find_default_server(port);</span>
+<span class="lineNum">    1076 </span><span class="lineCov">          1 :     if (trav) {</span>
+<span class="lineNum">    1077 </span><span class="lineNoCov">          0 :         conn-&gt;vhost_lookup_data = trav-&gt;names;</span>
+<span class="lineNum">    1078 </span><span class="lineNoCov">          0 :         conn-&gt;base_server = trav-&gt;server;</span>
+<span class="lineNum">    1079 </span><span class="lineNoCov">          0 :         return;</span>
+<span class="lineNum">    1080 </span>            :     }
+<span class="lineNum">    1081 </span>            : 
+<span class="lineNum">    1082 </span>            :     /* otherwise we're stuck with just the main server
+<span class="lineNum">    1083 </span>            :      * and no name-based vhosts
+<span class="lineNum">    1084 </span>            :      */
+<span class="lineNum">    1085 </span><span class="lineCov">          1 :     conn-&gt;vhost_lookup_data = NULL;</span>
+<span class="lineNum">    1086 </span>            : }
+</pre>
+      </td>
+    </tr>
+  </table>
+  <br>
+
+  <table width="100%" border=0 cellspacing=0 cellpadding=0>
+    <tr><td class="ruler"><img src="../glass.png" width=3 height=3 alt=""></td></tr>
+    <tr><td class="versionInfo">Generated by: <a href="http://ltp.sourceforge.net/coverage/lcov.php" target="_parent">LCOV version 1.11</a></td></tr>
+  </table>
+  <br>
+
+</body>
+</html>

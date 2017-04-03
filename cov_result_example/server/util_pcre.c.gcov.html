@@ -1,0 +1,375 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+
+<html lang="en">
+
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <title>LCOV - apptest.info - server/util_pcre.c</title>
+  <link rel="stylesheet" type="text/css" href="../gcov.css">
+</head>
+
+<body>
+
+  <table width="100%" border=0 cellspacing=0 cellpadding=0>
+    <tr><td class="title">LCOV - code coverage report</td></tr>
+    <tr><td class="ruler"><img src="../glass.png" width=3 height=3 alt=""></td></tr>
+
+    <tr>
+      <td width="100%">
+        <table cellpadding=1 border=0 width="100%">
+          <tr>
+            <td width="10%" class="headerItem">Current view:</td>
+            <td width="35%" class="headerValue"><a href="../index.html">top level</a> - <a href="index.html">server</a> - util_pcre.c<span style="font-size: 80%;"> (source / <a href="util_pcre.c.func-sort-c.html">functions</a>)</span></td>
+            <td width="5%"></td>
+            <td width="15%"></td>
+            <td width="10%" class="headerCovTableHead">Hit</td>
+            <td width="10%" class="headerCovTableHead">Total</td>
+            <td width="15%" class="headerCovTableHead">Coverage</td>
+          </tr>
+          <tr>
+            <td class="headerItem">Test:</td>
+            <td class="headerValue">apptest.info</td>
+            <td></td>
+            <td class="headerItem">Lines:</td>
+            <td class="headerCovTableEntry">0</td>
+            <td class="headerCovTableEntry">96</td>
+            <td class="headerCovTableEntryLo">0.0 %</td>
+          </tr>
+          <tr>
+            <td class="headerItem">Date:</td>
+            <td class="headerValue">2017-01-31 22:58:06</td>
+            <td></td>
+            <td class="headerItem">Functions:</td>
+            <td class="headerCovTableEntry">0</td>
+            <td class="headerCovTableEntry">6</td>
+            <td class="headerCovTableEntryLo">0.0 %</td>
+          </tr>
+          <tr><td><img src="../glass.png" width=3 height=3 alt=""></td></tr>
+        </table>
+      </td>
+    </tr>
+
+    <tr><td class="ruler"><img src="../glass.png" width=3 height=3 alt=""></td></tr>
+  </table>
+
+  <table cellpadding=0 cellspacing=0 border=0>
+    <tr>
+      <td><br></td>
+    </tr>
+    <tr>
+      <td>
+<pre class="sourceHeading">          Line data    Source code</pre>
+<pre class="source">
+<a name="1"><span class="lineNum">       1 </span>            : /*************************************************</a>
+<span class="lineNum">       2 </span>            :  *      Perl-Compatible Regular Expressions      *
+<span class="lineNum">       3 </span>            :  *************************************************/
+<span class="lineNum">       4 </span>            : 
+<span class="lineNum">       5 </span>            : /*
+<span class="lineNum">       6 </span>            : This is a library of functions to support regular expressions whose syntax
+<span class="lineNum">       7 </span>            : and semantics are as close as possible to those of the Perl 5 language. See
+<span class="lineNum">       8 </span>            : the file Tech.Notes for some information on the internals.
+<span class="lineNum">       9 </span>            : 
+<span class="lineNum">      10 </span>            : This module is a wrapper that provides a POSIX API to the underlying PCRE
+<span class="lineNum">      11 </span>            : functions.
+<span class="lineNum">      12 </span>            : 
+<span class="lineNum">      13 </span>            : Written by: Philip Hazel &lt;ph10@cam.ac.uk&gt;
+<span class="lineNum">      14 </span>            : 
+<span class="lineNum">      15 </span>            :            Copyright (c) 1997-2004 University of Cambridge
+<span class="lineNum">      16 </span>            : 
+<span class="lineNum">      17 </span>            : -----------------------------------------------------------------------------
+<span class="lineNum">      18 </span>            : Redistribution and use in source and binary forms, with or without
+<span class="lineNum">      19 </span>            : modification, are permitted provided that the following conditions are met:
+<span class="lineNum">      20 </span>            : 
+<span class="lineNum">      21 </span>            :     * Redistributions of source code must retain the above copyright notice,
+<span class="lineNum">      22 </span>            :       this list of conditions and the following disclaimer.
+<span class="lineNum">      23 </span>            : 
+<span class="lineNum">      24 </span>            :     * Redistributions in binary form must reproduce the above copyright
+<span class="lineNum">      25 </span>            :       notice, this list of conditions and the following disclaimer in the
+<span class="lineNum">      26 </span>            :       documentation and/or other materials provided with the distribution.
+<span class="lineNum">      27 </span>            : 
+<span class="lineNum">      28 </span>            :     * Neither the name of the University of Cambridge nor the names of its
+<span class="lineNum">      29 </span>            :       contributors may be used to endorse or promote products derived from
+<span class="lineNum">      30 </span>            :       this software without specific prior written permission.
+<span class="lineNum">      31 </span>            : 
+<span class="lineNum">      32 </span>            : THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS &quot;AS IS&quot;
+<span class="lineNum">      33 </span>            : AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+<span class="lineNum">      34 </span>            : IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+<span class="lineNum">      35 </span>            : ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+<span class="lineNum">      36 </span>            : LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+<span class="lineNum">      37 </span>            : CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+<span class="lineNum">      38 </span>            : SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+<span class="lineNum">      39 </span>            : INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+<span class="lineNum">      40 </span>            : CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+<span class="lineNum">      41 </span>            : ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+<span class="lineNum">      42 </span>            : POSSIBILITY OF SUCH DAMAGE.
+<span class="lineNum">      43 </span>            : -----------------------------------------------------------------------------
+<span class="lineNum">      44 </span>            : */
+<span class="lineNum">      45 </span>            : 
+<span class="lineNum">      46 </span>            : #include &quot;httpd.h&quot;
+<span class="lineNum">      47 </span>            : #include &quot;apr_strings.h&quot;
+<span class="lineNum">      48 </span>            : #include &quot;apr_tables.h&quot;
+<span class="lineNum">      49 </span>            : #include &quot;pcre.h&quot;
+<span class="lineNum">      50 </span>            : 
+<span class="lineNum">      51 </span>            : #define APR_WANT_STRFUNC
+<span class="lineNum">      52 </span>            : #include &quot;apr_want.h&quot;
+<span class="lineNum">      53 </span>            : 
+<span class="lineNum">      54 </span>            : #ifndef POSIX_MALLOC_THRESHOLD
+<span class="lineNum">      55 </span>            : #define POSIX_MALLOC_THRESHOLD (10)
+<span class="lineNum">      56 </span>            : #endif
+<span class="lineNum">      57 </span>            : 
+<span class="lineNum">      58 </span>            : /* Table of error strings corresponding to POSIX error codes; must be
+<span class="lineNum">      59 </span>            :  * kept in synch with include/ap_regex.h's AP_REG_E* definitions.
+<span class="lineNum">      60 </span>            :  */
+<span class="lineNum">      61 </span>            : 
+<span class="lineNum">      62 </span>            : static const char *const pstring[] = {
+<span class="lineNum">      63 </span>            :     &quot;&quot;,                         /* Dummy for value 0 */
+<span class="lineNum">      64 </span>            :     &quot;internal error&quot;,           /* AP_REG_ASSERT */
+<span class="lineNum">      65 </span>            :     &quot;failed to get memory&quot;,     /* AP_REG_ESPACE */
+<span class="lineNum">      66 </span>            :     &quot;bad argument&quot;,             /* AP_REG_INVARG */
+<span class="lineNum">      67 </span>            :     &quot;match failed&quot;              /* AP_REG_NOMATCH */
+<a name="68"><span class="lineNum">      68 </span>            : };</a>
+<span class="lineNum">      69 </span>            : 
+<span class="lineNum">      70 </span><span class="lineNoCov">          0 : AP_DECLARE(apr_size_t) ap_regerror(int errcode, const ap_regex_t *preg,</span>
+<span class="lineNum">      71 </span>            :                                    char *errbuf, apr_size_t errbuf_size)
+<span class="lineNum">      72 </span>            : {
+<span class="lineNum">      73 </span>            :     const char *message, *addmessage;
+<span class="lineNum">      74 </span>            :     apr_size_t length, addlength;
+<span class="lineNum">      75 </span>            : 
+<span class="lineNum">      76 </span><span class="lineNoCov">          0 :     message = (errcode &gt;= (int)(sizeof(pstring) / sizeof(char *))) ?</span>
+<span class="lineNum">      77 </span><span class="lineNoCov">          0 :               &quot;unknown error code&quot; : pstring[errcode];</span>
+<span class="lineNum">      78 </span><span class="lineNoCov">          0 :     length = strlen(message) + 1;</span>
+<span class="lineNum">      79 </span>            : 
+<span class="lineNum">      80 </span><span class="lineNoCov">          0 :     addmessage = &quot; at offset &quot;;</span>
+<span class="lineNum">      81 </span><span class="lineNoCov">          0 :     addlength = (preg != NULL &amp;&amp; (int)preg-&gt;re_erroffset != -1) ?</span>
+<span class="lineNum">      82 </span><span class="lineNoCov">          0 :                 strlen(addmessage) + 6 : 0;</span>
+<span class="lineNum">      83 </span>            : 
+<span class="lineNum">      84 </span><span class="lineNoCov">          0 :     if (errbuf_size &gt; 0) {</span>
+<span class="lineNum">      85 </span><span class="lineNoCov">          0 :         if (addlength &gt; 0 &amp;&amp; errbuf_size &gt;= length + addlength)</span>
+<span class="lineNum">      86 </span><span class="lineNoCov">          0 :             apr_snprintf(errbuf, errbuf_size, &quot;%s%s%-6d&quot;, message, addmessage,</span>
+<span class="lineNum">      87 </span><span class="lineNoCov">          0 :                          (int)preg-&gt;re_erroffset);</span>
+<span class="lineNum">      88 </span>            :         else
+<span class="lineNum">      89 </span><span class="lineNoCov">          0 :             apr_cpystrn(errbuf, message, errbuf_size);</span>
+<span class="lineNum">      90 </span>            :     }
+<span class="lineNum">      91 </span>            : 
+<span class="lineNum">      92 </span><span class="lineNoCov">          0 :     return length + addlength;</span>
+<span class="lineNum">      93 </span>            : }
+<span class="lineNum">      94 </span>            : 
+<span class="lineNum">      95 </span>            : 
+<span class="lineNum">      96 </span>            : 
+<span class="lineNum">      97 </span>            : 
+<span class="lineNum">      98 </span>            : /*************************************************
+<span class="lineNum">      99 </span>            :  *           Free store held by a regex          *
+<a name="100"><span class="lineNum">     100 </span>            :  *************************************************/</a>
+<span class="lineNum">     101 </span>            : 
+<span class="lineNum">     102 </span><span class="lineNoCov">          0 : AP_DECLARE(void) ap_regfree(ap_regex_t *preg)</span>
+<span class="lineNum">     103 </span>            : {
+<span class="lineNum">     104 </span><span class="lineNoCov">          0 :     (pcre_free)(preg-&gt;re_pcre);</span>
+<span class="lineNum">     105 </span><span class="lineNoCov">          0 : }</span>
+<span class="lineNum">     106 </span>            : 
+<span class="lineNum">     107 </span>            : 
+<span class="lineNum">     108 </span>            : 
+<span class="lineNum">     109 </span>            : 
+<span class="lineNum">     110 </span>            : /*************************************************
+<span class="lineNum">     111 </span>            :  *            Compile a regular expression       *
+<span class="lineNum">     112 </span>            :  *************************************************/
+<span class="lineNum">     113 </span>            : 
+<span class="lineNum">     114 </span>            : /*
+<span class="lineNum">     115 </span>            :  * Arguments:
+<span class="lineNum">     116 </span>            :  *  preg        points to a structure for recording the compiled expression
+<span class="lineNum">     117 </span>            :  *  pattern     the pattern to compile
+<span class="lineNum">     118 </span>            :  *  cflags      compilation flags
+<span class="lineNum">     119 </span>            :  *
+<span class="lineNum">     120 </span>            :  * Returns:      0 on success
+<a name="121"><span class="lineNum">     121 </span>            :  *               various non-zero codes on failure</a>
+<span class="lineNum">     122 </span>            : */
+<span class="lineNum">     123 </span><span class="lineNoCov">          0 : AP_DECLARE(int) ap_regcomp(ap_regex_t * preg, const char *pattern, int cflags)</span>
+<span class="lineNum">     124 </span>            : {
+<span class="lineNum">     125 </span>            :     const char *errorptr;
+<span class="lineNum">     126 </span>            :     int erroffset;
+<span class="lineNum">     127 </span><span class="lineNoCov">          0 :     int errcode = 0;</span>
+<span class="lineNum">     128 </span><span class="lineNoCov">          0 :     int options = PCRE_DUPNAMES;</span>
+<span class="lineNum">     129 </span>            : 
+<span class="lineNum">     130 </span><span class="lineNoCov">          0 :     if ((cflags &amp; AP_REG_ICASE) != 0)</span>
+<span class="lineNum">     131 </span><span class="lineNoCov">          0 :         options |= PCRE_CASELESS;</span>
+<span class="lineNum">     132 </span><span class="lineNoCov">          0 :     if ((cflags &amp; AP_REG_NEWLINE) != 0)</span>
+<span class="lineNum">     133 </span><span class="lineNoCov">          0 :         options |= PCRE_MULTILINE;</span>
+<span class="lineNum">     134 </span><span class="lineNoCov">          0 :     if ((cflags &amp; AP_REG_DOTALL) != 0)</span>
+<span class="lineNum">     135 </span><span class="lineNoCov">          0 :         options |= PCRE_DOTALL;</span>
+<span class="lineNum">     136 </span>            : 
+<span class="lineNum">     137 </span><span class="lineNoCov">          0 :     preg-&gt;re_pcre =</span>
+<span class="lineNum">     138 </span><span class="lineNoCov">          0 :         pcre_compile2(pattern, options, &amp;errcode, &amp;errorptr, &amp;erroffset, NULL);</span>
+<span class="lineNum">     139 </span><span class="lineNoCov">          0 :     preg-&gt;re_erroffset = erroffset;</span>
+<span class="lineNum">     140 </span>            : 
+<span class="lineNum">     141 </span><span class="lineNoCov">          0 :     if (preg-&gt;re_pcre == NULL) {</span>
+<span class="lineNum">     142 </span>            :         /*
+<span class="lineNum">     143 </span>            :          * There doesn't seem to be constants defined for compile time error
+<span class="lineNum">     144 </span>            :          * codes. 21 is &quot;failed to get memory&quot; according to pcreapi(3).
+<span class="lineNum">     145 </span>            :          */
+<span class="lineNum">     146 </span><span class="lineNoCov">          0 :         if (errcode == 21)</span>
+<span class="lineNum">     147 </span><span class="lineNoCov">          0 :             return AP_REG_ESPACE;</span>
+<span class="lineNum">     148 </span><span class="lineNoCov">          0 :         return AP_REG_INVARG;</span>
+<span class="lineNum">     149 </span>            :     }
+<span class="lineNum">     150 </span>            : 
+<span class="lineNum">     151 </span><span class="lineNoCov">          0 :     pcre_fullinfo((const pcre *)preg-&gt;re_pcre, NULL,</span>
+<span class="lineNum">     152 </span><span class="lineNoCov">          0 :                    PCRE_INFO_CAPTURECOUNT, &amp;(preg-&gt;re_nsub));</span>
+<span class="lineNum">     153 </span><span class="lineNoCov">          0 :     return 0;</span>
+<span class="lineNum">     154 </span>            : }
+<span class="lineNum">     155 </span>            : 
+<span class="lineNum">     156 </span>            : 
+<span class="lineNum">     157 </span>            : 
+<span class="lineNum">     158 </span>            : 
+<span class="lineNum">     159 </span>            : /*************************************************
+<span class="lineNum">     160 </span>            :  *              Match a regular expression       *
+<span class="lineNum">     161 </span>            :  *************************************************/
+<span class="lineNum">     162 </span>            : 
+<span class="lineNum">     163 </span>            : /* Unfortunately, PCRE requires 3 ints of working space for each captured
+<span class="lineNum">     164 </span>            :  * substring, so we have to get and release working store instead of just using
+<span class="lineNum">     165 </span>            :  * the POSIX structures as was done in earlier releases when PCRE needed only 2
+<span class="lineNum">     166 </span>            :  * ints. However, if the number of possible capturing brackets is small, use a
+<span class="lineNum">     167 </span>            :  * block of store on the stack, to reduce the use of malloc/free. The threshold
+<a name="168"><span class="lineNum">     168 </span>            :  * is in a macro that can be changed at configure time.</a>
+<span class="lineNum">     169 </span>            :  */
+<span class="lineNum">     170 </span><span class="lineNoCov">          0 : AP_DECLARE(int) ap_regexec(const ap_regex_t *preg, const char *string,</span>
+<span class="lineNum">     171 </span>            :                            apr_size_t nmatch, ap_regmatch_t *pmatch,
+<span class="lineNum">     172 </span>            :                            int eflags)
+<span class="lineNum">     173 </span>            : {
+<span class="lineNum">     174 </span><span class="lineNoCov">          0 :     return ap_regexec_len(preg, string, strlen(string), nmatch, pmatch,</span>
+<span class="lineNum">     175 </span>            :                           eflags);
+<a name="176"><span class="lineNum">     176 </span>            : }</a>
+<span class="lineNum">     177 </span>            : 
+<span class="lineNum">     178 </span><span class="lineNoCov">          0 : AP_DECLARE(int) ap_regexec_len(const ap_regex_t *preg, const char *buff,</span>
+<span class="lineNum">     179 </span>            :                                apr_size_t len, apr_size_t nmatch,
+<span class="lineNum">     180 </span>            :                                ap_regmatch_t *pmatch, int eflags)
+<span class="lineNum">     181 </span>            : {
+<span class="lineNum">     182 </span>            :     int rc;
+<span class="lineNum">     183 </span><span class="lineNoCov">          0 :     int options = 0;</span>
+<span class="lineNum">     184 </span><span class="lineNoCov">          0 :     int *ovector = NULL;</span>
+<span class="lineNum">     185 </span>            :     int small_ovector[POSIX_MALLOC_THRESHOLD * 3];
+<span class="lineNum">     186 </span><span class="lineNoCov">          0 :     int allocated_ovector = 0;</span>
+<span class="lineNum">     187 </span>            : 
+<span class="lineNum">     188 </span><span class="lineNoCov">          0 :     if ((eflags &amp; AP_REG_NOTBOL) != 0)</span>
+<span class="lineNum">     189 </span><span class="lineNoCov">          0 :         options |= PCRE_NOTBOL;</span>
+<span class="lineNum">     190 </span><span class="lineNoCov">          0 :     if ((eflags &amp; AP_REG_NOTEOL) != 0)</span>
+<span class="lineNum">     191 </span><span class="lineNoCov">          0 :         options |= PCRE_NOTEOL;</span>
+<span class="lineNum">     192 </span>            : 
+<span class="lineNum">     193 </span><span class="lineNoCov">          0 :     ((ap_regex_t *)preg)-&gt;re_erroffset = (apr_size_t)(-1);    /* Only has meaning after compile */</span>
+<span class="lineNum">     194 </span>            : 
+<span class="lineNum">     195 </span><span class="lineNoCov">          0 :     if (nmatch &gt; 0) {</span>
+<span class="lineNum">     196 </span><span class="lineNoCov">          0 :         if (nmatch &lt;= POSIX_MALLOC_THRESHOLD) {</span>
+<span class="lineNum">     197 </span><span class="lineNoCov">          0 :             ovector = &amp;(small_ovector[0]);</span>
+<span class="lineNum">     198 </span>            :         }
+<span class="lineNum">     199 </span>            :         else {
+<span class="lineNum">     200 </span><span class="lineNoCov">          0 :             ovector = (int *)malloc(sizeof(int) * nmatch * 3);</span>
+<span class="lineNum">     201 </span><span class="lineNoCov">          0 :             if (ovector == NULL)</span>
+<span class="lineNum">     202 </span><span class="lineNoCov">          0 :                 return AP_REG_ESPACE;</span>
+<span class="lineNum">     203 </span><span class="lineNoCov">          0 :             allocated_ovector = 1;</span>
+<span class="lineNum">     204 </span>            :         }
+<span class="lineNum">     205 </span>            :     }
+<span class="lineNum">     206 </span>            : 
+<span class="lineNum">     207 </span><span class="lineNoCov">          0 :     rc = pcre_exec((const pcre *)preg-&gt;re_pcre, NULL, buff, (int)len,</span>
+<span class="lineNum">     208 </span>            :                    0, options, ovector, nmatch * 3);
+<span class="lineNum">     209 </span>            : 
+<span class="lineNum">     210 </span><span class="lineNoCov">          0 :     if (rc == 0)</span>
+<span class="lineNum">     211 </span><span class="lineNoCov">          0 :         rc = nmatch;            /* All captured slots were filled in */</span>
+<span class="lineNum">     212 </span>            : 
+<span class="lineNum">     213 </span><span class="lineNoCov">          0 :     if (rc &gt;= 0) {</span>
+<span class="lineNum">     214 </span>            :         apr_size_t i;
+<span class="lineNum">     215 </span><span class="lineNoCov">          0 :         for (i = 0; i &lt; (apr_size_t)rc; i++) {</span>
+<span class="lineNum">     216 </span><span class="lineNoCov">          0 :             pmatch[i].rm_so = ovector[i * 2];</span>
+<span class="lineNum">     217 </span><span class="lineNoCov">          0 :             pmatch[i].rm_eo = ovector[i * 2 + 1];</span>
+<span class="lineNum">     218 </span>            :         }
+<span class="lineNum">     219 </span><span class="lineNoCov">          0 :         if (allocated_ovector)</span>
+<span class="lineNum">     220 </span><span class="lineNoCov">          0 :             free(ovector);</span>
+<span class="lineNum">     221 </span><span class="lineNoCov">          0 :         for (; i &lt; nmatch; i++)</span>
+<span class="lineNum">     222 </span><span class="lineNoCov">          0 :             pmatch[i].rm_so = pmatch[i].rm_eo = -1;</span>
+<span class="lineNum">     223 </span><span class="lineNoCov">          0 :         return 0;</span>
+<span class="lineNum">     224 </span>            :     }
+<span class="lineNum">     225 </span>            : 
+<span class="lineNum">     226 </span>            :     else {
+<span class="lineNum">     227 </span><span class="lineNoCov">          0 :         if (allocated_ovector)</span>
+<span class="lineNum">     228 </span><span class="lineNoCov">          0 :             free(ovector);</span>
+<span class="lineNum">     229 </span><span class="lineNoCov">          0 :         switch (rc) {</span>
+<span class="lineNum">     230 </span>            :         case PCRE_ERROR_NOMATCH:
+<span class="lineNum">     231 </span><span class="lineNoCov">          0 :             return AP_REG_NOMATCH;</span>
+<span class="lineNum">     232 </span>            :         case PCRE_ERROR_NULL:
+<span class="lineNum">     233 </span><span class="lineNoCov">          0 :             return AP_REG_INVARG;</span>
+<span class="lineNum">     234 </span>            :         case PCRE_ERROR_BADOPTION:
+<span class="lineNum">     235 </span><span class="lineNoCov">          0 :             return AP_REG_INVARG;</span>
+<span class="lineNum">     236 </span>            :         case PCRE_ERROR_BADMAGIC:
+<span class="lineNum">     237 </span><span class="lineNoCov">          0 :             return AP_REG_INVARG;</span>
+<span class="lineNum">     238 </span>            :         case PCRE_ERROR_UNKNOWN_NODE:
+<span class="lineNum">     239 </span><span class="lineNoCov">          0 :             return AP_REG_ASSERT;</span>
+<span class="lineNum">     240 </span>            :         case PCRE_ERROR_NOMEMORY:
+<span class="lineNum">     241 </span><span class="lineNoCov">          0 :             return AP_REG_ESPACE;</span>
+<span class="lineNum">     242 </span>            : #ifdef PCRE_ERROR_MATCHLIMIT
+<span class="lineNum">     243 </span>            :         case PCRE_ERROR_MATCHLIMIT:
+<span class="lineNum">     244 </span><span class="lineNoCov">          0 :             return AP_REG_ESPACE;</span>
+<span class="lineNum">     245 </span>            : #endif
+<span class="lineNum">     246 </span>            : #ifdef PCRE_ERROR_BADUTF8
+<span class="lineNum">     247 </span>            :         case PCRE_ERROR_BADUTF8:
+<span class="lineNum">     248 </span><span class="lineNoCov">          0 :             return AP_REG_INVARG;</span>
+<span class="lineNum">     249 </span>            : #endif
+<span class="lineNum">     250 </span>            : #ifdef PCRE_ERROR_BADUTF8_OFFSET
+<span class="lineNum">     251 </span>            :         case PCRE_ERROR_BADUTF8_OFFSET:
+<span class="lineNum">     252 </span><span class="lineNoCov">          0 :             return AP_REG_INVARG;</span>
+<span class="lineNum">     253 </span>            : #endif
+<span class="lineNum">     254 </span>            :         default:
+<span class="lineNum">     255 </span><span class="lineNoCov">          0 :             return AP_REG_ASSERT;</span>
+<span class="lineNum">     256 </span>            :         }
+<span class="lineNum">     257 </span>            :     }
+<a name="258"><span class="lineNum">     258 </span>            : }</a>
+<span class="lineNum">     259 </span>            : 
+<span class="lineNum">     260 </span><span class="lineNoCov">          0 : AP_DECLARE(int) ap_regname(const ap_regex_t *preg,</span>
+<span class="lineNum">     261 </span>            :                            apr_array_header_t *names, const char *prefix,
+<span class="lineNum">     262 </span>            :                            int upper)
+<span class="lineNum">     263 </span>            : {
+<span class="lineNum">     264 </span>            :     int namecount;
+<span class="lineNum">     265 </span>            :     int nameentrysize;
+<span class="lineNum">     266 </span>            :     int i;
+<span class="lineNum">     267 </span>            :     char *nametable;
+<span class="lineNum">     268 </span>            : 
+<span class="lineNum">     269 </span><span class="lineNoCov">          0 :     pcre_fullinfo((const pcre *)preg-&gt;re_pcre, NULL,</span>
+<span class="lineNum">     270 </span>            :                        PCRE_INFO_NAMECOUNT, &amp;namecount);
+<span class="lineNum">     271 </span><span class="lineNoCov">          0 :     pcre_fullinfo((const pcre *)preg-&gt;re_pcre, NULL,</span>
+<span class="lineNum">     272 </span>            :                        PCRE_INFO_NAMEENTRYSIZE, &amp;nameentrysize);
+<span class="lineNum">     273 </span><span class="lineNoCov">          0 :     pcre_fullinfo((const pcre *)preg-&gt;re_pcre, NULL,</span>
+<span class="lineNum">     274 </span>            :                        PCRE_INFO_NAMETABLE, &amp;nametable);
+<span class="lineNum">     275 </span>            : 
+<span class="lineNum">     276 </span><span class="lineNoCov">          0 :     for (i = 0; i &lt; namecount; i++) {</span>
+<span class="lineNum">     277 </span><span class="lineNoCov">          0 :         const char *offset = nametable + i * nameentrysize;</span>
+<span class="lineNum">     278 </span><span class="lineNoCov">          0 :         int capture = ((offset[0] &lt;&lt; 8) + offset[1]);</span>
+<span class="lineNum">     279 </span><span class="lineNoCov">          0 :         while (names-&gt;nelts &lt;= capture) {</span>
+<span class="lineNum">     280 </span><span class="lineNoCov">          0 :             apr_array_push(names);</span>
+<span class="lineNum">     281 </span>            :         }
+<span class="lineNum">     282 </span><span class="lineNoCov">          0 :         if (upper || prefix) {</span>
+<span class="lineNum">     283 </span><span class="lineNoCov">          0 :             char *name = ((char **) names-&gt;elts)[capture] =</span>
+<span class="lineNum">     284 </span><span class="lineNoCov">          0 :                     prefix ? apr_pstrcat(names-&gt;pool, prefix, offset + 2,</span>
+<span class="lineNum">     285 </span><span class="lineNoCov">          0 :                             NULL) :</span>
+<span class="lineNum">     286 </span><span class="lineNoCov">          0 :                             apr_pstrdup(names-&gt;pool, offset + 2);</span>
+<span class="lineNum">     287 </span><span class="lineNoCov">          0 :             if (upper) {</span>
+<span class="lineNum">     288 </span><span class="lineNoCov">          0 :                 ap_str_toupper(name);</span>
+<span class="lineNum">     289 </span>            :             }
+<span class="lineNum">     290 </span>            :         }
+<span class="lineNum">     291 </span>            :         else {
+<span class="lineNum">     292 </span><span class="lineNoCov">          0 :             ((const char **)names-&gt;elts)[capture] = offset + 2;</span>
+<span class="lineNum">     293 </span>            :         }
+<span class="lineNum">     294 </span>            :     }
+<span class="lineNum">     295 </span>            : 
+<span class="lineNum">     296 </span><span class="lineNoCov">          0 :     return namecount;</span>
+<span class="lineNum">     297 </span>            : }
+<span class="lineNum">     298 </span>            : 
+<span class="lineNum">     299 </span>            : /* End of pcreposix.c */
+</pre>
+      </td>
+    </tr>
+  </table>
+  <br>
+
+  <table width="100%" border=0 cellspacing=0 cellpadding=0>
+    <tr><td class="ruler"><img src="../glass.png" width=3 height=3 alt=""></td></tr>
+    <tr><td class="versionInfo">Generated by: <a href="http://ltp.sourceforge.net/coverage/lcov.php" target="_parent">LCOV version 1.11</a></td></tr>
+  </table>
+  <br>
+
+</body>
+</html>

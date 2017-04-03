@@ -1,0 +1,222 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+
+<html lang="en">
+
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <title>LCOV - apptest.info - server/gen_test_char.c</title>
+  <link rel="stylesheet" type="text/css" href="../gcov.css">
+</head>
+
+<body>
+
+  <table width="100%" border=0 cellspacing=0 cellpadding=0>
+    <tr><td class="title">LCOV - code coverage report</td></tr>
+    <tr><td class="ruler"><img src="../glass.png" width=3 height=3 alt=""></td></tr>
+
+    <tr>
+      <td width="100%">
+        <table cellpadding=1 border=0 width="100%">
+          <tr>
+            <td width="10%" class="headerItem">Current view:</td>
+            <td width="35%" class="headerValue"><a href="../index.html">top level</a> - <a href="index.html">server</a> - gen_test_char.c<span style="font-size: 80%;"> (source / <a href="gen_test_char.c.func-sort-c.html">functions</a>)</span></td>
+            <td width="5%"></td>
+            <td width="15%"></td>
+            <td width="10%" class="headerCovTableHead">Hit</td>
+            <td width="10%" class="headerCovTableHead">Total</td>
+            <td width="15%" class="headerCovTableHead">Coverage</td>
+          </tr>
+          <tr>
+            <td class="headerItem">Test:</td>
+            <td class="headerValue">apptest.info</td>
+            <td></td>
+            <td class="headerItem">Lines:</td>
+            <td class="headerCovTableEntry">24</td>
+            <td class="headerCovTableEntry">24</td>
+            <td class="headerCovTableEntryHi">100.0 %</td>
+          </tr>
+          <tr>
+            <td class="headerItem">Date:</td>
+            <td class="headerValue">2017-01-31 22:58:06</td>
+            <td></td>
+            <td class="headerItem">Functions:</td>
+            <td class="headerCovTableEntry">1</td>
+            <td class="headerCovTableEntry">1</td>
+            <td class="headerCovTableEntryHi">100.0 %</td>
+          </tr>
+          <tr><td><img src="../glass.png" width=3 height=3 alt=""></td></tr>
+        </table>
+      </td>
+    </tr>
+
+    <tr><td class="ruler"><img src="../glass.png" width=3 height=3 alt=""></td></tr>
+  </table>
+
+  <table cellpadding=0 cellspacing=0 border=0>
+    <tr>
+      <td><br></td>
+    </tr>
+    <tr>
+      <td>
+<pre class="sourceHeading">          Line data    Source code</pre>
+<pre class="source">
+<a name="1"><span class="lineNum">       1 </span>            : /* Licensed to the Apache Software Foundation (ASF) under one or more</a>
+<span class="lineNum">       2 </span>            :  * contributor license agreements.  See the NOTICE file distributed with
+<span class="lineNum">       3 </span>            :  * this work for additional information regarding copyright ownership.
+<span class="lineNum">       4 </span>            :  * The ASF licenses this file to You under the Apache License, Version 2.0
+<span class="lineNum">       5 </span>            :  * (the &quot;License&quot;); you may not use this file except in compliance with
+<span class="lineNum">       6 </span>            :  * the License.  You may obtain a copy of the License at
+<span class="lineNum">       7 </span>            :  *
+<span class="lineNum">       8 </span>            :  *     http://www.apache.org/licenses/LICENSE-2.0
+<span class="lineNum">       9 </span>            :  *
+<span class="lineNum">      10 </span>            :  * Unless required by applicable law or agreed to in writing, software
+<span class="lineNum">      11 </span>            :  * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+<span class="lineNum">      12 </span>            :  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+<span class="lineNum">      13 </span>            :  * See the License for the specific language governing permissions and
+<span class="lineNum">      14 </span>            :  * limitations under the License.
+<span class="lineNum">      15 </span>            :  */
+<span class="lineNum">      16 </span>            : 
+<span class="lineNum">      17 </span>            : #ifdef CROSS_COMPILE
+<span class="lineNum">      18 </span>            : 
+<span class="lineNum">      19 </span>            : #define apr_isalnum(c) (isalnum(((unsigned char)(c))))
+<span class="lineNum">      20 </span>            : #define apr_isalpha(c) (isalpha(((unsigned char)(c))))
+<span class="lineNum">      21 </span>            : #define apr_iscntrl(c) (iscntrl(((unsigned char)(c))))
+<span class="lineNum">      22 </span>            : #define apr_isprint(c) (isprint(((unsigned char)(c))))
+<span class="lineNum">      23 </span>            : #include &lt;ctype.h&gt;
+<span class="lineNum">      24 </span>            : #define APR_HAVE_STDIO_H 1
+<span class="lineNum">      25 </span>            : #define APR_HAVE_STRING_H 1
+<span class="lineNum">      26 </span>            : 
+<span class="lineNum">      27 </span>            : #else
+<span class="lineNum">      28 </span>            : 
+<span class="lineNum">      29 </span>            : #include &quot;apr.h&quot;
+<span class="lineNum">      30 </span>            : #include &quot;apr_lib.h&quot;
+<span class="lineNum">      31 </span>            : 
+<span class="lineNum">      32 </span>            : #endif
+<span class="lineNum">      33 </span>            : 
+<span class="lineNum">      34 </span>            : #if defined(WIN32) || defined(OS2)
+<span class="lineNum">      35 </span>            : #define NEED_ENHANCED_ESCAPES
+<span class="lineNum">      36 </span>            : #endif
+<span class="lineNum">      37 </span>            : 
+<span class="lineNum">      38 </span>            : #if APR_HAVE_STDIO_H
+<span class="lineNum">      39 </span>            : #include &lt;stdio.h&gt;
+<span class="lineNum">      40 </span>            : #endif
+<span class="lineNum">      41 </span>            : #if APR_HAVE_STRING_H
+<span class="lineNum">      42 </span>            : #include &lt;string.h&gt;
+<span class="lineNum">      43 </span>            : #endif
+<span class="lineNum">      44 </span>            : 
+<span class="lineNum">      45 </span>            : /* A bunch of functions in util.c scan strings looking for certain characters.
+<span class="lineNum">      46 </span>            :  * To make that more efficient we encode a lookup table.
+<span class="lineNum">      47 </span>            :  */
+<span class="lineNum">      48 </span>            : #define T_ESCAPE_SHELL_CMD    (0x01)
+<span class="lineNum">      49 </span>            : #define T_ESCAPE_PATH_SEGMENT (0x02)
+<span class="lineNum">      50 </span>            : #define T_OS_ESCAPE_PATH      (0x04)
+<span class="lineNum">      51 </span>            : #define T_HTTP_TOKEN_STOP     (0x08)
+<span class="lineNum">      52 </span>            : #define T_ESCAPE_LOGITEM      (0x10)
+<span class="lineNum">      53 </span>            : #define T_ESCAPE_FORENSIC     (0x20)
+<a name="54"><span class="lineNum">      54 </span>            : #define T_ESCAPE_URLENCODED   (0x40)</a>
+<span class="lineNum">      55 </span>            : 
+<span class="lineNum">      56 </span><span class="lineCov">          1 : int main(int argc, char *argv[])</span>
+<span class="lineNum">      57 </span>            : {
+<span class="lineNum">      58 </span>            :     unsigned c;
+<span class="lineNum">      59 </span>            :     unsigned char flags;
+<span class="lineNum">      60 </span>            : 
+<span class="lineNum">      61 </span><span class="lineCov">          1 :     printf(&quot;/* this file is automatically generated by gen_test_char, &quot;</span>
+<span class="lineNum">      62 </span>            :            &quot;do not edit */\n&quot;
+<span class="lineNum">      63 </span>            :            &quot;#define T_ESCAPE_SHELL_CMD     (%u)\n&quot;
+<span class="lineNum">      64 </span>            :            &quot;#define T_ESCAPE_PATH_SEGMENT  (%u)\n&quot;
+<span class="lineNum">      65 </span>            :            &quot;#define T_OS_ESCAPE_PATH       (%u)\n&quot;
+<span class="lineNum">      66 </span>            :            &quot;#define T_HTTP_TOKEN_STOP      (%u)\n&quot;
+<span class="lineNum">      67 </span>            :            &quot;#define T_ESCAPE_LOGITEM       (%u)\n&quot;
+<span class="lineNum">      68 </span>            :            &quot;#define T_ESCAPE_FORENSIC      (%u)\n&quot;
+<span class="lineNum">      69 </span>            :            &quot;#define T_ESCAPE_URLENCODED    (%u)\n&quot;
+<span class="lineNum">      70 </span>            :            &quot;\n&quot;
+<span class="lineNum">      71 </span>            :            &quot;static const unsigned char test_char_table[256] = {&quot;,
+<span class="lineNum">      72 </span>            :            T_ESCAPE_SHELL_CMD,
+<span class="lineNum">      73 </span>            :            T_ESCAPE_PATH_SEGMENT,
+<span class="lineNum">      74 </span>            :            T_OS_ESCAPE_PATH,
+<span class="lineNum">      75 </span>            :            T_HTTP_TOKEN_STOP,
+<span class="lineNum">      76 </span>            :            T_ESCAPE_LOGITEM,
+<span class="lineNum">      77 </span>            :            T_ESCAPE_FORENSIC,
+<span class="lineNum">      78 </span>            :            T_ESCAPE_URLENCODED);
+<span class="lineNum">      79 </span>            : 
+<span class="lineNum">      80 </span><span class="lineCov">        257 :     for (c = 0; c &lt; 256; ++c) {</span>
+<span class="lineNum">      81 </span><span class="lineCov">        256 :         flags = 0;</span>
+<span class="lineNum">      82 </span><span class="lineCov">        256 :         if (c % 20 == 0)</span>
+<span class="lineNum">      83 </span><span class="lineCov">         13 :             printf(&quot;\n    &quot;);</span>
+<span class="lineNum">      84 </span>            : 
+<span class="lineNum">      85 </span>            :         /* escape_shell_cmd */
+<span class="lineNum">      86 </span>            : #ifdef NEED_ENHANCED_ESCAPES
+<span class="lineNum">      87 </span>            :         /* Win32/OS2 have many of the same vulnerable characters
+<span class="lineNum">      88 </span>            :          * as Unix sh, plus the carriage return and percent char.
+<span class="lineNum">      89 </span>            :          * The proper escaping of these characters varies from unix
+<span class="lineNum">      90 </span>            :          * since Win32/OS2 use carets or doubled-double quotes,
+<span class="lineNum">      91 </span>            :          * and neither lf nor cr can be escaped.  We escape unix
+<span class="lineNum">      92 </span>            :          * specific as well, to assure that cross-compiled unix
+<span class="lineNum">      93 </span>            :          * applications behave similiarly when invoked on win32/os2.
+<span class="lineNum">      94 </span>            :          *
+<span class="lineNum">      95 </span>            :          * Rem please keep in-sync with apr's list in win32/filesys.c
+<span class="lineNum">      96 </span>            :          */
+<span class="lineNum">      97 </span>            :         if (c &amp;&amp; strchr(&quot;&amp;;`'\&quot;|*?~&lt;&gt;^()[]{}$\\\n\r%&quot;, c)) {
+<span class="lineNum">      98 </span>            :             flags |= T_ESCAPE_SHELL_CMD;
+<span class="lineNum">      99 </span>            :         }
+<span class="lineNum">     100 </span>            : #else
+<span class="lineNum">     101 </span><span class="lineCov">        256 :         if (c &amp;&amp; strchr(&quot;&amp;;`'\&quot;|*?~&lt;&gt;^()[]{}$\\\n&quot;, c)) {</span>
+<span class="lineNum">     102 </span><span class="lineCov">         21 :             flags |= T_ESCAPE_SHELL_CMD;</span>
+<span class="lineNum">     103 </span>            :         }
+<span class="lineNum">     104 </span>            : #endif
+<span class="lineNum">     105 </span>            : 
+<span class="lineNum">     106 </span><span class="lineCov">        256 :         if (!apr_isalnum(c) &amp;&amp; !strchr(&quot;$-_.+!*'(),:@&amp;=~&quot;, c)) {</span>
+<span class="lineNum">     107 </span><span class="lineCov">        177 :             flags |= T_ESCAPE_PATH_SEGMENT;</span>
+<span class="lineNum">     108 </span>            :         }
+<span class="lineNum">     109 </span>            : 
+<span class="lineNum">     110 </span><span class="lineCov">        256 :         if (!apr_isalnum(c) &amp;&amp; !strchr(&quot;$-_.+!*'(),:@&amp;=/~&quot;, c)) {</span>
+<span class="lineNum">     111 </span><span class="lineCov">        176 :             flags |= T_OS_ESCAPE_PATH;</span>
+<span class="lineNum">     112 </span>            :         }
+<span class="lineNum">     113 </span>            : 
+<span class="lineNum">     114 </span><span class="lineCov">        256 :         if (!apr_isalnum(c) &amp;&amp; !strchr(&quot;.-*_ &quot;, c)) {</span>
+<span class="lineNum">     115 </span><span class="lineCov">        188 :             flags |= T_ESCAPE_URLENCODED;</span>
+<span class="lineNum">     116 </span>            :         }
+<span class="lineNum">     117 </span>            : 
+<span class="lineNum">     118 </span>            :         /* these are the &quot;tspecials&quot; (RFC2068) or &quot;separators&quot; (RFC2616) */
+<span class="lineNum">     119 </span><span class="lineCov">        256 :         if (c &amp;&amp; (apr_iscntrl(c) || strchr(&quot; \t()&lt;&gt;@,;:\\\&quot;/[]?={}&quot;, c))) {</span>
+<span class="lineNum">     120 </span><span class="lineCov">         50 :             flags |= T_HTTP_TOKEN_STOP;</span>
+<span class="lineNum">     121 </span>            :         }
+<span class="lineNum">     122 </span>            : 
+<span class="lineNum">     123 </span>            :         /* For logging, escape all control characters,
+<span class="lineNum">     124 </span>            :          * double quotes (because they delimit the request in the log file)
+<span class="lineNum">     125 </span>            :          * backslashes (because we use backslash for escaping)
+<span class="lineNum">     126 </span>            :          * and 8-bit chars with the high bit set
+<span class="lineNum">     127 </span>            :          */
+<span class="lineNum">     128 </span><span class="lineCov">        256 :         if (c &amp;&amp; (!apr_isprint(c) || c == '&quot;' || c == '\\' || apr_iscntrl(c))) {</span>
+<span class="lineNum">     129 </span><span class="lineCov">        162 :             flags |= T_ESCAPE_LOGITEM;</span>
+<span class="lineNum">     130 </span>            :         }
+<span class="lineNum">     131 </span>            : 
+<span class="lineNum">     132 </span>            :         /* For forensic logging, escape all control characters, top bit set,
+<span class="lineNum">     133 </span>            :          * :, | (used as delimiters) and % (used for escaping).
+<span class="lineNum">     134 </span>            :          */
+<span class="lineNum">     135 </span><span class="lineCov">        256 :         if (!apr_isprint(c) || c == ':' || c == '|' || c == '%'</span>
+<span class="lineNum">     136 </span><span class="lineCov">         92 :             || apr_iscntrl(c) || !c) {</span>
+<span class="lineNum">     137 </span><span class="lineCov">        164 :             flags |= T_ESCAPE_FORENSIC;</span>
+<span class="lineNum">     138 </span>            :         }
+<span class="lineNum">     139 </span>            : 
+<span class="lineNum">     140 </span><span class="lineCov">        256 :         printf(&quot;%u%c&quot;, flags, (c &lt; 255) ? ',' : ' ');</span>
+<span class="lineNum">     141 </span>            :     }
+<span class="lineNum">     142 </span>            : 
+<span class="lineNum">     143 </span><span class="lineCov">          1 :     printf(&quot;\n};\n&quot;);</span>
+<span class="lineNum">     144 </span>            : 
+<span class="lineNum">     145 </span><span class="lineCov">          1 :     return 0;</span>
+<span class="lineNum">     146 </span>            : }
+</pre>
+      </td>
+    </tr>
+  </table>
+  <br>
+
+  <table width="100%" border=0 cellspacing=0 cellpadding=0>
+    <tr><td class="ruler"><img src="../glass.png" width=3 height=3 alt=""></td></tr>
+    <tr><td class="versionInfo">Generated by: <a href="http://ltp.sourceforge.net/coverage/lcov.php" target="_parent">LCOV version 1.11</a></td></tr>
+  </table>
+  <br>
+
+</body>
+</html>
